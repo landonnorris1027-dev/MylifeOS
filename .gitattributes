@@ -1,0 +1,5 @@
+dist/** filter=lfs diff=lfs merge=lfs -text
+dist/win-unpacked/** filter=lfs diff=lfs merge=lfs -text
+node_modules/electron/dist/electron.exe filter=lfs diff=lfs merge=lfs -text
+**/*.exe filter=lfs diff=lfs merge=lfs -text
+**/*.asar filter=lfs diff=lfs merge=lfs -text

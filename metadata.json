@@ -1,0 +1,5 @@
+{
+  "name": "MyLifeOS",
+  "description": "A Notion-style personal management system combining habits, daily tasks, and focus timers.",
+  "requestFramePermissions": []
+}

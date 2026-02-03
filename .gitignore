@@ -1,0 +1,39 @@
+# Node
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+release/
+win-unpacked/
+
+# Electron-specific
+node_modules/electron/dist/
+dist/**/*.exe
+**/win-unpacked/**/*.exe
+*.exe
+*.asar
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.tar.gz
+*.7z
+
+# Optional: ignore built installer
+dist/*Setup*.exe
