@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getYearlyStats } from '../services/storage';
+import { getYearlyStats, formatDateLocal, parseDateLocal } from '../services/storage';
 
 interface DayData {
   date: string;
@@ -20,47 +20,61 @@ const ContributionGraph: React.FC = () => {
 
   // Calculate grid data
   const { weeks, totalMinutes } = useMemo(() => {
+    // HARDCODED RANGE: 2026-01-01 to 2026-12-31
+    const startDate = new Date(2026, 0, 1);
+    const endDate = new Date(2026, 11, 31);
     const today = new Date();
 
-    // Logic to show exactly 53 weeks (approx 1 year) ending near today
-    // We go back 52 weeks from today, then find the Sunday of that week as the start.
-    const d = new Date(today);
-    d.setDate(d.getDate() - (52 * 7));
-    const dayOfWeek = d.getDay();
-    d.setDate(d.getDate() - dayOfWeek); // Align to Sunday
-
-    const gridStartDate = d;
-
-    // Explicitly typed arrays to satisfy TypeScript
+    // 1. Calculate leading empty days for the first week
+    // 0 is Sunday, 1 is Monday... 2026-01-01 is Thursday (4)
+    const startDayOfWeek = startDate.getDay();
+    
     const weeksArray: DayData[][] = [];
     let currentWeek: DayData[] = [];
-
-    let currentDate = new Date(gridStartDate);
     let grandTotal = 0;
 
-    // Generate exactly 53 weeks to ensure the grid is full and aligned
-    for (let w = 0; w < 53; w++) {
-      for (let d = 0; d < 7; d++) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        const isFuture = currentDate > today;
-        // If future, 0 minutes. Else read from stats.
-        const minutes = isFuture ? 0 : (stats[dateStr] || 0);
+    // Fill leading empty days (optional but keeps Sunday-alignment style)
+    // To satisfy "Starts from Jan 1", we ensure the first week starts with Jan 1.
+    // However, to maintain the vertical weekday axis (Mon/Wed/Fri), 
+    // we need to know where Jan 1 sits.
+    
+    let currentDate = new Date(startDate);
 
-        if (!isFuture) {
-          grandTotal += minutes;
-        }
+    // Initial week padding
+    for (let i = 0; i < startDayOfWeek; i++) {
+      currentWeek.push({ date: '', minutes: 0, level: 0, isFuture: false });
+    }
 
-        currentWeek.push({
-          date: dateStr,
-          minutes,
-          level: getLevel(minutes),
-          isFuture
-        });
+    while (currentDate <= endDate) {
+      const dateStr = formatDateLocal(currentDate);
+      const isFuture = currentDate > today;
+      const minutes = isFuture ? 0 : (stats[dateStr] || 0);
 
-        currentDate.setDate(currentDate.getDate() + 1);
+      if (!isFuture) {
+        grandTotal += minutes;
+      }
+
+      currentWeek.push({
+        date: dateStr,
+        minutes,
+        level: getLevel(minutes),
+        isFuture
+      });
+
+      if (currentWeek.length === 7) {
+        weeksArray.push(currentWeek);
+        currentWeek = [];
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Push last partial week
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push({ date: '', minutes: 0, level: 0, isFuture: false });
       }
       weeksArray.push(currentWeek);
-      currentWeek = [];
     }
 
     return { weeks: weeksArray, totalMinutes: grandTotal };
@@ -77,7 +91,8 @@ const ContributionGraph: React.FC = () => {
     return 5;
   }
 
-  const getColorClass = (level: number, isFuture: boolean) => {
+  const getColorClass = (level: number, isFuture: boolean, isEmpty: boolean) => {
+    if (isEmpty) return 'opacity-0 pointer-events-none'; // Invisible padding
     switch (level) {
       case 0: return 'bg-gray-100 border-gray-200'; // Empty
       case 1: return 'bg-orange-200 border-orange-300'; // 0-2h
@@ -90,21 +105,21 @@ const ContributionGraph: React.FC = () => {
   };
 
   const months = useMemo(() => {
-    // Explicitly typed array to satisfy TypeScript
     const labels: MonthLabel[] = [];
     let lastMonth = -1;
 
     weeks.forEach((week, index) => {
-      const firstDay = new Date(week[0].date);
-      const month = firstDay.getMonth();
-
-      // Add label when month changes
-      if (month !== lastMonth) {
-        labels.push({
-          index,
-          label: firstDay.toLocaleDateString(t('date_locale'), { month: 'short' })
-        });
-        lastMonth = month;
+      // Find the first valid day in the week to determine the month
+      const firstValidDay = week.find(d => d.date !== '');
+      if (firstValidDay) {
+        const month = parseDateLocal(firstValidDay.date).getMonth();
+        if (month !== lastMonth) {
+          labels.push({
+            index,
+            label: parseDateLocal(firstValidDay.date).toLocaleDateString(t('date_locale'), { month: 'short' })
+          });
+          lastMonth = month;
+        }
       }
     });
     return labels;
@@ -116,13 +131,13 @@ const ContributionGraph: React.FC = () => {
     <div className="bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">{t('last_year_activity')}</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{t('year_activity_2026') || '2026 Focus Activity'}</h2>
           <p className="text-sm text-gray-500 mt-1">
             {t('total_focus_hours')}: <span className="font-bold text-gray-900">{totalHours} {t('hours_suffix')}</span>
           </p>
         </div>
         <div className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm shadow-blue-200">
-          {new Date().getFullYear()}
+          2026
         </div>
       </div>
 
@@ -176,32 +191,32 @@ const ContributionGraph: React.FC = () => {
 
                     return (
                       <div
-                        key={day.date}
+                        key={day.date || `empty-${wIndex}-${dayIndex}`}
                         className={`
                            w-[10px] h-[10px] rounded-[2px] border 
-                           ${getColorClass(day.level, day.isFuture)} 
+                           ${getColorClass(day.level, day.isFuture, day.date === '')} 
                            transition-all group relative
-                           ${!day.isFuture ? 'hover:scale-125 hover:z-50 cursor-default' : ''}
+                           hover:scale-125 hover:z-50 cursor-default
                          `}
                       >
-                        {!day.isFuture && (
+                        {day.date && (
                           <div className={`
-                             absolute z-[60] whitespace-nowrap bg-gray-900 text-white text-xs rounded-md py-1.5 px-3 pointer-events-none shadow-xl border border-gray-700 hidden group-hover:block
-                             ${verticalClass}
-                             ${horizontalClass}
-                           `}>
+                               absolute z-[60] whitespace-nowrap bg-gray-900 text-white text-xs rounded-md py-1.5 px-3 pointer-events-none shadow-xl border border-gray-700 hidden group-hover:block
+                               ${verticalClass}
+                               ${horizontalClass}
+                             `}>
                             <div className="font-semibold mb-0.5 text-gray-100">{day.date}</div>
                             <div className="text-gray-300">{(day.minutes / 60).toFixed(1)}h</div>
 
                             {/* Arrow */}
                             <div className={`
-                                absolute border-4 border-transparent
-                                ${isTopHalf
+                                  absolute border-4 border-transparent
+                                  ${isTopHalf
                                 ? 'bottom-full border-b-gray-900 -mb-px' /* Points Up */
                                 : 'top-full border-t-gray-900 -mt-px'    /* Points Down */
                               }
-                                ${arrowHorizontalClass}
-                              `}></div>
+                                  ${arrowHorizontalClass}
+                                `}></div>
                           </div>
                         )}
                       </div>
@@ -215,12 +230,12 @@ const ContributionGraph: React.FC = () => {
           {/* Legend */}
           <div className="flex items-center justify-end gap-2 mt-6 text-xs text-gray-500">
             <span>{t('less')}</span>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(0, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(1, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(2, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(3, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(4, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(5, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(0, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(1, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(2, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(3, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(4, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(5, false, false)}`}></div>
             <span>{t('more')}</span>
           </div>
 

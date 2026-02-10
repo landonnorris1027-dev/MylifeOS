@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Plus, Clock, Download, Upload, Trash2, Calendar } from 'lucide-react';
 import { Priority, PRIORITY_STYLES, Habit } from '../types';
-import { addHabit, getHabits, deleteHabit, getAllDataJSON, importDataJSON } from '../services/storage';
+import { addHabit, getHabits, deleteHabit, getAllDataJSON, importDataJSON, formatDateLocal } from '../services/storage';
 import { useLanguage } from '../contexts/LanguageContext';
+import AlertModal from './AlertModal';
+import ConfirmModal from './ConfirmModal';
 
 interface HabitConfigProps {
   isOpen: boolean;
@@ -19,10 +21,17 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
   const [effectiveType, setEffectiveType] = useState<'permanent' | 'range'>('permanent');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  
+
   const [existingHabits, setExistingHabits] = useState<Habit[]>([]);
   const [refreshKey, setRefreshKey] = useState(0); // For forcing re-renders
-  
+
+  const [alertConfig, setAlertConfig] = useState({ isOpen: false, message: '' });
+  const [confirmConfig, setConfirmConfig] = useState({ 
+    isOpen: false, 
+    message: '', 
+    onConfirm: () => {} 
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshList = () => {
@@ -47,15 +56,15 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     try {
       console.log("Attempting to save habit:", habitName);
       addHabit(
-        habitName, 
-        priority, 
-        quota, 
-        duration, 
-        effectiveType, 
-        startDate || undefined, 
+        habitName,
+        priority,
+        quota,
+        duration,
+        effectiveType,
+        startDate || undefined,
         endDate || undefined
       );
-      
+
       // Reset form
       setName('');
       setQuota(1);
@@ -63,25 +72,28 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       setEffectiveType('permanent');
       setStartDate('');
       setEndDate('');
-      
+
       // Refresh local list and notify parent
       refreshList();
       onAdded();
       console.log("Habit saved and list refreshed.");
     } catch (error) {
       console.error("CRITICAL: Failed to add habit:", error);
-      alert("Error: Could not save habit. Storage might be full or corrupted.");
+      setAlertConfig({ isOpen: true, message: "Error: Could not save habit. Storage might be full or corrupted." });
     }
   };
 
   const handleDelete = (habitId: string) => {
-    const confirmMsg = t('delete_confirm');
-    const confirmed = window.confirm(confirmMsg);
-    if (confirmed) {
-      deleteHabit(habitId);
-      refreshList();
-      onAdded();
-    }
+    setConfirmConfig({
+      isOpen: true,
+      message: t('delete_confirm'),
+      onConfirm: () => {
+        deleteHabit(habitId);
+        refreshList();
+        onAdded();
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleBackup = () => {
@@ -90,7 +102,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mylifeos_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `mylifeos_backup_${formatDateLocal(new Date())}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -105,24 +117,27 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!window.confirm(t('restore_confirm'))) {
-      e.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      const success = importDataJSON(content);
-      if (success) {
-        alert(t('import_success'));
-        onAdded(); // Reload data
-        onClose();
-      } else {
-        alert(t('import_error'));
+    setConfirmConfig({
+      isOpen: true,
+      message: t('restore_confirm'),
+      onConfirm: () => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const content = event.target?.result as string;
+          const success = importDataJSON(content);
+          if (success) {
+            setAlertConfig({ isOpen: true, message: t('import_success') });
+            onAdded(); // Reload data
+            onClose();
+          } else {
+            setAlertConfig({ isOpen: true, message: t('import_error') });
+          }
+        };
+        reader.readAsText(file);
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
       }
-    };
-    reader.readAsText(file);
+    });
+    
     e.target.value = ''; // Reset
   };
 
@@ -146,8 +161,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                 {t('habit_name')}
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder={t('habit_placeholder')}
@@ -191,7 +206,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                   {t('daily_quota')}
                 </label>
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setQuota(Math.max(1, quota - 1))}
                     className="w-8 h-8 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center font-bold"
@@ -199,7 +214,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                     -
                   </button>
                   <span className="text-xl font-bold flex-1 text-center text-gray-800">{quota}</span>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setQuota(Math.min(10, quota + 1))}
                     className="w-8 h-8 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center font-bold"
@@ -257,8 +272,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('start_date')}</label>
                     <div className="relative">
-                      <input 
-                        type="date" 
+                      <input
+                        type="date"
                         value={startDate}
                         onChange={e => setStartDate(e.target.value)}
                         className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
@@ -269,8 +284,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('end_date')}</label>
                     <div className="relative">
-                      <input 
-                        type="date" 
+                      <input
+                        type="date"
                         value={endDate}
                         onChange={e => setEndDate(e.target.value)}
                         className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
@@ -282,7 +297,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               )}
             </div>
 
-            <button 
+            <button
               type="submit"
               className="w-full py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition-colors shadow-lg shadow-gray-200"
             >
@@ -314,7 +329,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                           </p>
                         </div>
                       </div>
-                      <button 
+                      <button
                         type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
@@ -335,7 +350,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
 
           {/* Local Data Management Section */}
           <div className="border-t border-gray-100 pt-6">
-             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               {t('data_management')}
             </label>
             <div className="flex gap-3">
@@ -347,7 +362,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                 <Download size={14} />
                 {t('backup_data')}
               </button>
-              
+
               <button
                 type="button"
                 onClick={handleRestoreClick}
@@ -356,17 +371,30 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                 <Upload size={14} />
                 {t('restore_data')}
               </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept=".json" 
-                className="hidden" 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                className="hidden"
               />
             </div>
           </div>
         </div>
       </div>
+
+      <AlertModal
+        isOpen={alertConfig.isOpen}
+        message={alertConfig.message}
+        onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })}
+      />
+
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
     </div>
   );
 };

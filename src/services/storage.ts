@@ -7,7 +7,28 @@ const KEYS = {
 
 // --- Helpers ---
 export const generateId = () => Math.random().toString(36).substr(2, 9);
-export const getTodayStr = () => new Date().toISOString().split('T')[0];
+
+/**
+ * 获取本地日期字符串 (YYYY-MM-DD)
+ * 解决 toISOString() 导致的时区偏差问题 (UTC vs Local)
+ */
+export const formatDateLocal = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * 将 YYYY-MM-DD 字符串解析为本地 Date 对象
+ * 避免直接 new Date(str) 导致的时区解析不一致
+ */
+export const parseDateLocal = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+export const getTodayStr = () => formatDateLocal(new Date());
 
 const safeParse = <T>(str: string | null, fallback: T): T => {
   if (!str || str === 'undefined' || str === 'null') return fallback;
@@ -25,7 +46,7 @@ const safeParse = <T>(str: string | null, fallback: T): T => {
 export const getAllDataJSON = () => {
   const habits = localStorage.getItem(KEYS.HABITS);
   const logs = localStorage.getItem(KEYS.DAILY_LOGS);
-  
+
   return JSON.stringify({
     timestamp: new Date().toISOString(),
     habits: habits ? JSON.parse(habits) : [],
@@ -36,7 +57,7 @@ export const getAllDataJSON = () => {
 export const importDataJSON = (jsonStr: string): boolean => {
   try {
     const data = JSON.parse(jsonStr);
-    
+
     // Basic validation
     if (!Array.isArray(data.habits) || typeof data.dailyLogs !== 'object') {
       throw new Error("Invalid data format");
@@ -61,9 +82,9 @@ export const saveHabits = (habits: Habit[]) => {
 };
 
 export const addHabit = (
-  name: string, 
-  priority: Priority, 
-  quota: number, 
+  name: string,
+  priority: Priority,
+  quota: number,
   duration: number = 25,
   effectiveType: 'permanent' | 'range' = 'permanent',
   startDate?: string,
@@ -98,7 +119,7 @@ export const deleteHabit = (id: string) => {
     if (dayData && Array.isArray(dayData.tasks)) {
       const originalCount = dayData.tasks.length;
       const filteredTasks = dayData.tasks.filter(t => !(t.habitId === id && t.status === 'inbox'));
-      
+
       if (filteredTasks.length !== originalCount) {
         allLogs[date].tasks = filteredTasks;
         updated = true;
@@ -127,7 +148,7 @@ export const saveDailyData = (data: DailyData) => {
 export const getYearlyStats = (): Record<string, number> => {
   const allLogs = safeParse<Record<string, DailyData>>(localStorage.getItem(KEYS.DAILY_LOGS), {});
   const stats: Record<string, number> = {};
-  
+
   Object.keys(allLogs).forEach(date => {
     const dayData = allLogs[date] as DailyData;
     const minutes = dayData.tasks
@@ -135,16 +156,16 @@ export const getYearlyStats = (): Record<string, number> => {
       .reduce((acc, t) => acc + t.durationMinutes, 0);
     if (minutes > 0) stats[date] = minutes;
   });
-  
+
   return stats;
 };
 
 export const initializeDay = (dateStr: string = getTodayStr()): DailyData => {
   let currentData = getDailyData(dateStr);
-  
+
   // If it's a completely new day (or looking at a past/future empty day), start fresh
   if (!currentData) {
-     currentData = { date: dateStr, tasks: [] };
+    currentData = { date: dateStr, tasks: [] };
   }
 
   // Sync Logic: Ensure tasks match habit quotas if it is TODAY or a FUTURE day.
@@ -166,7 +187,7 @@ export const initializeDay = (dateStr: string = getTodayStr()): DailyData => {
 
       // Count existing tasks for this habit (any status)
       const existingCount = tasks.filter(t => t.habitId === habit.id).length;
-      
+
       if (existingCount < habit.dailyQuota) {
         const needed = habit.dailyQuota - existingCount;
         for (let i = 0; i < needed; i++) {
@@ -190,14 +211,14 @@ export const initializeDay = (dateStr: string = getTodayStr()): DailyData => {
       return newData;
     }
   }
-  
+
   return currentData;
 };
 
 export const updateTask = (task: Task) => {
   const data = getDailyData(task.date);
   if (!data) return;
-  
+
   const newTasks = data.tasks.map(t => t.id === task.id ? task : t);
   saveDailyData({ ...data, tasks: newTasks });
 };
@@ -206,7 +227,7 @@ export const deleteTaskFromDay = (taskId: string, date: string) => {
   console.log("Storage: Deleting task", taskId, "from", date);
   const data = getDailyData(date);
   if (!data) return;
-  
+
   const newTasks = data.tasks.map(t => t.id === taskId ? { ...t, status: 'deleted' as any } : t);
   saveDailyData({ ...data, tasks: newTasks });
 };

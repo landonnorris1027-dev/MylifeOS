@@ -37,3 +37,9 @@ Thumbs.db
 
 # Optional: ignore built installer
 dist/*Setup*.exe
+
+# Temporary / Build artifacts
+temp_build/
+tmp/
+*.lnk
+main.js

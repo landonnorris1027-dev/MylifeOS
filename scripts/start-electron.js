@@ -2,33 +2,38 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const debugLog = path.join(__dirname, '..', '.cursor', 'debug.log');
-try { fs.appendFileSync(debugLog, JSON.stringify({ sessionId: 'debug-session', runId: 'launcher', location: 'start-electron', message: 'launcher start', data: { cwd: process.cwd(), platform: process.platform }, timestamp: Date.now() }) + '\\n'); } catch (e) {}
+// 核心修复逻辑：不再依赖系统的 .cmd 关联，而是直接使用 node 运行 electron 的入口文件
+// 这样可以彻底避免“在 VS Code 中打开文件”或“spawn UNKNOWN”错误
+const electronPackagePath = path.join(__dirname, '..', 'node_modules', 'electron');
+const electronCliPath = path.join(electronPackagePath, 'cli.js');
 
-let bin;
-if (process.platform === 'win32') {
-  bin = path.join(__dirname, '..', 'node_modules', '.bin', 'electron.cmd');
-} else {
-  bin = path.join(__dirname, '..', 'node_modules', '.bin', 'electron');
+if (!fs.existsSync(electronCliPath)) {
+  console.error('[Launcher] Error: Could not find electron cli.js at', electronCliPath);
+  process.exit(1);
 }
 
-const spawnArgs = ['.'];
+// 强制指定入口文件为当前目录下的 main.js
+const spawnArgs = [electronCliPath, '.'];
 
-console.log('Using electron binary:', bin);
-try { fs.appendFileSync(debugLog, JSON.stringify({ sessionId: 'debug-session', runId: 'launcher', location: 'start-electron', message: 'electron binary', data: { bin }, timestamp: Date.now() }) + '\\n'); } catch (e) {}
+console.log('[Launcher] Starting Electron by running:', electronCliPath);
 
-// On Windows, spawning .cmd shims can fail without shell=true. Enable shell for portability.
-const child = spawn(bin, spawnArgs, { stdio: 'inherit', shell: true });
+// 设置环境变量，确保处于开发模式
+const env = { ...process.env, NODE_ENV: 'development' };
+
+// 使用当前运行脚本的 node 进程来执行 electron cli
+const child = spawn(process.execPath, spawnArgs, { 
+  stdio: 'inherit', 
+  shell: false, // 禁用 shell 以提高稳定性
+  env
+});
 
 child.on('exit', (code, signal) => {
-  console.log('electron exited', code, signal);
-  try { fs.appendFileSync(debugLog, JSON.stringify({ sessionId: 'debug-session', runId: 'launcher', location: 'start-electron', message: 'electron exit', data: { code, signal }, timestamp: Date.now() }) + '\\n'); } catch (e) {}
-  process.exit(code);
+  console.log('[Launcher] Electron exited with code', code, 'and signal', signal);
+  process.exit(code || 0);
 });
 
 child.on('error', (err) => {
-  console.error('failed to spawn electron', err);
-  try { fs.appendFileSync(debugLog, JSON.stringify({ sessionId: 'debug-session', runId: 'launcher', location: 'start-electron', message: 'spawn error', data: { error: String(err) }, timestamp: Date.now() }) + '\\n'); } catch (e) {}
+  console.error('[Launcher] Failed to spawn Electron:', err);
   process.exit(1);
 });
 

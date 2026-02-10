@@ -58,6 +58,13 @@ const translations = {
     // Scheduler
     schedule_task: "Schedule Task",
     select_time: "Select a start time for",
+    duration_limit_exceeded: "The slot {time} already has {current} mins. Adding {new} mins would exceed the 60-min limit.",
+    // Alert/Confirm
+    alert_title: "Attention",
+    confirm_title: "Confirm Action",
+    i_understand: "I Understand",
+    cancel: "Cancel",
+    confirm: "Confirm",
     // Task Actions
     delete_today: "Delete for today only",
     delete_permanent_block: "Delete permanently (Reduce quota)",
@@ -66,6 +73,7 @@ const translations = {
     profile_title: "Focus Profile",
     total_focus_hours: "Total Focus Hours",
     last_year_activity: "Activity in the last year",
+    year_activity_2026: "2026 Focus Activity",
     less: "Less",
     more: "More",
     hours_suffix: "h",
@@ -127,6 +135,13 @@ const translations = {
     // Scheduler
     schedule_task: "安排时间",
     select_time: "为该任务选择开始时间",
+    duration_limit_exceeded: "该时段（{time}）已安排 {current} 分钟，无法再加入 {new} 分钟的任务（总计不能超过 60 分钟）。",
+    // Alert/Confirm
+    alert_title: "提示",
+    confirm_title: "确认操作",
+    i_understand: "我知道了",
+    cancel: "取消",
+    confirm: "确认",
     // Task Actions
     delete_today: "仅删除今日",
     delete_permanent_block: "永久删除（减少每日目标）",
@@ -135,6 +150,7 @@ const translations = {
     profile_title: "专注档案",
     total_focus_hours: "累计专注时长",
     last_year_activity: "过去一年的专注记录",
+    year_activity_2026: "2026 年度专注记录",
     less: "少",
     more: "多",
     hours_suffix: "小时",
