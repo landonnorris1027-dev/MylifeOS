@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Task, PRIORITY_STYLES } from '../types';
-import { Timer, CheckCircle2, X, Trash2 } from 'lucide-react';
+import { Timer, CheckCircle2, X, Trash2, Undo2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface TaskCardProps {
@@ -8,6 +8,8 @@ interface TaskCardProps {
   onClick: () => void;
   onDeleteToday?: (taskId: string) => void;
   onDeletePermanent?: (taskId: string, habitId: string) => void;
+  onUnschedule?: (task: Task) => void;
+  mode?: 'pool' | 'schedule';
   compact?: boolean;
 }
 
@@ -16,12 +18,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onClick, 
   onDeleteToday, 
   onDeletePermanent, 
+  onUnschedule,
+  mode = 'pool',
   compact = false 
 }) => {
   const { t } = useLanguage();
   const styles = PRIORITY_STYLES[task.priority];
-
-  const showDeleteButtons = !compact && (onDeleteToday || onDeletePermanent);
 
   // Prevent any click from bubbling to parent
   const stopEvent = useCallback((e: React.MouseEvent) => {
@@ -46,6 +48,15 @@ const TaskCard: React.FC<TaskCardProps> = ({
       onDeletePermanent(task.id, task.habitId);
     }
   }, [onDeletePermanent, task.id, task.habitId]);
+
+  // Handle unschedule
+  const handleUnschedule = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onUnschedule) {
+      onUnschedule(task);
+    }
+  }, [onUnschedule, task]);
 
   return (
     <div 
@@ -76,31 +87,48 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Delete Action Buttons */}
-          {showDeleteButtons && (
+          {/* Action Buttons */}
+          {!compact && (
             <div 
               className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity mr-1"
               onClick={stopEvent}
             >
-              {onDeleteToday && (
-                <button
-                  type="button"
-                  onClick={handleDeleteToday}
-                  className="p-1.5 bg-white/80 hover:bg-white shadow-sm rounded-md text-gray-500 hover:text-gray-800 transition-all border border-gray-100 relative z-50"
-                  title={t('delete_today')}
-                >
-                  <X size={14} className="pointer-events-none" />
-                </button>
-              )}
-              {onDeletePermanent && task.habitId && (
-                <button
-                  type="button"
-                  onClick={handleDeletePermanent}
-                  className="p-1.5 bg-red-50/80 hover:bg-red-100 shadow-sm rounded-md text-red-400 hover:text-red-600 transition-all border border-red-100 relative z-50"
-                  title={t('delete_permanent_block')}
-                >
-                  <Trash2 size={14} className="pointer-events-none" />
-                </button>
+              {mode === 'pool' ? (
+                <>
+                  {onDeleteToday && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteToday}
+                      className="p-1.5 bg-white/80 hover:bg-white shadow-sm rounded-md text-gray-500 hover:text-gray-800 transition-all border border-gray-100 relative z-50"
+                      title={t('delete_today')}
+                    >
+                      <X size={14} className="pointer-events-none" />
+                    </button>
+                  )}
+                  {onDeletePermanent && task.habitId && (
+                    <button
+                      type="button"
+                      onClick={handleDeletePermanent}
+                      className="p-1.5 bg-red-50/80 hover:bg-red-100 shadow-sm rounded-md text-red-400 hover:text-red-600 transition-all border border-red-100 relative z-50"
+                      title={t('delete_permanent_block')}
+                    >
+                      <Trash2 size={14} className="pointer-events-none" />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {onUnschedule && (
+                    <button
+                      type="button"
+                      onClick={handleUnschedule}
+                      className="p-1.5 bg-white/80 hover:bg-white shadow-sm rounded-md text-gray-500 hover:text-gray-800 transition-all border border-gray-100 relative z-50"
+                      title={t('unschedule')}
+                    >
+                      <Undo2 size={14} className="pointer-events-none" />
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}

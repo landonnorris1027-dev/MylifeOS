@@ -2,7 +2,7 @@
   "name": "mylifeos",
   "version": "0.1.1",
   "private": true,
-  "main": "main.js",
+  "main": "electron.js",
   "homepage": "./",
   "dependencies": {
     "lucide-react": "^0.292.0",
@@ -28,7 +28,7 @@
     "build": "react-scripts build",
     "prod": "node ./scripts/start-electron.js",
     "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && node ./scripts/start-electron.js\"",
-    "electron:build": "npm run build && electron-builder -w -c.extraMetadata.main=main.js",
+    "electron:build": "npm run build && electron-builder -w -c.extraMetadata.main=electron.js",
     "package:win": "npm run build && electron-packager . MyLifeOS --platform=win32 --arch=x64 --out=release --overwrite --ignore=node_modules/electron-builder --icon=assets/icon.ico"
   },
   "build": {
@@ -38,7 +38,7 @@
     "npmRebuild": false,
     "files": [
       "build/**/*",
-      "main.js"
+      "electron.js"
     ],
     "directories": {
       "buildResources": "assets",

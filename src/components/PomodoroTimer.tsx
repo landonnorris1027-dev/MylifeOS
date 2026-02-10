@@ -135,8 +135,22 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
         });
       }
     } else {
-      // 休息结束，完成任务
-      if (task) onComplete(task);
+      // 休息结束，自动退出
+      setTimeout(() => {
+        finishBreak();
+      }, 500); // 留一点时间放声音
+    }
+  };
+
+  // 统一退出休息逻辑
+  const finishBreak = () => {
+    if (localIntervalRef.current) clearInterval(localIntervalRef.current);
+    if (task) onComplete(task);
+
+    if (timerId) {
+      // 停止专注模式计时器和休息计时器
+      electronIPC.stopPomodoro(timerId);
+      electronIPC.stopPomodoro(`${timerId}_break`);
     }
   };
 
@@ -153,7 +167,8 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
 
     // 后台同步
     if (timerId) {
-      electronIPC.togglePomodoro(timerId);
+      const currentTimerId = mode === 'focus' ? timerId : `${timerId}_break`;
+      electronIPC.togglePomodoro(currentTimerId);
     }
   };
 
@@ -168,12 +183,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
   // 跳过休息
   const skipBreak = () => {
     if (mode === 'break') {
-      if (localIntervalRef.current) clearInterval(localIntervalRef.current);
-      if (task) onComplete(task);
-
-      if (timerId) {
-        electronIPC.stopPomodoro(timerId);
-      }
+      finishBreak();
     }
   };
 

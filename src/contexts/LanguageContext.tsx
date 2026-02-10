@@ -68,6 +68,7 @@ const translations = {
     // Task Actions
     delete_today: "Delete for today only",
     delete_permanent_block: "Delete permanently (Reduce quota)",
+    unschedule: "Remove from schedule",
     confirm_permanent_delete: "This will reduce the daily quota for this habit permanently. Continue?",
     // Profile
     profile_title: "Focus Profile",
@@ -145,6 +146,7 @@ const translations = {
     // Task Actions
     delete_today: "仅删除今日",
     delete_permanent_block: "永久删除（减少每日目标）",
+    unschedule: "撤回待办池",
     confirm_permanent_delete: "这将永久减少该习惯的每日派发数量。确定吗？",
     // Profile
     profile_title: "专注档案",

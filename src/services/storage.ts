@@ -228,7 +228,7 @@ export const deleteTaskFromDay = (taskId: string, date: string) => {
   const data = getDailyData(date);
   if (!data) return;
 
-  const newTasks = data.tasks.map(t => t.id === taskId ? { ...t, status: 'deleted' as any } : t);
+  const newTasks = data.tasks.filter(t => t.id !== taskId);
   saveDailyData({ ...data, tasks: newTasks });
 };
 

@@ -151,6 +151,16 @@ export default function App() {
     });
   };
 
+  const handleTaskUnschedule = (task: Task) => {
+    const updated: Task = {
+      ...task,
+      status: 'inbox',
+      startTime: undefined
+    };
+    updateTask(updated);
+    loadData(selectedDate);
+  };
+
   // --- Derived State for UI ---
   const inboxTasks = dailyData?.tasks.filter(t => t.status === 'inbox') || [];
   const scheduledTasks = dailyData?.tasks.filter(t => t.status === 'scheduled' || t.status === 'completed') || [];
@@ -328,6 +338,7 @@ export default function App() {
                       <TaskCard
                         key={task.id}
                         task={task}
+                        mode="pool"
                         onClick={() => handleTaskClick(task)}
                         onDeleteToday={handleTaskDeleteToday}
                         onDeletePermanent={handleTaskDeletePermanent}
@@ -410,9 +421,9 @@ export default function App() {
                                 <TaskCard
                                   key={task.id}
                                   task={task}
+                                  mode="schedule"
                                   onClick={() => handleTaskClick(task)}
-                                  onDeleteToday={handleTaskDeleteToday}
-                                  onDeletePermanent={handleTaskDeletePermanent}
+                                  onUnschedule={handleTaskUnschedule}
                                 />
                               ))}
                             </div>
@@ -482,38 +493,14 @@ export default function App() {
 
       
 
-                        <ConfirmModal
-
-      
-
-                          isOpen={confirmConfig.isOpen}
-
-      
-
-                          message={confirmConfig.message}
-
-      
-
-                          onConfirm={confirmConfig.onConfirm}
-
-      
-
-                          onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
-
-      
-
-                        />
-
-      
-
-            
-
-      
-
-                      </div>
-
-        );
-
-      }
+      <ConfirmModal
+        isOpen={confirmConfig.isOpen}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+      />
+    </div>
+  );
+}
 
       
