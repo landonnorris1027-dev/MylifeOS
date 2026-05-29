@@ -29,6 +29,15 @@ export interface DailyData {
   tasks: Task[];
 }
 
+export interface ImportResult {
+  success: boolean;
+  habitsImported: number;
+  habitsSkipped: number;
+  tasksImported: number;
+  tasksSkipped: number;
+  errorMsg?: string;
+}
+
 export const PRIORITY_STYLES = {
   P1: {
     bg: 'bg-red-50',

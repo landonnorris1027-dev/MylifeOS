@@ -2,6 +2,7 @@ import React from 'react';
 import { X, CalendarClock } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { HOURS } from '../constants';
 
 interface TimePickerModalProps {
   task: Task | null;
@@ -14,7 +15,6 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, onClose, onConf
   if (!task) return null;
 
   const styles = PRIORITY_STYLES[task.priority];
-  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8:00 to 23:00
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
@@ -35,7 +35,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, onClose, onConf
           </p>
 
           <div className="grid grid-cols-4 gap-2 h-64 overflow-y-auto pr-1 custom-scrollbar">
-            {hours.map(hour => {
+            {HOURS.map(hour => {
               const timeStr = `${hour.toString().padStart(2, '0')}:00`;
               return (
                 <button

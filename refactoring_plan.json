@@ -1,0 +1,900 @@
+{
+  "project": "MyLifeOS",
+  "plan_version": "2.0",
+  "generated_at": "2026-04-11",
+  "total_phases": 5,
+  "total_tasks": 28,
+  "estimated_total_effort": "40-55 hours",
+  "notes": [
+    "每个 task 的 status 可以是: pending / in_progress / done / skipped",
+    "depends_on 表示必须在该任务之前完成的任务 ID",
+    "effort_estimate 单位为小时",
+    "每完成一个 phase 建议做一次完整的构建测试",
+    "Phase 1-2 可以较快完成，Phase 3-5 需要逐步推进"
+  ],
+
+  "phases": [
+    {
+      "phase_id": "PHASE-1",
+      "name": "紧急修复与项目卫生清理",
+      "description": "修复可能导致项目无法正常工作的致命问题，以及不涉及架构变更的快速清理项。此阶段全部为低风险、高收益的改动。",
+      "estimated_effort": "3-5 hours",
+      "tasks": [
+        {
+          "id": "T-101",
+          "title": "修复 .gitignore 错误排除 main.js",
+          "priority": "P0",
+          "category": "build",
+          "description": ".gitignore 最后一行 `main.js` 导致 Electron 主进程入口文件被 Git 忽略。新克隆的仓库将缺少此文件，应用完全无法启动。",
+          "depends_on": [],
+          "effort_estimate": 0.1,
+          "status": "done",
+          "affected_files": [
+            ".gitignore"
+          ],
+          "action_plan": [
+            "从 .gitignore 中移除 `main.js` 这一行",
+            "运行 `git add main.js` 确保文件被追踪",
+            "验证 `git status` 中 main.js 不再被忽略"
+          ],
+          "acceptance_criteria": [
+            "main.js 被 Git 正常追踪",
+            ".gitignore 中不再包含 main.js",
+            "新 clone 后项目可正常启动"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-102",
+          "title": "修复 main.js 中文注释编码乱码",
+          "priority": "P0",
+          "category": "code_quality",
+          "description": "main.js 中大量中文注释显示为 mojibake 乱码（可能是 GBK → UTF-8 损坏）。需要重写所有注释为正确的 UTF-8 中文。",
+          "depends_on": ["T-101"],
+          "effort_estimate": 0.5,
+          "status": "done",
+          "affected_files": [
+            "main.js"
+          ],
+          "action_plan": [
+            "逐一将乱码注释替换为正确的中文注释",
+            "确保文件保存为 UTF-8 without BOM 编码",
+            "统一所有注释为中文，保持风格一致"
+          ],
+          "acceptance_criteria": [
+            "main.js 中所有注释均为可读的中文",
+            "文件编码为 UTF-8",
+            "注释能够准确描述对应代码功能"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-103",
+          "title": "清理 App.tsx 格式混乱",
+          "priority": "P1",
+          "category": "code_quality",
+          "description": "App.tsx 第 510-546 行的 JSX 中存在大量无意义空行和混乱缩进，严重影响可读性。",
+          "depends_on": [],
+          "effort_estimate": 0.3,
+          "status": "done",
+          "affected_files": [
+            "src/App.tsx"
+          ],
+          "action_plan": [
+            "清理第 510-553 行中多余的空行",
+            "统一 JSX 缩进为 2 空格",
+            "确保 Modal 组件排列整齐一致"
+          ],
+          "acceptance_criteria": [
+            "无多余空行，每个组件间最多一个空行",
+            "缩进统一为 2 空格",
+            "功能无任何变化"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-104",
+          "title": "统一文件行尾符为 LF",
+          "priority": "P2",
+          "category": "code_quality",
+          "description": "多个文件中 CRLF 和 LF 混合出现。统一为 LF 以避免 diff 噪音和潜在的跨平台问题。",
+          "depends_on": [],
+          "effort_estimate": 0.3,
+          "status": "done",
+          "affected_files": [
+            "main.js",
+            "src/App.tsx",
+            "src/index.tsx",
+            "src/types.ts",
+            "src/services/storage.ts",
+            "src/services/electronIPC.ts",
+            "src/contexts/LanguageContext.tsx",
+            "src/components/PomodoroTimer.tsx"
+          ],
+          "action_plan": [
+            "更新 .gitattributes 确保 `* text=auto eol=lf`",
+            "使用工具或编辑器批量将所有源文件转换为 LF",
+            "确认 .editorconfig 中也声明 end_of_line = lf"
+          ],
+          "acceptance_criteria": [
+            "所有源文件行尾统一为 LF",
+            ".gitattributes 正确配置",
+            "后续新文件自动使用 LF"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-105",
+          "title": "清理项目根目录临时文件和残留",
+          "priority": "P2",
+          "category": "build",
+          "description": "项目根目录存在 temp_build/、tmp/、tmp_write_test.txt、server_err.log、server_out.log 等临时产物，以及 assets/icon.ico.bak（6 bytes 空文件）。需要清理并完善 .gitignore。",
+          "depends_on": ["T-101"],
+          "effort_estimate": 0.2,
+          "status": "done",
+          "affected_files": [
+            ".gitignore",
+            "temp_build/",
+            "tmp/",
+            "tmp_write_test.txt",
+            "server_err.log",
+            "server_out.log",
+            "assets/icon.ico.bak"
+          ],
+          "action_plan": [
+            "删除 temp_build/、tmp/、tmp_write_test.txt、server_err.log、server_out.log",
+            "删除 assets/icon.ico.bak",
+            "确认 .gitignore 已包含 temp_build/、tmp/、*.log 规则",
+            "确认 project_issues.json、metadata.json 等 JSON 文件是否需要保留"
+          ],
+          "acceptance_criteria": [
+            "项目根目录无临时文件残留",
+            ".gitignore 覆盖所有临时产物"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-106",
+          "title": "修复所有硬编码未翻译的文本",
+          "priority": "P1",
+          "category": "i18n",
+          "description": "7 处硬编码英文文本未经过 t() 国际化函数处理。需要在 LanguageContext 中添加对应翻译键，并替换硬编码文本。",
+          "depends_on": [],
+          "effort_estimate": 0.5,
+          "status": "done",
+          "affected_files": [
+            "src/App.tsx",
+            "src/components/ContributionGraph.tsx",
+            "src/components/HabitConfig.tsx",
+            "src/components/PomodoroTimer.tsx",
+            "src/contexts/LanguageContext.tsx"
+          ],
+          "action_plan": [
+            "在 LanguageContext.tsx 的中英文翻译表中，添加以下新键：",
+            "  welcome_message: 'Welcome back, Traveler.' / '欢迎回来，旅行者。'",
+            "  no_tasks_past: 'No pending tasks for this day.' / '该日无待办任务。'",
+            "  today_btn: 'Today' / '今天'",
+            "  focus_activity: '{year} Focus Activity' / '{year} 年度专注记录'",
+            "  weekday_mon/wed/fri: 'Mon'/'Wed'/'Fri' / '一'/'三'/'五'",
+            "  no_rules_yet: 'No rules yet.' / '暂无习惯规则。'",
+            "  break_time_title: 'Break Time' / '休息时间'",
+            "逐一替换各文件中的硬编码文本为 t('key') 调用"
+          ],
+          "acceptance_criteria": [
+            "切换为中文后，所有 UI 文本显示中文",
+            "切换为英文后，所有 UI 文本显示英文",
+            "无遗漏的硬编码文本"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-107",
+          "title": "将 Google Fonts 打包为本地资源",
+          "priority": "P1",
+          "category": "build",
+          "description": "public/index.html 通过 CDN 加载 Inter 字体，桌面离线环境下字体不可用。需要下载字体文件并本地引入。",
+          "depends_on": [],
+          "effort_estimate": 0.5,
+          "status": "done",
+          "affected_files": [
+            "public/index.html",
+            "src/tailwind.css",
+            "public/fonts/ (new)"
+          ],
+          "action_plan": [
+            "下载 Inter 字体的 woff2 文件（400/500/600/700 weight）至 public/fonts/",
+            "在 tailwind.css 中使用 @font-face 声明本地字体",
+            "移除 index.html 中的 Google Fonts CDN link",
+            "验证离线环境下字体正常显示"
+          ],
+          "acceptance_criteria": [
+            "index.html 中无外部 CDN 引用",
+            "离线环境下 Inter 字体正确加载",
+            "字体文件随应用打包分发"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-108",
+          "title": "添加 favicon 图标文件",
+          "priority": "P2",
+          "category": "ux",
+          "description": "main.js:168 引用了 public/favicon.ico 作为窗口图标，但该文件不存在。需要生成或添加一个。",
+          "depends_on": [],
+          "effort_estimate": 0.3,
+          "status": "done",
+          "affected_files": [
+            "public/favicon.ico (new)",
+            "public/index.html"
+          ],
+          "action_plan": [
+            "基于现有 icon.png 生成 .ico 格式的 favicon",
+            "放置到 public/favicon.ico",
+            "在 index.html 的 <head> 中添加 <link rel=\"icon\"> 引用"
+          ],
+          "acceptance_criteria": [
+            "public/favicon.ico 文件存在且有效",
+            "Electron 窗口标题栏显示正确图标",
+            "浏览器开发模式下标签页显示图标"
+          ],
+          "risk": "low"
+        }
+      ]
+    },
+
+    {
+      "phase_id": "PHASE-2",
+      "name": "数据层重构与安全加固",
+      "description": "解决最严重的数据丢失风险——将 localStorage 替换为可靠的本地文件存储，同时修复数据导入安全问题和 ID 生成问题。此阶段是后续所有架构改进的基础。",
+      "estimated_effort": "8-12 hours",
+      "tasks": [
+        {
+          "id": "T-201",
+          "title": "引入 electron-store 替代 localStorage",
+          "priority": "P0",
+          "category": "architecture",
+          "description": "将所有数据持久化从 localStorage 迁移到 electron-store（基于 JSON 文件，自动写入用户 AppData 目录）。解决容量限制、缓存清除丢失数据、性能下降等根本问题。",
+          "depends_on": ["T-101", "T-102"],
+          "effort_estimate": 4,
+          "status": "done",
+          "affected_files": [
+            "package.json",
+            "main.js",
+            "preload.js",
+            "src/services/storage.ts",
+            "src/types/electronBridge.d.ts"
+          ],
+          "action_plan": [
+            "1. npm install electron-store",
+            "2. 在 main.js 中初始化 electron-store 实例，配置 schema 和默认值",
+            "3. 新增 IPC handlers: storage-get、storage-set、storage-get-all、storage-import、storage-export",
+            "4. 在 preload.js 中通过 contextBridge 暴露 storage API（只读/写的白名单）",
+            "5. 重写 src/services/storage.ts，将所有 localStorage.getItem/setItem 替换为通过 IPC 调用主进程的 electron-store",
+            "6. 由于 IPC 是异步的，需要将 storage 函数从同步改为 async",
+            "7. 相应地更新所有调用点的异步处理",
+            "8. 实现数据迁移逻辑：首次启动时检测 localStorage 中的旧数据，自动迁移到 electron-store",
+            "9. 保留 browser fallback（开发模式下不在 Electron 中也能运行）"
+          ],
+          "acceptance_criteria": [
+            "所有数据存储在 %APPDATA%/mylifeos/ 目录下的 JSON 文件中",
+            "localStorage 中无业务数据残留（迁移后自动清除）",
+            "清除浏览器缓存不影响数据",
+            "react-scripts start（纯浏览器模式）仍可正常运行（fallback 到 localStorage）",
+            "现有数据不丢失（自动迁移）"
+          ],
+          "risk": "high",
+          "risk_notes": "此任务影响面最广，所有读写数据的组件都需要适配异步接口。建议在开始前备份 localStorage 数据。"
+        },
+        {
+          "id": "T-202",
+          "title": "拆分 daily logs 为按日存储",
+          "priority": "P1",
+          "category": "architecture",
+          "description": "当前所有日志存在单个 mylifeos_daily_logs key 中，数据增长后读写性能急剧下降。拆分为按日期独立的存储键。",
+          "depends_on": ["T-201"],
+          "effort_estimate": 2,
+          "status": "done",
+          "affected_files": [
+            "main.js",
+            "src/services/storage.ts"
+          ],
+          "action_plan": [
+            "1. 设计新的存储结构：每天一个独立的 key，如 dailyLog.2026-04-11",
+            "2. 在 electron-store 配置中支持嵌套 key 路径",
+            "3. 修改 getDailyData/saveDailyData 使用按日读写",
+            "4. 修改 getYearlyStats 按需遍历日期 key（可增加缓存层）",
+            "5. 实现旧格式（单 key 大对象）到新格式的自动迁移",
+            "6. 确保导入/导出功能兼容新结构"
+          ],
+          "acceptance_criteria": [
+            "读取单日数据无需解析全量日志",
+            "getYearlyStats 性能可接受（< 500ms）",
+            "旧数据自动迁移无损",
+            "备份/恢复功能正常工作"
+          ],
+          "risk": "medium"
+        },
+        {
+          "id": "T-203",
+          "title": "改用 crypto.randomUUID 生成 ID",
+          "priority": "P2",
+          "category": "code_quality",
+          "description": "当前 generateId 使用 Math.random().toString(36).substr(2,9)，存在碰撞风险且 substr 已废弃。",
+          "depends_on": [],
+          "effort_estimate": 0.3,
+          "status": "done",
+          "affected_files": [
+            "src/services/storage.ts"
+          ],
+          "action_plan": [
+            "将 generateId 实现替换为 crypto.randomUUID()",
+            "添加 fallback: 如果 crypto.randomUUID 不可用，使用 crypto.getRandomValues 手动拼接",
+            "确保生成的 ID 与已有历史数据兼容（只影响新 ID 的格式）"
+          ],
+          "acceptance_criteria": [
+            "新生成的 ID 使用 UUID v4 格式",
+            "不破坏已有数据中使用旧格式 ID 的引用关系",
+            "消除 substr 的 deprecation 警告"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-204",
+          "title": "加强数据导入校验与防御",
+          "priority": "P1",
+          "category": "security",
+          "description": "importDataJSON 仅检查顶层结构，缺少字段级验证和原型污染防护。需要实现深度校验。",
+          "depends_on": ["T-201"],
+          "effort_estimate": 1.5,
+          "status": "done",
+          "affected_files": [
+            "src/services/storage.ts",
+            "src/types.ts"
+          ],
+          "action_plan": [
+            "1. 创建 Habit 和 Task 的运行时验证函数（validateHabit / validateTask）",
+            "2. 对导入的 habits 数组中每个元素逐一验证字段类型和值范围",
+            "3. 对导入的 dailyLogs 中每个日期的 tasks 逐一验证",
+            "4. 过滤 __proto__、constructor 等危险属性",
+            "5. 使用 JSON.parse 的 reviver 参数或 Object.create(null) 防止原型污染",
+            "6. 对验证失败的条目记录警告但不阻塞（部分导入策略 vs 全部拒绝策略由用户决定）",
+            "7. 返回详细的导入结果（成功数、跳过数、错误数）"
+          ],
+          "acceptance_criteria": [
+            "恶意构造的 JSON 不会导致应用崩溃",
+            "缺少必要字段的 habit/task 被跳过并提示",
+            "不包含 __proto__ 等危险属性注入",
+            "导入结果包含统计信息"
+          ],
+          "risk": "medium"
+        }
+      ]
+    },
+
+    {
+      "phase_id": "PHASE-3",
+      "name": "前端架构重构",
+      "description": "解决 App.tsx 上帝组件问题、引入轻量状态管理、统一番茄钟计时架构。此阶段是提升开发效率和可维护性的关键。",
+      "estimated_effort": "12-16 hours",
+      "tasks": [
+        {
+          "id": "T-301",
+          "title": "引入状态管理（useReducer + Context）",
+          "priority": "P1",
+          "category": "architecture",
+          "description": "App.tsx 中 7+ 个 useState 相互耦合，逻辑散落各处。引入 useReducer 将状态管理集中化。不引入外部库（如 Zustand/Redux），保持轻量。",
+          "depends_on": ["T-201"],
+          "effort_estimate": 3,
+          "status": "done",
+          "affected_files": [
+            "src/contexts/AppContext.tsx (new)",
+            "src/reducers/appReducer.ts (new)",
+            "src/App.tsx"
+          ],
+          "action_plan": [
+            "1. 创建 src/reducers/appReducer.ts，定义 AppState 类型和所有 Action 类型",
+            "2. 将分散的 state 合并为统一的 AppState：{ view, selectedDate, dailyData, activeTask, schedulingTask, alertConfig, confirmConfig, restoredTimerState }",
+            "3. 将所有 handler 改写为 dispatch action",
+            "4. 创建 src/contexts/AppContext.tsx 提供全局 state + dispatch",
+            "5. 在 App.tsx 中使用 AppContext.Provider 替代本地 useState",
+            "6. 各子组件通过 useContext 获取所需 state"
+          ],
+          "acceptance_criteria": [
+            "App.tsx 不再包含 7+ 个 useState",
+            "状态变更逻辑集中在 reducer 中",
+            "所有现有功能不变",
+            "子组件可独立获取所需 state 片段"
+          ],
+          "risk": "medium"
+        },
+        {
+          "id": "T-302",
+          "title": "拆分 App.tsx 为独立页面组件",
+          "priority": "P1",
+          "category": "architecture",
+          "description": "将 559 行的 App.tsx 拆分为合理的页面级组件。目标是 App.tsx 仅作为布局壳和路由容器。",
+          "depends_on": ["T-301"],
+          "effort_estimate": 3,
+          "status": "done",
+          "affected_files": [
+            "src/App.tsx",
+            "src/components/Header.tsx (new)",
+            "src/pages/PlannerView.tsx (new)",
+            "src/pages/ProfileView.tsx (new)",
+            "src/components/InboxPanel.tsx (new)",
+            "src/components/TimelinePanel.tsx (new)"
+          ],
+          "action_plan": [
+            "1. 提取 Header 为独立组件（Logo + View Switcher + Progress Bars + Language Toggle + Settings Button）",
+            "2. 提取 PlannerView 页面组件（包含 InboxPanel + TimelinePanel）",
+            "3. 提取 InboxPanel 组件（待办任务列表 + 添加习惯按钮）",
+            "4. 提取 TimelinePanel 组件（日期切换 + 时间线渲染）",
+            "5. 提取 ProfileView 页面组件（用户信息 + 贡献图 + 统计占位）",
+            "6. App.tsx 简化为：Provider → Header → {view === 'planner' ? <PlannerView/> : <ProfileView/>} → Modals"
+          ],
+          "acceptance_criteria": [
+            "App.tsx 不超过 80 行",
+            "每个页面组件不超过 200 行",
+            "功能和 UI 完全不变",
+            "组件之间通过 Context 通信，无 prop drilling 超过 2 层"
+          ],
+          "risk": "medium"
+        },
+        {
+          "id": "T-303",
+          "title": "统一番茄钟为单一计时架构",
+          "priority": "P1",
+          "category": "architecture",
+          "description": "当前存在三层计时器（PomodoroTimer.tsx 本地、electronIPC.ts 浏览器端、main.js 主进程），需要统一为清晰的单一权威源架构。",
+          "depends_on": ["T-301"],
+          "effort_estimate": 4,
+          "status": "done",
+          "affected_files": [
+            "src/components/PomodoroTimer.tsx",
+            "src/services/electronIPC.ts",
+            "main.js"
+          ],
+          "action_plan": [
+            "1. 确立架构原则：",
+            "   - 在 Electron 环境下：主进程为唯一计时权威，渲染进程只展示",
+            "   - 在纯浏览器环境下（开发模式）：浏览器 timer 为权威",
+            "2. 重构 electronIPC.ts：",
+            "   - Electron 模式：startPomodoro 仅调用 IPC，不启动浏览器计时器",
+            "   - 浏览器 fallback 模式：仅在非 Electron 环境下启动本地计时器",
+            "   - 移除双重计时逻辑",
+            "3. 重构 PomodoroTimer.tsx：",
+            "   - 移除 startLocalTimer / endTimeRef 等本地计时逻辑",
+            "   - 改为纯展示组件：订阅 electronIPC.onPomodoroUpdate 获取剩余时间",
+            "   - 通过 electronIPC 控制 start/pause/stop",
+            "4. 统一主进程和浏览器端的计时间隔为 1000ms",
+            "5. 确保暂停恢复后剩余时间准确"
+          ],
+          "acceptance_criteria": [
+            "Electron 环境下仅有一个计时源（主进程）",
+            "浏览器开发模式仅有一个计时源（浏览器端）",
+            "PomodoroTimer 不包含任何 setInterval 调用",
+            "暂停后恢复时间准确（误差 < 1秒）",
+            "窗口最小化/隐藏后计时不中断"
+          ],
+          "risk": "high",
+          "risk_notes": "此任务重构了核心功能。需要充分测试各场景：启动、暂停、恢复、focus→break 过渡、提前完成、跳过休息。"
+        },
+        {
+          "id": "T-304",
+          "title": "提取共享常量和工具函数",
+          "priority": "P2",
+          "category": "code_quality",
+          "description": "多处重复定义的常量（HOURS 数组、Break 时长）和重复的验证逻辑（preload.js / main.js）需要提取到共享位置。",
+          "depends_on": [],
+          "effort_estimate": 1,
+          "status": "done",
+          "affected_files": [
+            "src/constants.ts (new)",
+            "shared/validation.js (new)",
+            "src/App.tsx",
+            "src/components/TimePickerModal.tsx",
+            "src/components/PomodoroTimer.tsx",
+            "main.js",
+            "preload.js"
+          ],
+          "action_plan": [
+            "1. 创建 src/constants.ts，放入 HOURS、DEFAULT_BREAK_SECONDS、DEFAULT_FOCUS_MINUTES 等共享常量",
+            "2. 创建 shared/validation.js（CommonJS 格式，可被 main.js 和 preload.js require），放入 isValidTimerId、isValidDuration 等校验函数",
+            "3. 更新 App.tsx 和 TimePickerModal.tsx 引用 constants.ts 中的 HOURS",
+            "4. 更新 main.js 和 preload.js 引用 shared/validation.js",
+            "5. 更新 PomodoroTimer.tsx 的硬编码 300 为 DEFAULT_BREAK_SECONDS"
+          ],
+          "acceptance_criteria": [
+            "无重复定义的常量",
+            "验证逻辑单一来源",
+            "Electron 主进程和渲染进程使用同一份验证代码"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-305",
+          "title": "修复 useEffect 依赖和清理问题",
+          "priority": "P2",
+          "category": "code_quality",
+          "description": "App.tsx 中 restorePomodoroState 的 useEffect 没有 cleanup 函数，Promise 完成前组件卸载会导致状态更新错误。ContributionGraph 中 stats 获取缺少 useMemo。",
+          "depends_on": [],
+          "effort_estimate": 0.5,
+          "status": "done",
+          "affected_files": [
+            "src/App.tsx",
+            "src/components/ContributionGraph.tsx"
+          ],
+          "action_plan": [
+            "1. App.tsx restorePomodoroState useEffect 中添加 isMounted ref 和 cleanup",
+            "2. ContributionGraph.tsx 将 getYearlyStats() 调用包裹在 useMemo 中（如果依赖 props/state 更新信号，则作为 prop 传入或使用 context）",
+            "3. 将 getLevel 函数移到组件外部（纯函数无需在组件内定义）"
+          ],
+          "acceptance_criteria": [
+            "React StrictMode 下无 'setState on unmounted component' 警告",
+            "贡献图仅在数据变更时重新计算",
+            "getLevel 是组件外部的纯函数"
+          ],
+          "risk": "low"
+        }
+      ]
+    },
+
+    {
+      "phase_id": "PHASE-4",
+      "name": "构建优化与工程化",
+      "description": "统一构建工具链、启用 ASAR 打包、添加基础测试覆盖。提升项目的工程化水平和可持续维护能力。",
+      "estimated_effort": "8-10 hours",
+      "tasks": [
+        {
+          "id": "T-401",
+          "title": "统一构建工具为仅 electron-builder",
+          "priority": "P1",
+          "category": "build",
+          "description": "package.json 同时包含 electron-builder 和 electron-packager，功能完全重叠。统一为 electron-builder 以减少维护负担。",
+          "depends_on": [],
+          "effort_estimate": 1,
+          "status": "done",
+          "affected_files": [
+            "package.json"
+          ],
+          "action_plan": [
+            "1. 移除 electron-packager 依赖",
+            "2. 删除或重写 package:win 脚本为使用 electron-builder 的等效命令",
+            "3. npm uninstall electron-packager",
+            "4. 验证 electron:build 正常工作"
+          ],
+          "acceptance_criteria": [
+            "package.json 中不包含 electron-packager",
+            "仅保留 electron-builder 的打包脚本",
+            "npm run electron:build 可成功产出安装包"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-402",
+          "title": "启用 ASAR 打包",
+          "priority": "P2",
+          "category": "build",
+          "description": "当前 asar: false 导致源码以明文分发。启用后可保护代码并减小体积。",
+          "depends_on": ["T-401"],
+          "effort_estimate": 1,
+          "status": "done",
+          "affected_files": [
+            "package.json"
+          ],
+          "action_plan": [
+            "1. 将 build.asar 设为 true",
+            "2. 如果有需要在 ASAR 外访问的文件（如 icon），使用 asarUnpack 配置",
+            "3. 测试打包后应用启动和全部功能",
+            "4. 确认 electron-store 的数据文件路径不受 ASAR 影响"
+          ],
+          "acceptance_criteria": [
+            "打包后 app.asar 文件存在",
+            "应用正常启动和运行",
+            "用户无法直接读取源码文件"
+          ],
+          "risk": "medium",
+          "risk_notes": "ASAR 可能影响文件路径引用。需要测试 preload.js 路径、icon 路径等是否正确。"
+        },
+        {
+          "id": "T-403",
+          "title": "添加核心业务逻辑单元测试",
+          "priority": "P1",
+          "category": "testing",
+          "description": "项目零测试覆盖。为最关键的业务逻辑添加单元测试，建立测试基础设施。",
+          "depends_on": ["T-201"],
+          "effort_estimate": 4,
+          "status": "done",
+          "affected_files": [
+            "package.json",
+            "src/services/__tests__/storage.test.ts (new)",
+            "src/services/__tests__/electronIPC.test.ts (new)",
+            "src/utils/__tests__/validation.test.ts (new)"
+          ],
+          "action_plan": [
+            "1. 配置 Jest（react-scripts 已内置），创建 jest.config 或在 package.json 中配置",
+            "2. 编写 storage.test.ts，覆盖以下场景：",
+            "   - initializeDay: 新日期创建、已有数据不覆盖、习惯同步、日期范围有效性检查",
+            "   - updateTask / deleteTaskFromDay: 正确更新和删除",
+            "   - reduceHabitQuota: 配额减少、配额为1时删除习惯",
+            "   - importDataJSON / getAllDataJSON: 导入导出完整性",
+            "   - 时间槽冲突检测逻辑",
+            "3. 编写 electronIPC.test.ts，覆盖浏览器 fallback 模式的计时逻辑",
+            "4. 编写 validation.test.ts，覆盖 ID 和 duration 校验",
+            "5. 在 package.json 中添加 test 脚本"
+          ],
+          "acceptance_criteria": [
+            "npm test 可运行且全部通过",
+            "storage.ts 核心函数测试覆盖率 > 80%",
+            "关键边界情况有对应测试用例",
+            "CI 中可自动运行测试"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-404",
+          "title": "调试日志路径从 .cursor 迁移到标准位置",
+          "priority": "P2",
+          "category": "ops",
+          "description": "main.js 中 DEBUG_LOG_PATH 硬编码到 .cursor/debug.log。应使用 Electron 标准的 app.getPath('userData') 路径。",
+          "depends_on": ["T-102"],
+          "effort_estimate": 0.3,
+          "status": "done",
+          "affected_files": [
+            "main.js"
+          ],
+          "action_plan": [
+            "1. 将 DEBUG_LOG_PATH 改为 path.join(app.getPath('userData'), 'debug.log')",
+            "2. 移除对 .cursor 目录的依赖",
+            "3. 保持 DEBUG_LOG_ENABLED 的环境变量控制逻辑不变"
+          ],
+          "acceptance_criteria": [
+            "调试日志写入 Electron 标准用户数据目录",
+            "不依赖 .cursor 目录",
+            "默认情况下调试日志关闭"
+          ],
+          "risk": "low"
+        }
+      ]
+    },
+
+    {
+      "phase_id": "PHASE-5",
+      "name": "功能增强与体验优化",
+      "description": "在架构稳定后，添加用户体验增强功能。此阶段的任务可选择性执行，根据优先级和用户反馈决定。",
+      "estimated_effort": "10-14 hours",
+      "tasks": [
+        {
+          "id": "T-501",
+          "title": "支持自定义时间粒度（半点选择）",
+          "priority": "P2",
+          "category": "feature",
+          "description": "TimePickerModal 仅支持整点选择。增加 XX:30 选项或自定义分钟选择。",
+          "depends_on": ["T-304"],
+          "effort_estimate": 1,
+          "status": "pending",
+          "affected_files": [
+            "src/components/TimePickerModal.tsx",
+            "src/constants.ts"
+          ],
+          "action_plan": [
+            "1. 在 constants.ts 中定义 TIME_SLOT_INTERVAL = 30（分钟）",
+            "2. 修改 TimePickerModal 的小时生成逻辑，每小时产出 2 个时间槽（XX:00 和 XX:30）",
+            "3. 更新时间线渲染以支持 30 分钟粒度的显示",
+            "4. 调整时间槽冲突检测逻辑以适配非整点时间"
+          ],
+          "acceptance_criteria": [
+            "时间选择器显示 08:00、08:30、09:00 ... 等选项",
+            "时间线正确渲染半点任务",
+            "冲突检测在半点时间也正常工作"
+          ],
+          "risk": "medium"
+        },
+        {
+          "id": "T-502",
+          "title": "支持自定义番茄钟时长和休息时长",
+          "priority": "P2",
+          "category": "feature",
+          "description": "休息时间固定为 5 分钟，无法自定义。增加用户可配置的全局番茄钟设置。",
+          "depends_on": ["T-303", "T-304"],
+          "effort_estimate": 2,
+          "status": "pending",
+          "affected_files": [
+            "src/components/HabitConfig.tsx",
+            "src/components/PomodoroTimer.tsx",
+            "src/services/storage.ts",
+            "src/constants.ts",
+            "src/contexts/LanguageContext.tsx"
+          ],
+          "action_plan": [
+            "1. 在存储中增加全局 settings 对象，包含 breakDurationMinutes（默认 5）",
+            "2. 在 HabitConfig 弹窗中增加「全局设置」section，可调整默认休息时长",
+            "3. PomodoroTimer 从设置中读取休息时长，替代硬编码 300 秒",
+            "4. 添加对应的中英文翻译"
+          ],
+          "acceptance_criteria": [
+            "用户可自定义休息时长（1-30 分钟范围）",
+            "设置持久化保存",
+            "更改设置后新的番茄钟立即生效"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-503",
+          "title": "完善 Profile 页面统计面板",
+          "priority": "P2",
+          "category": "feature",
+          "description": "Profile 页面的 'Category Breakdown' 显示为 'Coming Soon' 占位。实现真实的统计数据展示。",
+          "depends_on": ["T-202"],
+          "effort_estimate": 3,
+          "status": "pending",
+          "affected_files": [
+            "src/pages/ProfileView.tsx",
+            "src/components/StatsPanel.tsx (new)",
+            "src/services/storage.ts",
+            "src/contexts/LanguageContext.tsx"
+          ],
+          "action_plan": [
+            "1. 创建 StatsPanel 组件，展示 3 张统计卡片：",
+            "   - 按优先级分布（P1/P2/P3 完成占比饼图或进度条）",
+            "   - 本周专注趋势（7 天折线图/柱状图，用 CSS 绘制无需图表库）",
+            "   - 连续打卡天数 / 最长连续天数",
+            "2. 在 storage.ts 中增加 getWeeklyStats、getStreakStats 等统计函数",
+            "3. 替换 'Coming Soon' 占位内容",
+            "4. 添加中英文翻译"
+          ],
+          "acceptance_criteria": [
+            "Profile 页面显示真实统计数据",
+            "统计卡片美观且响应式布局",
+            "无外部图表库依赖",
+            "数据更新后统计实时刷新"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-504",
+          "title": "添加任务拖拽功能",
+          "priority": "P3",
+          "category": "feature",
+          "description": "支持从待办池拖拽任务到时间线的时间槽中进行调度。（可选增强功能）",
+          "depends_on": ["T-302"],
+          "effort_estimate": 3,
+          "status": "pending",
+          "affected_files": [
+            "package.json",
+            "src/components/TaskCard.tsx",
+            "src/components/InboxPanel.tsx",
+            "src/components/TimelinePanel.tsx"
+          ],
+          "action_plan": [
+            "1. 评估拖拽库选型：优先使用 HTML5 Drag & Drop API（无额外依赖）或 @dnd-kit/core",
+            "2. TaskCard 添加 draggable 支持",
+            "3. TimelinePanel 的每个时间槽添加 drop zone",
+            "4. 拖拽完成时触发 handleScheduleConfirm 逻辑",
+            "5. 添加拖拽时的视觉反馈（高亮目标槽）",
+            "6. 保留原有的点击选择时间的交互方式作为后备"
+          ],
+          "acceptance_criteria": [
+            "可将待办池任务拖拽到时间线时间槽",
+            "拖拽过程中有明确的视觉反馈",
+            "时间槽冲突检测在拖拽场景也正常工作",
+            "原有的点击安排流程不受影响",
+            "触摸设备上可正常操作（可选）"
+          ],
+          "risk": "medium"
+        },
+        {
+          "id": "T-505",
+          "title": "删除遗留 electron.js 入口文件",
+          "priority": "P3",
+          "category": "cleanup",
+          "description": "electron.js 仅包含 require('./main.js')，已无独立存在价值。彻底移除以消除混淆。",
+          "depends_on": ["T-101"],
+          "effort_estimate": 0.2,
+          "status": "pending",
+          "affected_files": [
+            "electron.js (delete)",
+            "package.json"
+          ],
+          "action_plan": [
+            "1. 确认 package.json 的 'main' 字段已指向 'main.js'",
+            "2. 确认没有其他文件引用 electron.js",
+            "3. 删除 electron.js",
+            "4. 更新 project_issues.json 的相关条目（如果保留该文件）"
+          ],
+          "acceptance_criteria": [
+            "electron.js 被删除",
+            "应用正常启动",
+            "无任何文件引用 electron.js"
+          ],
+          "risk": "low"
+        },
+        {
+          "id": "T-506",
+          "title": "更新 project_issues.json 状态",
+          "priority": "P3",
+          "category": "cleanup",
+          "description": "在所有重构完成后，更新 project_issues.json 的状态字段，使其真实反映修复情况。或者直接替换为本重构计划文件。",
+          "depends_on": [],
+          "effort_estimate": 0.3,
+          "status": "pending",
+          "affected_files": [
+            "project_issues.json"
+          ],
+          "action_plan": [
+            "重构完成后，根据实际修复情况更新每个 issue 的 status 字段",
+            "或将 project_issues.json 替换为 refactoring_plan.json 作为项目唯一的 issue 追踪文件"
+          ],
+          "acceptance_criteria": [
+            "issue 状态与实际代码一致",
+            "无标记为 done 但实际未完成的项"
+          ],
+          "risk": "low"
+        }
+      ]
+    }
+  ],
+
+  "execution_order": [
+    "--- PHASE 1: 紧急修复（建议在 1 个 session 内完成）---",
+    "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108",
+
+    "--- PHASE 2: 数据层重构（核心任务，建议分 2-3 个 session）---",
+    "T-203", "T-201", "T-202", "T-204",
+
+    "--- PHASE 3: 前端架构重构（建议分 3-4 个 session）---",
+    "T-304", "T-305", "T-301", "T-302", "T-303",
+
+    "--- PHASE 4: 构建优化（建议分 2 个 session）---",
+    "T-401", "T-402", "T-403", "T-404",
+
+    "--- PHASE 5: 功能增强（按需执行，每个任务独立 session）---",
+    "T-505", "T-501", "T-502", "T-503", "T-504", "T-506"
+  ],
+
+  "rollback_strategy": {
+    "description": "每个 Phase 结束后做一次 Git tag，以便在后续阶段出问题时可以回退。",
+    "tags": {
+      "pre-refactor": "重构开始前的基线",
+      "phase-1-done": "Phase 1 完成后",
+      "phase-2-done": "Phase 2 完成后（数据层已迁移）",
+      "phase-3-done": "Phase 3 完成后（前端架构已重构）",
+      "phase-4-done": "Phase 4 完成后（构建优化完毕）",
+      "phase-5-done": "Phase 5 完成后（功能增强完毕）"
+    }
+  },
+
+  "verification_checkpoints": {
+    "after_phase_1": [
+      "npm run build 成功",
+      "npm run electron:dev 启动正常",
+      "所有 UI 文本中英文切换正确",
+      "离线状态下字体正常显示"
+    ],
+    "after_phase_2": [
+      "npm run build 成功",
+      "数据存储在 %APPDATA%/mylifeos 目录",
+      "旧 localStorage 数据自动迁移",
+      "备份/恢复功能正常",
+      "恶意 JSON 导入不崩溃"
+    ],
+    "after_phase_3": [
+      "npm run build 成功",
+      "npm test 全部通过",
+      "App.tsx 不超过 80 行",
+      "番茄钟 start → pause → resume → complete → break → finish 全流程正常",
+      "窗口最小化后计时不中断"
+    ],
+    "after_phase_4": [
+      "npm run electron:build 成功产出安装包",
+      "安装包安装后运行正常",
+      "npm test 覆盖率 > 60%",
+      "ASAR 打包后功能正常"
+    ],
+    "after_phase_5": [
+      "所有新增功能按验收标准检验通过",
+      "整体 UI 体验流畅无卡顿",
+      "Profile 页面显示真实统计数据"
+    ]
+  }
+}

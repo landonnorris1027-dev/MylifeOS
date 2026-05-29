@@ -3,13 +3,14 @@ import { X, Plus, Clock, Download, Upload, Trash2, Calendar } from 'lucide-react
 import { Priority, PRIORITY_STYLES, Habit } from '../types';
 import { addHabit, getHabits, deleteHabit, getAllDataJSON, importDataJSON, formatDateLocal } from '../services/storage';
 import { useLanguage } from '../contexts/LanguageContext';
+import { logger } from '../services/logger';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 
 interface HabitConfigProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdded: () => void;
+  onAdded: () => void | Promise<void>;
 }
 
 const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) => {
@@ -34,28 +35,28 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const refreshList = () => {
-    const habits = getHabits();
+  const refreshList = async () => {
+    const habits = await getHabits();
     setExistingHabits(habits);
     setRefreshKey(prev => prev + 1);
   };
 
   useEffect(() => {
     if (isOpen) {
-      refreshList();
+      void refreshList();
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const habitName = name.trim();
     if (!habitName) return;
 
     try {
-      console.log("Attempting to save habit:", habitName);
-      addHabit(
+      logger.debug("Attempting to save habit:", habitName);
+      await addHabit(
         habitName,
         priority,
         quota,
@@ -74,11 +75,11 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       setEndDate('');
 
       // Refresh local list and notify parent
-      refreshList();
-      onAdded();
-      console.log("Habit saved and list refreshed.");
+      await refreshList();
+      await onAdded();
+      logger.debug("Habit saved and list refreshed.");
     } catch (error) {
-      console.error("CRITICAL: Failed to add habit:", error);
+      logger.error("CRITICAL: Failed to add habit:", error);
       setAlertConfig({ isOpen: true, message: "Error: Could not save habit. Storage might be full or corrupted." });
     }
   };
@@ -87,17 +88,17 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     setConfirmConfig({
       isOpen: true,
       message: t('delete_confirm'),
-      onConfirm: () => {
-        deleteHabit(habitId);
-        refreshList();
-        onAdded();
+      onConfirm: async () => {
+        await deleteHabit(habitId);
+        await refreshList();
+        await onAdded();
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
       }
     });
   };
 
-  const handleBackup = () => {
-    const json = getAllDataJSON();
+  const handleBackup = async () => {
+    const json = await getAllDataJSON();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -122,15 +123,27 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       message: t('restore_confirm'),
       onConfirm: () => {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
           const content = event.target?.result as string;
-          const success = importDataJSON(content);
-          if (success) {
-            setAlertConfig({ isOpen: true, message: t('import_success') });
-            onAdded(); // Reload data
+          const result = await importDataJSON(content);
+          if (result.success) {
+            if (result.habitsSkipped > 0 || result.tasksSkipped > 0) {
+              setAlertConfig({ 
+                isOpen: true, 
+                message: t('import_partial_success') + '\n\n' + t('import_details', { 
+                  habits: result.habitsImported, 
+                  tasks: result.tasksImported, 
+                  skippedHabits: result.habitsSkipped, 
+                  skippedTasks: result.tasksSkipped 
+                }) 
+              });
+            } else {
+              setAlertConfig({ isOpen: true, message: t('import_success') });
+            }
+            await onAdded(); // Reload data
             onClose();
           } else {
-            setAlertConfig({ isOpen: true, message: t('import_error') });
+            setAlertConfig({ isOpen: true, message: t('import_error') + " " + (result.errorMsg || "") });
           }
         };
         reader.readAsText(file);
@@ -313,7 +326,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
               {existingHabits.length === 0 ? (
                 <div className="text-center py-4 text-xs text-gray-400 italic">
-                  No rules yet.
+                  {t('no_rules_yet')}
                 </div>
               ) : (
                 existingHabits.map(habit => {

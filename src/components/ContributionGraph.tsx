@@ -1,6 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getYearlyStats, formatDateLocal, parseDateLocal } from '../services/storage';
+import { logger } from '../services/logger';
+
+import { useAppState } from '../contexts/AppContext';
 
 interface DayData {
   date: string;
@@ -14,19 +17,43 @@ interface MonthLabel {
   label: string;
 }
 
+// Color Scale Helper (Pure function)
+function getLevel(minutes: number) {
+  if (minutes === 0) return 0;
+  const hours = minutes / 60;
+  if (hours <= 2) return 1;
+  if (hours <= 5) return 2;
+  if (hours <= 8) return 3;
+  if (hours <= 11) return 4;
+  return 5;
+}
+
 const ContributionGraph: React.FC = () => {
   const { t } = useLanguage();
-  const stats = useMemo(() => getYearlyStats(), []);
+  const { state } = useAppState();
+  const [stats, setStats] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    getYearlyStats().then((yearlyStats) => {
+      if (isMounted) setStats(yearlyStats);
+    }).catch((error) => {
+      logger.error('Failed to load yearly stats', error);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [state.dailyData]);
 
   // Calculate grid data
   const { weeks, totalMinutes } = useMemo(() => {
-    // HARDCODED RANGE: 2026-01-01 to 2026-12-31
-    const startDate = new Date(2026, 0, 1);
-    const endDate = new Date(2026, 11, 31);
     const today = new Date();
+    const currentYear = today.getFullYear();
+    const startDate = new Date(currentYear, 0, 1);
+    const endDate = new Date(currentYear, 11, 31);
 
     // 1. Calculate leading empty days for the first week
-    // 0 is Sunday, 1 is Monday... 2026-01-01 is Thursday (4)
+    // 0 is Sunday, 1 is Monday
     const startDayOfWeek = startDate.getDay();
     
     const weeksArray: DayData[][] = [];
@@ -80,16 +107,6 @@ const ContributionGraph: React.FC = () => {
     return { weeks: weeksArray, totalMinutes: grandTotal };
   }, [stats]);
 
-  // Color Scale Helper
-  function getLevel(minutes: number) {
-    if (minutes === 0) return 0;
-    const hours = minutes / 60;
-    if (hours <= 2) return 1;
-    if (hours <= 5) return 2;
-    if (hours <= 8) return 3;
-    if (hours <= 11) return 4;
-    return 5;
-  }
 
   const getColorClass = (level: number, isFuture: boolean, isEmpty: boolean) => {
     if (isEmpty) return 'opacity-0 pointer-events-none'; // Invisible padding
@@ -131,13 +148,13 @@ const ContributionGraph: React.FC = () => {
     <div className="bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">{t('year_activity_2026') || '2026 Focus Activity'}</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{t('focus_activity_year', { year: new Date().getFullYear() })}</h2>
           <p className="text-sm text-gray-500 mt-1">
             {t('total_focus_hours')}: <span className="font-bold text-gray-900">{totalHours} {t('hours_suffix')}</span>
           </p>
         </div>
         <div className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm shadow-blue-200">
-          2026
+          {new Date().getFullYear()}
         </div>
       </div>
 
@@ -160,9 +177,9 @@ const ContributionGraph: React.FC = () => {
           <div className="flex gap-1 relative z-10">
             {/* Day Labels - Fixed width w-8 */}
             <div className="flex flex-col justify-between text-[10px] text-gray-400 font-medium pb-3 pt-[1px] w-8 h-[96px]">
-              <span>Mon</span>
-              <span>Wed</span>
-              <span>Fri</span>
+              <span>{t('weekday_mon')}</span>
+              <span>{t('weekday_wed')}</span>
+              <span>{t('weekday_fri')}</span>
             </div>
 
             {/* The Grid */}

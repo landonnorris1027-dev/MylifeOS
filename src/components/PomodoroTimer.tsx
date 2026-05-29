@@ -3,14 +3,22 @@ import { X, Play, Pause, CheckCircle, Coffee, SkipForward } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { electronIPC } from '../services/electronIPC';
+import { logger } from '../services/logger';
+import { DEFAULT_BREAK_SECONDS, DEFAULT_FOCUS_MINUTES } from '../constants';
 
 interface PomodoroTimerProps {
   task: Task | null;
+  restoredState?: {
+    timerId: string;
+    remainingSeconds: number;
+    mode: 'focus' | 'break';
+    isActive?: boolean;
+  } | null;
   onClose: () => void;
   onComplete: (task: Task) => void;
 }
 
-const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete }) => {
+const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onClose, onComplete }) => {
   const { t } = useLanguage();
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
@@ -18,8 +26,10 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
   const [timerId, setTimerId] = useState<string>('');
 
   const isMounted = useRef(true);
-  const localIntervalRef = useRef<any>(null);
-  const endTimeRef = useRef<number>(0);
+  const startedTimersRef = useRef<Set<string>>(new Set());
+  const finishBreakTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getCurrentTimerKey = () => (mode === 'focus' ? timerId : `${timerId}_break`);
 
   // Sound Effect Helper (Web Audio API)
   const playSound = (type: 'complete' | 'break') => {
@@ -37,10 +47,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
       const now = ctx.currentTime;
 
       if (type === 'complete') {
-        // Ding! (Higher pitch)
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1); // C6
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1);
 
         gain.gain.setValueAtTime(0.3, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
@@ -48,13 +57,10 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
         osc.start(now);
         osc.stop(now + 0.8);
 
-        // Clean up context after sound finishes to prevent memory leak
         setTimeout(() => {
           ctx.close();
         }, 1000);
-
       } else {
-        // Break ending (Double beep)
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(440, now);
 
@@ -66,121 +72,166 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
         osc.start(now);
         osc.stop(now + 0.6);
 
-        // Clean up context
         setTimeout(() => {
           ctx.close();
         }, 1000);
       }
     } catch (e) {
-      console.error("Audio play failed", e);
+      logger.error('Audio play failed', e);
     }
   };
 
-  // 初始化
+
+
+  const syncStartOrResume = (timerKey: string, seconds: number, isFocusMode: boolean) => {
+    if (!timerKey || seconds <= 0) return;
+
+    if (!startedTimersRef.current.has(timerKey)) {
+      startedTimersRef.current.add(timerKey);
+      electronIPC.startPomodoro({
+        timerId: timerKey,
+        duration: seconds,
+        isFocusMode
+      });
+    } else {
+      electronIPC.togglePomodoro(timerKey);
+    }
+  };
+
+  // Auto-start initialization
   useEffect(() => {
+    isMounted.current = true;
+
+    if (finishBreakTimeoutRef.current) {
+      clearTimeout(finishBreakTimeoutRef.current);
+      finishBreakTimeoutRef.current = null;
+    }
+
     if (task) {
-      const newTimerId = `timer_${task.id}_${Date.now()}`;
-      setTimerId(newTimerId);
-      setMode('focus');
-      const initialSeconds = task.durationMinutes * 60;
-      setTimeLeft(initialSeconds);
-      setIsActive(false);
+      startedTimersRef.current.clear();
+
+      if (restoredState && restoredState.remainingSeconds > 0) {
+        setTimerId(restoredState.timerId);
+        setMode(restoredState.mode);
+        setTimeLeft(restoredState.remainingSeconds);
+
+        const restoredKey = restoredState.mode === 'focus'
+          ? restoredState.timerId
+          : `${restoredState.timerId}_break`;
+        startedTimersRef.current.add(restoredKey);
+        setIsActive(restoredState.isActive ?? true);
+      } else {
+        const newTimerId = `timer_${task.id}_${Date.now()}`;
+        setTimerId(newTimerId);
+        setMode('focus');
+        setTimeLeft(task.durationMinutes * 60);
+        setIsActive(false);
+      }
     }
 
     return () => {
       isMounted.current = false;
-      if (localIntervalRef.current) clearInterval(localIntervalRef.current);
-    };
-  }, [task]);
-
-  // 组件内计时器逻辑
-  const startLocalTimer = (durationSeconds: number) => {
-    if (localIntervalRef.current) clearInterval(localIntervalRef.current);
-
-    endTimeRef.current = Date.now() + durationSeconds * 1000;
-    setIsActive(true);
-
-    localIntervalRef.current = setInterval(() => {
-      const now = Date.now();
-      const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
-
-      setTimeLeft(remaining);
-
-      if (remaining <= 0) {
-        if (localIntervalRef.current) clearInterval(localIntervalRef.current);
-        handleTimerFinish();
+      if (finishBreakTimeoutRef.current) {
+        clearTimeout(finishBreakTimeoutRef.current);
+        finishBreakTimeoutRef.current = null;
       }
-    }, 200);
-  };
+    };
+  }, [task, restoredState]);
 
-  // 处理计时完成
+  // IPC Event Subscription
+  useEffect(() => {
+    if (!task || !timerId) return;
+
+    const currentTimerKey = mode === 'focus' ? timerId : `${timerId}_break`;
+
+    const unsubscribe = electronIPC.onPomodoroUpdate((data) => {
+      if (data.timerId !== currentTimerKey) return;
+
+      if (!isMounted.current) return;
+
+      if (data.stopped) {
+         setIsActive(false);
+         return;
+      }
+
+      setTimeLeft(Math.ceil(data.remaining / 1000));
+      
+      if (data.isActive !== undefined) {
+         setIsActive(data.isActive);
+      }
+
+      if (data.isFinished) {
+         handleTimerFinish();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [task, timerId, mode]);
+
   const handleTimerFinish = () => {
     setIsActive(false);
     playSound(mode === 'focus' ? 'complete' : 'break');
 
     if (mode === 'focus') {
-      // 切换到休息模式
-      setMode('break');
-      const breakSeconds = 300; // 5分钟
-      setTimeLeft(breakSeconds);
-      // 自动开始休息计时
-      startLocalTimer(breakSeconds);
-
-      // 后台同步
       if (timerId) {
+        electronIPC.stopPomodoro(timerId);
+        startedTimersRef.current.delete(timerId);
+      }
+
+      setMode('break');
+      setTimeLeft(DEFAULT_BREAK_SECONDS);
+      
+      // Auto start break via IPC
+      if (timerId) {
+        const breakTimerId = `${timerId}_break`;
+        startedTimersRef.current.add(breakTimerId);
+        setIsActive(true);
         electronIPC.startPomodoro({
-          timerId: `${timerId}_break`,
-          duration: breakSeconds,
+          timerId: breakTimerId,
+          duration: DEFAULT_BREAK_SECONDS,
           isFocusMode: false
         });
       }
     } else {
-      // 休息结束，自动退出
-      setTimeout(() => {
+      finishBreakTimeoutRef.current = setTimeout(() => {
+        finishBreakTimeoutRef.current = null;
         finishBreak();
-      }, 500); // 留一点时间放声音
+      }, 500);
     }
   };
 
-  // 统一退出休息逻辑
   const finishBreak = () => {
-    if (localIntervalRef.current) clearInterval(localIntervalRef.current);
     if (task) onComplete(task);
 
     if (timerId) {
-      // 停止专注模式计时器和休息计时器
       electronIPC.stopPomodoro(timerId);
       electronIPC.stopPomodoro(`${timerId}_break`);
+      startedTimersRef.current.delete(timerId);
+      startedTimersRef.current.delete(`${timerId}_break`);
     }
   };
 
-  // 暂停/恢复
+  // Pause/resume
   const toggleTimer = () => {
-    if (isActive) {
-      // 暂停
-      if (localIntervalRef.current) clearInterval(localIntervalRef.current);
-      setIsActive(false);
-    } else {
-      // 恢复
-      startLocalTimer(timeLeft);
-    }
+    const currentTimerId = getCurrentTimerKey();
 
-    // 后台同步
-    if (timerId) {
-      const currentTimerId = mode === 'focus' ? timerId : `${timerId}_break`;
-      electronIPC.togglePomodoro(currentTimerId);
+    if (isActive) {
+      if (currentTimerId && startedTimersRef.current.has(currentTimerId)) {
+        electronIPC.togglePomodoro(currentTimerId);
+      }
+    } else {
+      syncStartOrResume(currentTimerId, timeLeft, mode === 'focus');
     }
   };
 
-  // 提前完成（专注模式）
   const markEarlyComplete = () => {
     if (mode === 'focus') {
-      if (localIntervalRef.current) clearInterval(localIntervalRef.current);
       handleTimerFinish();
     }
   };
 
-  // 跳过休息
   const skipBreak = () => {
     if (mode === 'break') {
       finishBreak();
@@ -193,11 +244,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
-  // Progress calculation
-  const totalTime = mode === 'focus' ? task.durationMinutes * 60 : 5 * 60;
+  const totalTime = mode === 'focus' ? task.durationMinutes * 60 : DEFAULT_BREAK_SECONDS;
   const progress = 100 - (timeLeft / totalTime) * 100;
 
-  // Visual Styles based on mode
   const isBreak = mode === 'break';
   const containerBg = isBreak ? 'bg-emerald-50' : styles.bg;
   const containerBorder = isBreak ? 'border-emerald-100' : styles.border;
@@ -217,12 +266,10 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
         </div>
 
         <h2 className={`text-2xl font-bold mb-8 ${textColor}`}>
-          {isBreak ? "Break Time" : task.name}
+          {isBreak ? t('break_task_name') : task.name}
         </h2>
 
-        {/* Timer Display */}
         <div className="relative w-48 h-48 mx-auto mb-8 flex items-center justify-center">
-          {/* Progress Ring Background */}
           <svg className="absolute w-full h-full -rotate-90 transform" viewBox="0 0 192 192">
             <circle
               cx="96"
@@ -252,7 +299,6 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, onClose, onComplete
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex justify-center gap-4">
           <button
             onClick={toggleTimer}

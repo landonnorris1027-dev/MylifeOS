@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { getLang, setLang as persistLang } from '../services/storage';
+import { logger } from '../services/logger';
 
 type Language = 'en' | 'zh';
 
@@ -46,6 +48,8 @@ const translations = {
     restore_data: "Restore Data",
     restore_confirm: "This will overwrite current data. Continue?",
     import_success: "Data restored successfully!",
+    import_partial_success: "Import completed with warnings.",
+    import_details: "Imported {habits} habits, {tasks} tasks. Skipped {skippedHabits} habits, {skippedTasks} tasks.",
     import_error: "Invalid data file.",
     // Timer
     focus_mode: "Focus Mode",
@@ -78,15 +82,25 @@ const translations = {
     less: "Less",
     more: "More",
     hours_suffix: "h",
+    // Hardcoded text fixes (T-106)
+    welcome_message: "Welcome back, Traveler.",
+    no_tasks_past_day: "No pending tasks for this day.",
+    today_btn: "Today",
+    focus_activity_year: "{year} Focus Activity",
+    weekday_mon: "Mon",
+    weekday_wed: "Wed",
+    weekday_fri: "Fri",
+    no_rules_yet: "No rules yet.",
+    break_task_name: "Break Time",
     // Formats
     date_locale: "en-US",
   },
   zh: {
     app_title: "MyLifeOS",
     // Progress
-    p1_label: "A类 核心",
-    p2_label: "B类 次要",
-    p3_label: "C类 日常",
+    p1_label: "A类核心",
+    p2_label: "B类次要",
+    p3_label: "C类日常",
     // Header
     config_habits: "习惯管理",
     view_planner: "日程规划",
@@ -100,30 +114,32 @@ const translations = {
     timeline: "今日日程",
     // Config Modal
     config_habit_title: "配置习惯",
-    manage_habits_title: "已存习惯规则",
+    manage_habits_title: "已有习惯规则",
     delete_confirm: "确定删除此习惯规则吗？（已生成的历史记录会保留）",
     habit_name: "习惯名称",
     habit_placeholder: "例如：专业课、背单词",
     priority_class: "优先级分类",
     daily_quota: "每日目标",
     quota_desc: "每天自动生成 {n} 个待办块",
-    habit_duration: "单次时长 (分钟)",
+    habit_duration: "单次时长（分钟）",
     create_rule: "保存规则",
-    p1_btn: "P1 (核心/A类)",
-    p2_btn: "P2 (次要/B类)",
-    p3_btn: "P3 (日常/C类)",
-    // 生效范围
+    p1_btn: "P1（核心/A类）",
+    p2_btn: "P2（次要/B类）",
+    p3_btn: "P3（日常/C类）",
+    // Effective Range
     effective_mode: "生效模式",
-    mode_permanent: "永久有效",
+    mode_permanent: "永久生效",
     mode_range: "指定日期范围",
     start_date: "开始日期",
     end_date: "结束日期",
     // Data Management
     data_management: "数据管理",
-    backup_data: "备份数据 (JSON)",
-    restore_data: "恢复数据 (导入)",
+    backup_data: "备份数据（JSON）",
+    restore_data: "恢复数据（导入）",
     restore_confirm: "这将覆盖当前所有数据，确定吗？",
     import_success: "数据恢复成功！",
+    import_partial_success: "导入完成，但存在被剔除的受损数据。",
+    import_details: "成功导入 {habits} 个习惯，{tasks} 个任务。剔除了 {skippedHabits} 个损坏的习惯，{skippedTasks} 个损坏的任务。",
     import_error: "数据文件格式错误。",
     // Timer
     focus_mode: "专注模式",
@@ -156,6 +172,16 @@ const translations = {
     less: "少",
     more: "多",
     hours_suffix: "小时",
+    // Hardcoded text fixes (T-106)
+    welcome_message: "欢迎回来，旅行者。",
+    no_tasks_past_day: "该日无待办任务。",
+    today_btn: "今天",
+    focus_activity_year: "{year} 年度专注记录",
+    weekday_mon: "一",
+    weekday_wed: "三",
+    weekday_fri: "五",
+    no_rules_yet: "暂无习惯规则。",
+    break_task_name: "休息时间",
     // Formats
     date_locale: "zh-CN",
   }
@@ -170,14 +196,29 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('mylifeos_lang');
-    return (saved === 'en' || saved === 'zh') ? saved : 'zh';
-  });
+  const [language, setLanguage] = useState<Language>('zh');
+  const [isLanguageLoaded, setIsLanguageLoaded] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('mylifeos_lang', language);
-  }, [language]);
+    let isMounted = true;
+    getLang().then((saved) => {
+      if (isMounted && (saved === 'en' || saved === 'zh')) {
+        setLanguage(saved);
+        setIsLanguageLoaded(true);
+      }
+    }).catch((error) => {
+      logger.error('Failed to load language preference', error);
+      if (isMounted) setIsLanguageLoaded(true);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLanguageLoaded) return;
+    void persistLang(language);
+  }, [language, isLanguageLoaded]);
 
   const t = (key: keyof typeof translations['en'], params?: Record<string, string | number>) => {
     let text = translations[language][key] || translations['en'][key] || key;
