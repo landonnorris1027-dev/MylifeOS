@@ -5,6 +5,7 @@ export const TIMELINE_START_HOUR = 8;
 export const TIMELINE_END_HOUR = 23;
 export const TIMELINE_INTERVAL_MINUTES = 30;
 export const MINUTES_PER_DAY = 24 * 60;
+export type TimelineMode = 'daytime' | 'fullDay';
 
 export interface TimelineSlot {
   time: string;
@@ -78,6 +79,12 @@ export const buildTimelineSlots = (
   }
 
   return slots;
+};
+
+export const buildTimelineSlotsForMode = (mode: TimelineMode) => {
+  return mode === 'fullDay'
+    ? buildTimelineSlots(0, TIMELINE_END_HOUR, TIMELINE_INTERVAL_MINUTES)
+    : buildTimelineSlots(TIMELINE_START_HOUR, TIMELINE_END_HOUR, TIMELINE_INTERVAL_MINUTES);
 };
 
 export const getTaskTimeRange = (task: Task) => {

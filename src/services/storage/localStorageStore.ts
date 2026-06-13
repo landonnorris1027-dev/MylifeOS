@@ -5,10 +5,11 @@ export const KEYS = {
   LANGUAGE: 'mylifeos_lang',
   FOCUS_SETTINGS: 'mylifeos_focus_settings',
   PROFILE_SETTINGS: 'mylifeos_profile_settings',
+  PLANNER_SETTINGS: 'mylifeos_planner_settings',
   RECOVERY_POINTS: 'mylifeos_recovery_points',
 } as const;
 
-export const DATA_SCHEMA_VERSION = 3;
+export const DATA_SCHEMA_VERSION = 4;
 
 export class StorageWriteError extends Error {
   constructor(message: string) {

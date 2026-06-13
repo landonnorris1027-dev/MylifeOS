@@ -12,6 +12,14 @@ export interface PomodoroTimerData {
   taskDate?: string;
   taskPriority?: Priority;
   taskDurationMinutes?: number;
+  notificationMessages?: PomodoroNotificationMessages;
+}
+
+export interface PomodoroNotificationMessages {
+  focusCompleteTitle: string;
+  focusCompleteBody: string;
+  breakFinishedTitle: string;
+  breakFinishedBody: string;
 }
 
 export interface PomodoroUpdateData {
@@ -32,6 +40,7 @@ export interface PomodoroUpdateData {
   taskDate?: string | null;
   taskPriority?: string | null;
   taskDurationMinutes?: number | null;
+  notificationMessages?: PomodoroNotificationMessages | null;
 }
 
 export interface PomodoroRecoveryData {
@@ -45,6 +54,7 @@ export interface PomodoroRecoveryData {
   taskDate?: string | null;
   taskPriority?: string | null;
   taskDurationMinutes?: number | null;
+  notificationMessages?: PomodoroNotificationMessages | null;
   originalDuration?: number;
   remaining?: number;
   expiredAt?: number;
@@ -72,6 +82,7 @@ interface BrowserTimer {
   taskDate?: string | null;
   taskPriority?: Priority | null;
   taskDurationMinutes?: number | null;
+  notificationMessages?: PomodoroNotificationMessages | null;
 }
 
 class ElectronIPCHandler {
@@ -127,6 +138,7 @@ class ElectronIPCHandler {
       taskDate: timerData.taskDate || null,
       taskPriority: timerData.taskPriority || null,
       taskDurationMinutes: timerData.taskDurationMinutes || null,
+      notificationMessages: timerData.notificationMessages || null,
     };
 
     timer.intervalId = setInterval(() => {
@@ -152,6 +164,7 @@ class ElectronIPCHandler {
         taskDate: timerData.taskDate || null,
         taskPriority: timerData.taskPriority || null,
         taskDurationMinutes: timerData.taskDurationMinutes || null,
+        notificationMessages: timerData.notificationMessages || null,
       };
 
       this.notifySubscribers(updateData);
@@ -180,6 +193,7 @@ class ElectronIPCHandler {
       taskDate: timerData.taskDate || null,
       taskPriority: timerData.taskPriority || null,
       taskDurationMinutes: timerData.taskDurationMinutes || null,
+      notificationMessages: timerData.notificationMessages || null,
     };
 
     this.notifySubscribers(payload);
@@ -220,6 +234,7 @@ class ElectronIPCHandler {
       taskDate: timer.taskDate || null,
       taskPriority: timer.taskPriority || null,
       taskDurationMinutes: timer.taskDurationMinutes || null,
+      notificationMessages: timer.notificationMessages || null,
     });
   }
 
@@ -281,6 +296,7 @@ class ElectronIPCHandler {
       taskDate: t.taskDate || null,
       taskPriority: t.taskPriority || null,
       taskDurationMinutes: t.taskDurationMinutes || null,
+      notificationMessages: t.notificationMessages || null,
     }));
   }
 

@@ -13,6 +13,7 @@ export const createTaskFromHabit = (habit: Habit, dateStr: string): Task => ({
   id: generateId(),
   habitId: habit.id,
   goalId: habit.goalId,
+  origin: 'habit',
   name: habit.name,
   priority: habit.priority,
   status: 'inbox',

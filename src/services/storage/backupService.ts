@@ -66,6 +66,10 @@ const isValidStatus = (value: unknown): value is TaskStatus => {
   return value === 'inbox' || value === 'scheduled' || value === 'completed' || value === 'deleted';
 };
 
+const isValidOrigin = (value: unknown): value is NonNullable<Task['origin']> => {
+  return value === 'habit' || value === 'manual';
+};
+
 const sanitizeGoal = (value: unknown, seenGoalIds: Set<string>): Goal | null => {
   if (!isRecord(value)) return null;
   if (
@@ -132,11 +136,12 @@ const sanitizeTask = (
   if (!isRecord(value)) return null;
 
   const taskDate = typeof value.date === 'string' ? value.date : fallbackDate;
+  const rawHabitId = typeof value.habitId === 'string' ? value.habitId : undefined;
+  const origin = isValidOrigin(value.origin) ? value.origin : (rawHabitId ? 'habit' : 'manual');
+
   if (
     !isNonEmptyString(value.id) ||
     seenTaskIds.has(value.id) ||
-    !isNonEmptyString(value.habitId) ||
-    !validHabitIds.has(value.habitId) ||
     !isNonEmptyString(value.name) ||
     !isValidPriority(value.priority) ||
     !isValidStatus(value.status) ||
@@ -148,6 +153,12 @@ const sanitizeTask = (
   ) {
     return null;
   }
+  if (origin === 'habit' && (!rawHabitId || !validHabitIds.has(rawHabitId))) {
+    return null;
+  }
+  if (rawHabitId && !validHabitIds.has(rawHabitId)) {
+    return null;
+  }
 
   seenTaskIds.add(value.id);
   const goalId = typeof value.goalId === 'string' && validGoalIds.has(value.goalId) ? value.goalId : undefined;
@@ -156,8 +167,9 @@ const sanitizeTask = (
 
   return {
     id: value.id,
-    habitId: value.habitId,
+    habitId: rawHabitId,
     goalId,
+    origin,
     name: value.name.trim(),
     priority: value.priority,
     status: value.status,

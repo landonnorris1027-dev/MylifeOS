@@ -3,6 +3,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { TimerSessionSnapshot } from '../components/PomodoroTimer';
 import { PomodoroRecoveryData, PomodoroUpdateData, electronIPC } from '../services/electronIPC';
 import {
+  addGoal,
+  addManualTask,
   deleteTaskForToday,
   deleteTaskFromDay,
   formatDateLocal,
@@ -15,13 +17,15 @@ import {
 } from '../services/storage';
 import {
   TIMELINE_INTERVAL_MINUTES,
-  buildTimelineSlots,
+  TimelineMode,
+  buildTimelineSlotsForMode,
   getOverlappingTasks,
   getTaskTimeLabel,
   hasSchedulingConflict,
   isTaskStartInPastForDate,
   isTaskWithinDay,
 } from '../services/scheduling';
+import { getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
 import { DailyData, Task, isPriority } from '../types';
 
 export type ViewMode = 'planner' | 'profile';
@@ -63,7 +67,9 @@ interface AppControllerState {
   selectedDate: string;
   dailyData: DailyData | null;
   graphRefreshToken: number;
+  timelineMode: TimelineMode;
   isHabitConfigOpen: boolean;
+  isManualTaskOpen: boolean;
   timerPanel: TimerPanelState;
   recoveryPrompt: RecoveryPromptState;
   schedulingTask: Task | null;
@@ -76,7 +82,9 @@ type AppControllerAction =
   | { type: 'SET_VIEW'; view: ViewMode }
   | { type: 'SET_SELECTED_DATE'; date: string }
   | { type: 'LOAD_DAY_DATA'; dailyData: DailyData }
+  | { type: 'SET_TIMELINE_MODE'; timelineMode: TimelineMode }
   | { type: 'SET_HABIT_CONFIG_OPEN'; isOpen: boolean }
+  | { type: 'SET_MANUAL_TASK_OPEN'; isOpen: boolean }
   | { type: 'OPEN_TIMER_FOR_TASK'; task: Task }
   | { type: 'SET_TIMER_SESSION'; restoredState: TimerSessionSnapshot | null }
   | { type: 'CLOSE_TIMER' }
@@ -95,7 +103,9 @@ const initialState: AppControllerState = {
   selectedDate: getTodayStr(),
   dailyData: null,
   graphRefreshToken: 0,
+  timelineMode: getPlannerSettings().timelineMode,
   isHabitConfigOpen: false,
+  isManualTaskOpen: false,
   timerPanel: {
     task: null,
     restoredState: null,
@@ -129,8 +139,12 @@ const appControllerReducer = (state: AppControllerState, action: AppControllerAc
         dailyData: action.dailyData,
         graphRefreshToken: state.graphRefreshToken + 1,
       };
+    case 'SET_TIMELINE_MODE':
+      return { ...state, timelineMode: action.timelineMode };
     case 'SET_HABIT_CONFIG_OPEN':
       return { ...state, isHabitConfigOpen: action.isOpen };
+    case 'SET_MANUAL_TASK_OPEN':
+      return { ...state, isManualTaskOpen: action.isOpen };
     case 'OPEN_TIMER_FOR_TASK':
       return {
         ...state,
@@ -249,11 +263,11 @@ export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | nu
 
   const storedTask = findStoredTimerTask(recovery.taskId, recovery.taskDate);
   const habitId = getTimerTaskHabitId(recovery);
-  if (!habitId) return null;
 
   return {
     id: recovery.taskId,
-    habitId,
+    habitId: habitId || undefined,
+    origin: habitId ? 'habit' : 'manual',
     name: recovery.taskName,
     priority: recovery.taskPriority,
     status: 'scheduled',
@@ -303,13 +317,12 @@ export const useAppController = () => {
         }
 
         const timerHabitId = getTimerTaskHabitId(timer);
-        if (!timerHabitId) return;
         const storedTask = findStoredTimerTask(timer.taskId, timer.taskDate);
 
         const restoredState: TimerSessionSnapshot = {
           timerId: timer.timerId.replace(/_break$/, ''),
           taskId: timer.taskId,
-          taskHabitId: timerHabitId,
+          taskHabitId: timerHabitId || undefined,
           taskName: timer.taskName,
           taskPriority: timer.taskPriority,
           taskDate: timer.taskDate,
@@ -326,6 +339,7 @@ export const useAppController = () => {
           task: {
             id: restoredState.taskId,
             habitId: restoredState.taskHabitId,
+            origin: restoredState.taskHabitId ? 'habit' : 'manual',
             name: restoredState.taskName,
             priority: restoredState.taskPriority,
             status: 'scheduled',
@@ -369,6 +383,48 @@ export const useAppController = () => {
     dispatch({ type: 'SET_HABIT_CONFIG_OPEN', isOpen: false });
   }, []);
 
+  const setTimelineMode = useCallback((timelineMode: TimelineMode) => {
+    try {
+      savePlannerSettings({ timelineMode });
+      dispatch({ type: 'SET_TIMELINE_MODE', timelineMode });
+    } catch (error) {
+      reportStorageError(error);
+    }
+  }, [reportStorageError]);
+
+  const openManualTask = useCallback(() => {
+    dispatch({ type: 'SET_MANUAL_TASK_OPEN', isOpen: true });
+  }, []);
+
+  const closeManualTask = useCallback(() => {
+    dispatch({ type: 'SET_MANUAL_TASK_OPEN', isOpen: false });
+  }, []);
+
+  const handleManualTaskCreate = useCallback((input: {
+    name: string;
+    priority: Task['priority'];
+    durationMinutes: number;
+    goalName?: string;
+    note?: string;
+  }) => {
+    try {
+      const goal = input.goalName?.trim() ? addGoal(input.goalName) : null;
+      const created = addManualTask(state.selectedDate, {
+        name: input.name,
+        priority: input.priority,
+        durationMinutes: input.durationMinutes,
+        goalId: goal?.id,
+        note: input.note,
+      });
+      if (created) {
+        dispatch({ type: 'SET_MANUAL_TASK_OPEN', isOpen: false });
+        loadData(state.selectedDate);
+      }
+    } catch (error) {
+      reportStorageError(error);
+    }
+  }, [loadData, reportStorageError, state.selectedDate]);
+
   const reopenExistingTimer = useCallback(() => {
     const restoredTimerState = state.timerPanel.restoredState;
     if (!restoredTimerState) return;
@@ -378,6 +434,7 @@ export const useAppController = () => {
       task: {
         id: restoredTimerState.taskId,
         habitId: restoredTimerState.taskHabitId,
+        origin: restoredTimerState.taskHabitId ? 'habit' : 'manual',
         name: restoredTimerState.taskName,
         priority: restoredTimerState.taskPriority,
         status: 'scheduled',
@@ -704,7 +761,7 @@ export const useAppController = () => {
     const scheduled = visibleTasks.filter((task) => task.status === 'scheduled');
     const completed = visibleTasks.filter((task) => task.status === 'completed');
     const timelineTasks = [...scheduled, ...completed];
-    const freeSlots = buildTimelineSlots().filter((slot) => (
+    const freeSlots = buildTimelineSlotsForMode(state.timelineMode).filter((slot) => (
       !isTaskStartInPastForDate(state.selectedDate, slot.time) &&
       isTaskWithinDay(slot.time, TIMELINE_INTERVAL_MINUTES) &&
       !hasSchedulingConflict(timelineTasks, slot.time, TIMELINE_INTERVAL_MINUTES)
@@ -721,7 +778,7 @@ export const useAppController = () => {
       freeTimelineMinutes,
       isOverloaded: state.selectedDate === getTodayStr() && inboxMinutes > freeTimelineMinutes,
     };
-  }, [state.dailyData?.tasks, state.selectedDate]);
+  }, [state.dailyData?.tasks, state.selectedDate, state.timelineMode]);
 
   const formattedDate = useMemo(
     () => parseDateLocal(state.selectedDate).toLocaleDateString(t('date_locale'), {
@@ -738,7 +795,9 @@ export const useAppController = () => {
       selectedDate: state.selectedDate,
       dailyData: state.dailyData,
       graphRefreshToken: state.graphRefreshToken,
+      timelineMode: state.timelineMode,
       isHabitConfigOpen: state.isHabitConfigOpen,
+      isManualTaskOpen: state.isManualTaskOpen,
       activeTask: state.timerPanel.task,
       restoredTimerState: state.timerPanel.restoredState,
       pendingRecovery: state.recoveryPrompt.pending,
@@ -756,8 +815,12 @@ export const useAppController = () => {
     },
     actions: {
       setView,
+      setTimelineMode,
       openHabitConfig,
       closeHabitConfig,
+      openManualTask,
+      closeManualTask,
+      handleManualTaskCreate,
       loadData,
       changeDate,
       goToToday,

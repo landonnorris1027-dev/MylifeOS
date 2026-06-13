@@ -1,5 +1,6 @@
 import {
   buildTimelineSlots,
+  buildTimelineSlotsForMode,
   getEarliestSchedulableMinutesForDate,
   isTaskStartInPastForDate,
   isTaskWithinDay,
@@ -10,6 +11,17 @@ describe('scheduling helpers', () => {
     const slots = buildTimelineSlots();
 
     expect(slots[slots.length - 1].time).toBe('23:30');
+  });
+
+  it('builds daytime and full-day timeline modes', () => {
+    const daytime = buildTimelineSlotsForMode('daytime');
+    const fullDay = buildTimelineSlotsForMode('fullDay');
+
+    expect(daytime[0].time).toBe('08:00');
+    expect(daytime[daytime.length - 1].time).toBe('23:30');
+    expect(fullDay[0].time).toBe('00:00');
+    expect(fullDay[fullDay.length - 1].time).toBe('23:30');
+    expect(fullDay.length).toBe(48);
   });
 
   it('allows tasks that finish by midnight', () => {

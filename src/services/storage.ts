@@ -38,6 +38,14 @@ export interface ProfileStats {
   }>;
 }
 
+export interface ManualTaskInput {
+  name: string;
+  priority: Priority;
+  durationMinutes: number;
+  goalId?: string;
+  note?: string;
+}
+
 export const getAllDataJSON = () => {
   return exportBackupJSON(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
 };
@@ -110,6 +118,31 @@ export const addHabit = (
   };
   saveHabits([...habits, newHabit]);
   return newHabit;
+};
+
+export const addManualTask = (date: string, input: ManualTaskInput) => {
+  const taskName = input.name.trim();
+  if (!taskName) return null;
+
+  const currentData = initializeDay(date);
+  const newTask: Task = {
+    id: generateId(),
+    goalId: input.goalId,
+    origin: 'manual',
+    name: taskName,
+    priority: input.priority,
+    status: 'inbox',
+    date,
+    durationMinutes: input.durationMinutes,
+    note: input.note?.trim() || undefined,
+  };
+
+  saveDailyData({
+    ...currentData,
+    tasks: [...currentData.tasks, newTask],
+  });
+
+  return newTask;
 };
 
 export const updateHabit = (updatedHabit: Habit) => {

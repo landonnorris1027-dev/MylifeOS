@@ -8,6 +8,7 @@ import TaskCard from './components/TaskCard';
 import HabitConfig from './components/HabitConfig';
 import PomodoroTimer from './components/PomodoroTimer';
 import TimePickerModal from './components/TimePickerModal';
+import ManualTaskModal from './components/ManualTaskModal';
 import ContributionGraph from './components/ContributionGraph';
 import ProfileStats from './components/ProfileStats';
 import AlertModal from './components/AlertModal';
@@ -16,9 +17,7 @@ import RecoveryModal from './components/RecoveryModal';
 import TaskReviewModal from './components/TaskReviewModal';
 import { useAppController } from './hooks/useAppController';
 import ErrorBoundary from './components/ErrorBoundary';
-import { buildTimelineSlots } from './services/scheduling';
-
-const TIMELINE_SLOTS = buildTimelineSlots();
+import { buildTimelineSlotsForMode } from './services/scheduling';
 
 const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
   P1: 'p1_label',
@@ -33,7 +32,9 @@ export default function App() {
     view,
     selectedDate,
     graphRefreshToken,
+    timelineMode,
     isHabitConfigOpen,
+    isManualTaskOpen,
     activeTask,
     restoredTimerState,
     pendingRecovery,
@@ -51,8 +52,12 @@ export default function App() {
   } = state;
   const {
     setView,
+    setTimelineMode,
     openHabitConfig,
     closeHabitConfig,
+    openManualTask,
+    closeManualTask,
+    handleManualTaskCreate,
     setRestoredTimerState,
     loadData,
     changeDate,
@@ -81,6 +86,7 @@ export default function App() {
   } = actions;
 
   const formatHours = (minutes: number) => (minutes / 60).toFixed(1);
+  const timelineSlots = React.useMemo(() => buildTimelineSlotsForMode(timelineMode), [timelineMode]);
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] pb-10 font-sans text-[#37352F]">
@@ -146,6 +152,7 @@ export default function App() {
               }}
               className="flex items-center justify-center p-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors w-10 h-10"
               title={t('switch_language')}
+              aria-label={t('switch_language')}
             >
               {language === 'en' ? '中文' : 'EN'}
             </button>
@@ -165,25 +172,49 @@ export default function App() {
               <button
                 onClick={openHabitConfig}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                title={t('config_habits')}
+                aria-label={t('config_habits')}
               >
                 <Settings2 size={16} />
                 <span className="hidden sm:inline">{t('config_habits')}</span>
               </button>
             )}
 
-            <button
-              onClick={() => setView(view === 'planner' ? 'profile' : 'planner')}
-              className="md:hidden flex items-center justify-center p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
-            >
-              {view === 'planner' ? <User size={20} /> : <LayoutGrid size={20} />}
-            </button>
-
             <div
               className="hidden md:flex w-9 h-9 bg-orange-100 text-orange-600 rounded-full items-center justify-center border border-orange-200 cursor-pointer hover:bg-orange-200 transition-colors"
               onClick={() => setView('profile')}
+              title={t('view_profile')}
+              aria-label={t('view_profile')}
             >
               <User size={18} />
             </div>
+          </div>
+
+          <div className="md:hidden grid grid-cols-3 gap-2 w-full border-t border-gray-100 pt-3">
+            <button
+              onClick={() => setView('planner')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${view === 'planner' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
+              aria-label={t('view_planner')}
+            >
+              <LayoutGrid size={15} />
+              <span>{t('view_planner')}</span>
+            </button>
+            <button
+              onClick={() => setView('profile')}
+              className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${view === 'profile' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
+              aria-label={t('view_profile')}
+            >
+              <User size={15} />
+              <span>{t('view_profile')}</span>
+            </button>
+            <button
+              onClick={openHabitConfig}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 px-2 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-200"
+              aria-label={t('config_habits')}
+            >
+              <Settings2 size={15} />
+              <span>{t('mobile_nav_habits')}</span>
+            </button>
           </div>
         </div>
       </header>
@@ -288,6 +319,12 @@ export default function App() {
 
                 <div className="mt-8 pt-6 border-t border-gray-100">
                   <button
+                    onClick={openManualTask}
+                    className="mb-3 w-full py-2 flex items-center justify-center gap-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg border border-gray-200 transition-all"
+                  >
+                    <Plus size={16} /> {t('add_manual_task')}
+                  </button>
+                  <button
                     onClick={openHabitConfig}
                     className="w-full py-2 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg border border-dashed border-gray-200 transition-all"
                   >
@@ -306,6 +343,20 @@ export default function App() {
                   </h2>
 
                   <div className="flex flex-wrap items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                    <div className="mr-1 flex rounded-md bg-white border border-gray-100 p-0.5">
+                      <button
+                        onClick={() => setTimelineMode('daytime')}
+                        className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${timelineMode === 'daytime' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        {t('timeline_mode_daytime')}
+                      </button>
+                      <button
+                        onClick={() => setTimelineMode('fullDay')}
+                        className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${timelineMode === 'fullDay' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        {t('timeline_mode_full_day')}
+                      </button>
+                    </div>
                     <button
                       onClick={() => changeDate(-7)}
                       className="px-2 py-1.5 text-xs font-semibold hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
@@ -353,7 +404,7 @@ export default function App() {
                 </div>
 
                 <div className="relative pl-4 space-y-6">
-                  {TIMELINE_SLOTS.map((slot) => {
+                  {timelineSlots.map((slot) => {
                     const timeLabel = slot.time;
                     const tasksInSlot = scheduledTasks.filter((task) => task.startTime === timeLabel);
 
@@ -418,9 +469,16 @@ export default function App() {
           }}
         />
 
+        <ManualTaskModal
+          isOpen={isManualTaskOpen}
+          onClose={closeManualTask}
+          onCreate={handleManualTaskCreate}
+        />
+
         <TimePickerModal
           task={schedulingTask}
           dailyTasks={state.dailyData?.tasks || []}
+          timelineMode={timelineMode}
           onClose={closeSchedulingModal}
           onConfirm={handleScheduleConfirm}
         />

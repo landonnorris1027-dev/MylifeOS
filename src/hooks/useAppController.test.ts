@@ -59,8 +59,15 @@ describe('useAppController recovery helpers', () => {
     expect(task?.startTime).toBe('09:00');
   });
 
-  it('does not build a task when legacy recovery data cannot be matched to a habit', () => {
-    expect(buildTaskFromRecovery(baseRecovery)).toBeNull();
+  it('builds a manual task when recovery data has no habit association', () => {
+    const task = buildTaskFromRecovery(baseRecovery);
+
+    expect(task).toMatchObject({
+      id: 'task-1',
+      origin: 'manual',
+      name: 'Deep Work',
+    });
+    expect(task?.habitId).toBeUndefined();
   });
 });
 

@@ -25,8 +25,9 @@ export interface Goal {
 
 export interface Task {
   id: string;
-  habitId: string;
+  habitId?: string;
   goalId?: string;
+  origin?: 'habit' | 'manual';
   name: string;
   priority: Priority;
   status: TaskStatus;

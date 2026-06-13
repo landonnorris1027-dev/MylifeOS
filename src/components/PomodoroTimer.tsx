@@ -8,7 +8,7 @@ import { DEFAULT_FOCUS_SETTINGS, FocusSettings, getFocusSettings } from '../serv
 export interface TimerSessionSnapshot {
   timerId: string;
   taskId: string;
-  taskHabitId: string;
+  taskHabitId?: string;
   taskName: string;
   taskPriority: Task['priority'];
   taskDate: string;
@@ -214,6 +214,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       taskDate: task.date,
       taskPriority: task.priority,
       taskDurationMinutes: task.durationMinutes,
+      notificationMessages: {
+        focusCompleteTitle: t('notification_focus_complete_title'),
+        focusCompleteBody: t('notification_focus_complete_body', { task: task.name }),
+        breakFinishedTitle: t('notification_break_finished_title'),
+        breakFinishedBody: t('notification_break_finished_body'),
+      },
     };
   };
 

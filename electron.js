@@ -94,6 +94,7 @@ function queuePendingRecovery(timer, reason = 'expired_while_offline') {
     taskDate: timer.taskDate || null,
     taskPriority: timer.taskPriority || null,
     taskDurationMinutes: timer.taskDurationMinutes || null,
+    notificationMessages: timer.notificationMessages || null,
     notificationsEnabled: timer.notificationsEnabled !== false,
     breakDurationSeconds: timer.breakDurationSeconds || null,
     originalDuration: timer.duration,
@@ -152,6 +153,7 @@ function restorePersistedTimers() {
         taskDate: timer.taskDate || null,
         taskPriority: timer.taskPriority || null,
         taskDurationMinutes: timer.taskDurationMinutes || null,
+        notificationMessages: timer.notificationMessages || null,
         notificationsEnabled: timer.notificationsEnabled !== false,
         breakDurationSeconds: timer.breakDurationSeconds || null,
         startedAt: timer.startedAt || now,
@@ -188,6 +190,7 @@ function toTimerPayload(timer) {
     taskDate: timer.taskDate || null,
     taskPriority: timer.taskPriority || null,
     taskDurationMinutes: timer.taskDurationMinutes || null,
+    notificationMessages: timer.notificationMessages || null,
     notificationsEnabled: timer.notificationsEnabled !== false,
     breakDurationSeconds: timer.breakDurationSeconds || null,
     startedAt: timer.startedAt,
@@ -219,10 +222,13 @@ function showTimerNotification(timer) {
   if (timer.notificationsEnabled === false) return;
 
   try {
-    const title = timer.isFocusMode ? 'Focus session completed' : 'Break finished';
+    const messages = timer.notificationMessages || {};
+    const title = timer.isFocusMode
+      ? messages.focusCompleteTitle || 'Focus session completed'
+      : messages.breakFinishedTitle || 'Break finished';
     const body = timer.isFocusMode
-      ? `${timer.taskName || 'Your task'} is ready for a break.`
-      : 'Time to get back to work.';
+      ? messages.focusCompleteBody || `${timer.taskName || 'Your task'} is ready for a break.`
+      : messages.breakFinishedBody || 'Time to get back to work.';
 
     if (Notification.isSupported()) {
       new Notification({ title, body }).show();
@@ -291,6 +297,7 @@ function upsertTimer(timerData) {
     taskDate: timerData.taskDate || null,
     taskPriority: timerData.taskPriority || null,
     taskDurationMinutes: timerData.taskDurationMinutes || null,
+    notificationMessages: timerData.notificationMessages || null,
     startedAt: Date.now(),
     updatedAt: Date.now(),
     intervalId: null,
@@ -339,6 +346,7 @@ function registerPomodoroIpc() {
         taskDate: recovery.taskDate,
         taskPriority: recovery.taskPriority,
         taskDurationMinutes: recovery.taskDurationMinutes,
+        notificationMessages: recovery.notificationMessages || null,
       });
 
       persistActiveTimers();

@@ -1,6 +1,7 @@
 import {
   addGoal,
   addHabit,
+  addManualTask,
   deleteHabit,
   deleteTaskForToday,
   formatDateLocal,
@@ -89,6 +90,32 @@ describe('storage service', () => {
     });
 
     expect(getProfileStats().goalMinutes[goal?.id || '']).toBe(30);
+  });
+
+  it('creates one-time manual tasks without generating future copies', () => {
+    const goal = addGoal('Admin');
+    const manualTask = addManualTask('2026-04-22', {
+      name: 'Submit form',
+      priority: 'P2',
+      durationMinutes: 20,
+      goalId: goal?.id,
+      note: 'Bring ID',
+    });
+
+    const today = initializeDay('2026-04-22');
+    const future = initializeDay('2026-04-23');
+
+    expect(manualTask).toMatchObject({
+      name: 'Submit form',
+      priority: 'P2',
+      durationMinutes: 20,
+      origin: 'manual',
+      goalId: goal?.id,
+      note: 'Bring ID',
+    });
+    expect(manualTask?.habitId).toBeUndefined();
+    expect(today.tasks).toHaveLength(1);
+    expect(future.tasks).toHaveLength(0);
   });
 
 
@@ -290,7 +317,7 @@ describe('storage service', () => {
 
     const exported = JSON.parse(getAllDataJSON());
 
-    expect(exported.schemaVersion).toBe(3);
+    expect(exported.schemaVersion).toBe(4);
     expect(Array.isArray(exported.habits)).toBe(true);
     expect(Array.isArray(exported.goals)).toBe(true);
     expect(typeof exported.dailyLogs).toBe('object');
@@ -370,7 +397,44 @@ describe('storage service', () => {
     expect(getDailyData('2026-04-22')?.tasks).toHaveLength(1);
 
     const reExported = JSON.parse(getAllDataJSON());
-    expect(reExported.schemaVersion).toBe(3);
+    expect(reExported.schemaVersion).toBe(4);
+  });
+
+  it('imports manual tasks without habit associations', () => {
+    const payload = JSON.stringify({
+      schemaVersion: 4,
+      timestamp: '2026-04-22T01:00:00.000Z',
+      goals: [],
+      habits: [],
+      dailyLogs: {
+        '2026-04-22': {
+          date: '2026-04-22',
+          tasks: [
+            {
+              id: 'manual-import',
+              origin: 'manual',
+              name: 'One-off errand',
+              priority: 'P3',
+              status: 'inbox',
+              date: '2026-04-22',
+              durationMinutes: 15,
+            },
+          ],
+        },
+      },
+    });
+
+    const result = importDataJSON(payload);
+    const importedTask = getDailyData('2026-04-22')?.tasks[0];
+
+    expect(result.ok).toBe(true);
+    expect(result.filteredTaskCount).toBe(0);
+    expect(importedTask).toMatchObject({
+      id: 'manual-import',
+      origin: 'manual',
+      name: 'One-off errand',
+    });
+    expect(importedTask?.habitId).toBeUndefined();
   });
 
   it('backs up and restores goals, notes, and reviews', () => {

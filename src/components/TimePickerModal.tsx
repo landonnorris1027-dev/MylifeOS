@@ -2,21 +2,22 @@ import React from 'react';
 import { X, CalendarClock, Clock3, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { buildTimelineSlots, getOverlappingTasks, getTaskTimeLabel, isTaskStartInPastForDate, isTaskWithinDay } from '../services/scheduling';
+import { TimelineMode, buildTimelineSlotsForMode, getOverlappingTasks, getTaskTimeLabel, isTaskStartInPastForDate, isTaskWithinDay } from '../services/scheduling';
 
 interface TimePickerModalProps {
   task: Task | null;
   dailyTasks: Task[];
+  timelineMode: TimelineMode;
   onClose: () => void;
   onConfirm: (time: string) => void;
 }
 
-const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, onClose, onConfirm }) => {
+const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, timelineMode, onClose, onConfirm }) => {
   const { t } = useLanguage();
   if (!task) return null;
 
   const styles = PRIORITY_STYLES[task.priority];
-  const slots = buildTimelineSlots();
+  const slots = buildTimelineSlotsForMode(timelineMode);
   const slotStates = slots.map((slot) => {
     const conflicts = getOverlappingTasks(dailyTasks, slot.time, task.durationMinutes);
     const isWithinDay = isTaskWithinDay(slot.time, task.durationMinutes);
