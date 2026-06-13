@@ -41,6 +41,6 @@ dist/*Setup*.exe
 # Temporary / Build artifacts
 temp_build/
 tmp/
-tmp_write_test.txt
 *.lnk
-*.bak
+main.js
+.git.broken-worktree

@@ -6,7 +6,7 @@ interface ConfirmModalProps {
   isOpen: boolean;
   title?: string;
   message: string;
-  onConfirm: () => void | Promise<void>;
+  onConfirm: () => void;
   onCancel: () => void;
 }
 
@@ -27,7 +27,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onC
             {title || t('confirm_title')}
           </h3>
           
-          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+          <p className="text-sm text-gray-500 leading-relaxed mb-6 whitespace-pre-line">
             {message}
           </p>
 
