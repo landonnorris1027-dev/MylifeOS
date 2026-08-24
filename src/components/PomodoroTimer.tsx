@@ -100,7 +100,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
 
     finishHandledRef.current = null;
     startInFlightRef.current = false;
-    completedFocusSecondsRef.current = restoredState?.taskId === task.id && restoredState.mode === 'break'
+    completedFocusSecondsRef.current = restoredState?.taskId === task.id
+      && restoredState.mode === 'break'
+      && (restoredState.remainingSeconds > 0 || restoredState.isActive)
       ? task.durationMinutes * 60
       : null;
     setIsStarting(false);
@@ -112,7 +114,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     }
     localTickRef.current = null;
 
-    if (restoredState?.taskId === task.id) {
+    if (restoredState?.taskId === task.id && (restoredState.remainingSeconds > 0 || restoredState.isActive)) {
       setBaseTimerId(restoredState.timerId);
       currentTimerIdRef.current = restoredState.timerId;
       setMode(restoredState.mode);
@@ -357,7 +359,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     if (task) {
       completedFocusSecondsRef.current = Math.max(0, task.durationMinutes * 60 - timeLeft);
     }
-    await handleTimerFinish('focus');
+    setIsActive(false);
+    playSound('complete');
+    finishBreak();
   };
 
   const skipBreak = () => {

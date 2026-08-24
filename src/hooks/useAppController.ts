@@ -256,6 +256,17 @@ const getTimerTaskHabitId = (timer: Pick<PomodoroUpdateData | PomodoroRecoveryDa
   return findStoredTimerTask(timer.taskId, timer.taskDate)?.habitId || null;
 };
 
+const isRestoredSessionAlive = async (snapshot: TimerSessionSnapshot): Promise<boolean> => {
+  try {
+    const timers = await electronIPC.getActiveTimers();
+    return timers.some((timer) => (
+      timer.timerId === snapshot.timerId || timer.timerId === `${snapshot.timerId}_break`
+    ));
+  } catch {
+    return false;
+  }
+};
+
 export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | null => {
   if (!recovery.taskId || !recovery.taskName || !recovery.taskDate || !isPriority(recovery.taskPriority) || !recovery.taskDurationMinutes) {
     return null;
@@ -451,12 +462,27 @@ export const useAppController = () => {
       return;
     }
 
-    if (state.timerPanel.restoredState && state.timerPanel.restoredState.taskId !== task.id) {
-      reopenExistingTimer();
+    const restoredTimerState = state.timerPanel.restoredState;
+    if (!restoredTimerState) {
+      dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
       return;
     }
 
-    dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
+    void (async () => {
+      const isSessionAlive = await isRestoredSessionAlive(restoredTimerState);
+      if (!isSessionAlive) {
+        dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
+        dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
+        return;
+      }
+
+      if (restoredTimerState.taskId !== task.id) {
+        reopenExistingTimer();
+        return;
+      }
+
+      dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
+    })();
   }, [reopenExistingTimer, state.timerPanel.restoredState]);
 
   const closeSchedulingModal = useCallback(() => {
