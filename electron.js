@@ -493,23 +493,40 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  ensureTimerStatePath();
-  ensureAppDataPath();
-  restorePersistedTimers();
-  registerPomodoroIpc();
-  registerStorageIpc();
-  createWindow();
-});
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
 
-app.on('activate', () => {
-  if (mainWindow === null) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
+  app.whenReady().then(() => {
+    ensureTimerStatePath();
+    ensureAppDataPath();
+    restorePersistedTimers();
+    registerPomodoroIpc();
+    registerStorageIpc();
     createWindow();
-  }
-});
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  app.on('activate', () => {
+    if (mainWindow === null) {
+      createWindow();
+    }
+  });
+}
