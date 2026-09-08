@@ -1,6 +1,6 @@
 # MyLifeOS
 
-MyLifeOS is a desktop productivity app built with React, TypeScript, and Electron. It combines habit planning, daily task generation, timeline scheduling, pomodoro focus sessions, and profile statistics in one local-first workflow.
+MyLifeOS is a local-first productivity app built with React and TypeScript, with Electron for Windows and a Capacitor-based Android shell. It combines habit planning, daily task generation, timeline scheduling, pomodoro focus sessions, and profile statistics in one workflow.
 
 ## What it does
 
@@ -16,6 +16,7 @@ MyLifeOS is a desktop productivity app built with React, TypeScript, and Electro
 - React 18
 - TypeScript
 - Electron
+- Capacitor for Android
 - Local file storage in Electron `userData`
 - Browser fallback storage for non-Electron runs
 
@@ -66,6 +67,30 @@ npm run electron:build
 ```
 
 The Windows installer is written to `out/`.
+
+## Android development
+
+The Android project targets SDK 36, supports Android 7.0 and newer, and is locked to portrait orientation. Install Node.js 22, Android Studio with Android SDK 36, and a compatible JDK before building it.
+
+Synchronize the current web build into the Android project:
+
+```bash
+npm run android:sync
+```
+
+Open the native project in Android Studio:
+
+```bash
+npm run android:open
+```
+
+Or build a debug APK from a configured Windows command line:
+
+```bash
+npm run android:debug
+```
+
+The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. The Electron build remains available and unchanged.
 
 ## Release checks
 
