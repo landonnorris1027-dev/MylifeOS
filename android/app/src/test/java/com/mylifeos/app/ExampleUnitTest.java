@@ -1,6 +1,6 @@
-package com.getcapacitor.myapp;
+package com.mylifeos.app;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
@@ -12,7 +12,7 @@ import org.junit.Test;
 public class ExampleUnitTest {
 
     @Test
-    public void addition_isCorrect() throws Exception {
+    public void additionIsCorrect() {
         assertEquals(4, 2 + 2);
     }
 }

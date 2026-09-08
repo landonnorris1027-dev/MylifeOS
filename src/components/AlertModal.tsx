@@ -23,7 +23,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
 
   if (isSuccess) {
     return (
-      <div className="fixed right-4 top-4 z-[100] w-[min(24rem,calc(100%-2rem))] animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="safe-area-toast fixed z-[100] w-[min(24rem,calc(100%-2rem))] animate-in fade-in slide-in-from-top-2 duration-200">
         <div className={`bg-white rounded-2xl shadow-2xl border ${borderClass} overflow-hidden`} role="status">
           <div className="p-5">
             <div className="flex items-start gap-3">
@@ -52,7 +52,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
   }
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="safe-area-padding fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center animate-in fade-in duration-200">
       <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm border ${borderClass} overflow-hidden`}>
         <div className="p-6 text-center">
           <div className={`w-12 h-12 ${iconBgClass} rounded-full flex items-center justify-center mx-auto mb-4`}>

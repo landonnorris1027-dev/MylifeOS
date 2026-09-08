@@ -2,11 +2,12 @@
 
 ## Overview
 
-MyLifeOS uses a split desktop architecture:
+MyLifeOS uses a shared React renderer with two runtime shells:
 
 - Renderer: React UI, interaction handling, and local view state
 - Main process: Electron window lifecycle, desktop storage, notifications, and pomodoro runtime
 - Preload bridge: whitelisted APIs exposed from Electron to the renderer
+- Android shell: Capacitor WebView packaging, system-bar insets, and portrait activity lifecycle
 
 ## Layers
 
@@ -71,6 +72,12 @@ Responsibilities:
 - Send notifications when sessions finish
 
 The preload bridge in [preload.js](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/preload.js) exposes only limited APIs to the renderer.
+
+## Android runtime
+
+The native project lives in `android/` and is configured by `capacitor.config.ts`. Capacitor packages the same React production build inside an Android WebView; it does not replace the Electron runtime or desktop build.
+
+At the current migration stage, Android uses the renderer's browser-storage fallback and browser timer behavior. Native durable storage, background focus timing, and local notifications are intentionally deferred to later phases. The existing JSON import/export service remains the portability boundary for future Android backup and restore work.
 
 ## Data model
 

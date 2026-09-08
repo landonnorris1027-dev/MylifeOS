@@ -35,7 +35,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, tim
   const hasPastSlots = slotStates.some((slot) => slot.isPast);
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+    <div className="safe-area-padding fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-100">
         <div className={`p-4 rounded-t-2xl border-b border-gray-100 flex justify-between items-center ${styles.bg}`}>
           <h2 className={`text-sm font-bold flex items-center gap-2 ${styles.text}`}>

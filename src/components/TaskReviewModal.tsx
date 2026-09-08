@@ -22,7 +22,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+    <div className="safe-area-padding fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
       <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 p-4">
           <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">

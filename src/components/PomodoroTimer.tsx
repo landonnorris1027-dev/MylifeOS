@@ -384,7 +384,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const accentColor = isBreak ? 'text-emerald-600' : styles.text;
 
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center">
+    <div className="safe-area-padding fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center">
       <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
         <X size={24} className="text-gray-600" />
       </button>

@@ -24,7 +24,7 @@ const RecoveryModal: React.FC<RecoveryModalProps> = ({ recovery, onResumeBreak, 
   const resumeLabel = isFocusRecovery ? t('recovery_start_break') : t('recovery_restart_break');
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="safe-area-padding fixed inset-0 bg-black/20 backdrop-blur-sm z-[110] flex items-center justify-center animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 overflow-hidden">
         <div className="p-6 text-center">
           <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
