@@ -26,6 +26,19 @@ body {
   top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 
+.safe-area-status-bar {
+  position: fixed;
+  z-index: 40;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(115%);
+  backdrop-filter: blur(16px) saturate(115%);
+}
+
 .safe-area-toast {
   top: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   right: calc(1rem + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)));
