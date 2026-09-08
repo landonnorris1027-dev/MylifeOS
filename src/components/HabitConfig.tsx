@@ -23,6 +23,7 @@ import { FocusSettings, getFocusSettings, saveFocusSettings } from '../services/
 import { ProfileSettings, getProfileSettings, saveProfileSettings } from '../services/profileSettings';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
+import { exportJSONFile } from '../services/platformFiles';
 
 const PRIORITY_BUTTON_KEYS: Record<Priority, TranslationKey> = {
   P1: 'p1_btn',
@@ -81,26 +82,6 @@ const formatBackupTimestamp = (date: Date) => {
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
   return `${formatDateLocal(date)}_${hours}${minutes}${seconds}`;
-};
-
-const downloadJSONFile = (json: string, filename: string) => {
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  let isAttached = false;
-
-  try {
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    isAttached = true;
-    a.click();
-  } finally {
-    if (isAttached) {
-      document.body.removeChild(a);
-    }
-    URL.revokeObjectURL(url);
-  }
 };
 
 interface HabitConfigProps {
@@ -271,9 +252,14 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     });
   };
 
-  const handleBackup = () => {
-    const json = getAllDataJSON();
-    downloadJSONFile(json, `mylifeos_backup_${formatDateLocal(new Date())}.json`);
+  const handleBackup = async () => {
+    try {
+      const json = getAllDataJSON();
+      await exportJSONFile(json, `mylifeos_backup_${formatDateLocal(new Date())}.json`);
+    } catch (error) {
+      console.error('Failed to export backup', error);
+      setAlertConfig({ isOpen: true, message: t('pre_restore_backup_failed') });
+    }
   };
 
   const formatRecoveryPointTime = (point: RecoveryPoint) => {
@@ -344,9 +330,9 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     ].join('\n');
   };
 
-  const downloadPreRestoreBackup = () => {
+  const downloadPreRestoreBackup = async () => {
     const filename = `mylifeos_pre_restore_${formatBackupTimestamp(new Date())}.json`;
-    downloadJSONFile(getAllDataJSON(), filename);
+    await exportJSONFile(getAllDataJSON(), filename);
     return filename;
   };
 
@@ -368,12 +354,12 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       setConfirmConfig({
         isOpen: true,
         message: buildRestorePreviewMessage(preview),
-        onConfirm: () => {
+        onConfirm: async () => {
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
           let backupFilename = '';
           try {
-            backupFilename = downloadPreRestoreBackup();
+            backupFilename = await downloadPreRestoreBackup();
           } catch (error) {
             console.error('Failed to create pre-restore backup', error);
             setAlertConfig({ isOpen: true, message: t('pre_restore_backup_failed') });

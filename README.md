@@ -92,6 +92,8 @@ npm run android:debug
 
 The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. The Electron build remains available and unchanged.
 
+On Android, app data is hydrated from native Preferences before React starts and subsequent writes are mirrored back to native storage. JSON backups use the Android share sheet; JSON restore continues to use the system file picker.
+
 ## Release checks
 
 See [RELEASE_CHECKS.md](RELEASE_CHECKS.md).

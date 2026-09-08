@@ -77,7 +77,9 @@ The preload bridge in [preload.js](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-m
 
 The native project lives in `android/` and is configured by `capacitor.config.ts`. Capacitor packages the same React production build inside an Android WebView; it does not replace the Electron runtime or desktop build.
 
-At the current migration stage, Android uses the renderer's browser-storage fallback and browser timer behavior. Native durable storage, background focus timing, and local notifications are intentionally deferred to later phases. The existing JSON import/export service remains the portability boundary for future Android backup and restore work.
+On Android, native Preferences are hydrated into the renderer's synchronous storage facade before React starts. Renderer writes update WebView storage immediately and are queued to native Preferences, preserving the existing synchronous domain APIs while adding native persistence. JSON exports are written to a temporary native cache file and handed to the Android share sheet; imports continue through the system file picker.
+
+Background focus timing and local notifications remain deferred to a later phase. Electron continues to own desktop timer persistence, notifications, and file storage.
 
 ## Data model
 

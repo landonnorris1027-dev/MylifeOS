@@ -1,3 +1,5 @@
+import { persistNativePreference } from './nativePreferences';
+
 export const KEYS = {
   HABITS: 'mylifeos_habits',
   GOALS: 'mylifeos_goals',
@@ -44,6 +46,7 @@ export const setStorageItem = (key: string, value: string) => {
   }
 
   localStorage.setItem(key, value);
+  persistNativePreference(key, value);
 };
 
 export const safeParse = <T>(str: string | null, fallback: T): T => {
