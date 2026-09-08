@@ -1,9 +1,14 @@
 export type Priority = 'P1' | 'P2' | 'P3';
 
+export const isPriority = (value: unknown): value is Priority => {
+  return value === 'P1' || value === 'P2' || value === 'P3';
+};
+
 export type TaskStatus = 'inbox' | 'scheduled' | 'completed' | 'deleted';
 
 export interface Habit {
   id: string;
+  goalId?: string;
   name: string;
   priority: Priority;
   dailyQuota: number; // How many "pomodoros" per day
@@ -13,29 +18,30 @@ export interface Habit {
   endDate?: string;   // YYYY-MM-DD
 }
 
+export interface Goal {
+  id: string;
+  name: string;
+}
+
 export interface Task {
   id: string;
-  habitId: string;
+  habitId?: string;
+  goalId?: string;
+  origin?: 'habit' | 'manual';
   name: string;
   priority: Priority;
   status: TaskStatus;
   date: string; // YYYY-MM-DD
-  startTime?: string; // HH:00 format mostly
+  startTime?: string; // HH:mm format
   durationMinutes: number;
+  actualFocusMinutes?: number;
+  note?: string;
+  review?: string;
 }
 
 export interface DailyData {
   date: string;
   tasks: Task[];
-}
-
-export interface ImportResult {
-  success: boolean;
-  habitsImported: number;
-  habitsSkipped: number;
-  tasksImported: number;
-  tasksSkipped: number;
-  errorMsg?: string;
 }
 
 export const PRIORITY_STYLES = {

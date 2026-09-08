@@ -1,32 +1,37 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './tailwind.css';
+import './index.css';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { AppProvider } from './contexts/AppContext';
-import { migrateFromLocalStorage, migrateDailyLogsFormat } from './services/storage';
+import ErrorBoundary from './components/ErrorBoundary';
+import { KEYS } from './services/storage/localStorageStore';
+import { hydrateNativePreferences } from './services/storage/nativePreferences';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-
-const bootstrap = async () => {
-  // Execute local storage migration before the app reads persisted data.
-  await migrateFromLocalStorage();
-  await migrateDailyLogsFormat();
-
+const renderApp = () => {
+  const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
       <LanguageProvider>
-        <AppProvider>
+        <ErrorBoundary
+          title="Application failed to start"
+          message="The app hit an unexpected error while rendering. Try reloading this view."
+          resetLabel="Reload app"
+          className="min-h-screen bg-[#F7F7F5] p-6 flex items-center justify-center"
+        >
           <App />
-        </AppProvider>
+        </ErrorBoundary>
       </LanguageProvider>
     </React.StrictMode>
   );
 };
 
-void bootstrap();
+hydrateNativePreferences(Object.values(KEYS))
+  .catch((error) => {
+    console.error('MyLifeOS: Failed to hydrate native preferences; using WebView storage.', error);
+  })
+  .finally(renderApp);

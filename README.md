@@ -1,84 +1,105 @@
 # MyLifeOS
 
-MyLifeOS 是一款基于 React + Electron 开发的个人效率与习惯管理桌面应用。它集成了番茄钟、待办事项、习惯养成和贡献追踪等功能，旨在帮助用户构建更有规律的生活方式。
+MyLifeOS is a local-first productivity app built with React and TypeScript, with Electron for Windows and a Capacitor-based Android shell. It combines habit planning, daily task generation, timeline scheduling, pomodoro focus sessions, and profile statistics in one workflow.
 
-<img width="800" alt="MyLifeOS Preview" src="https://github.com/user-attachments/assets/54b233cd-d33f-4e3c-aaf9-a19b11d73bbf" />
+## What it does
 
-## ✨ 核心功能
+- Define habit rules with priority, quota, default duration, and effective date range
+- Auto-generate daily tasks from those rules
+- Schedule tasks onto a half-hour timeline with conflict detection
+- Run pomodoro sessions with Electron-backed background timing
+- Recover unfinished or expired sessions after restart
+- Track yearly focus activity and profile stats
 
-- **习惯管理**：灵活配置每日习惯，支持设定生效日期范围（永久有效或指定时间段）。
-- **自动化待办池**：根据习惯规则每日自动生成任务，支持当日删除与永久调整。
-- **智能调度校验**：**[New]** 任务分配时自动校验小时总时长，严禁单小时安排超过 60 分钟的任务，确保排程合理。
-- **番茄钟**：内置专注计时器，帮助你高效完成任务。
-- **时间线视图**：清晰展示今日已安排的任务与时间分配。
-- **2026 年度热力图**：**[Updated]** 优化后的固定年度贡献图，精准展示 2026 全年专注数据与趋势。
-- **风格化 UI 交互**：**[Updated]** 全套自定义对话框与警告弹窗，完美适配 MyLifeOS 深色/圆角视觉风格，告别原生系统弹框。
-- **多语言支持**：支持中英文一键切换。
+## Tech stack
 
-## 📋 环境准备
+- React 18
+- TypeScript
+- Electron
+- Capacitor for Android
+- Local file storage in Electron `userData`
+- Browser fallback storage for non-Electron runs
 
-在开始之前，请确保你的电脑已安装：
-- **Node.js** (推荐使用 v16 或 v18 LTS 版本)
-- **Git** (用于克隆仓库)
-- **Git LFS** (项目中使用 LFS 管理大文件)
+## Main app flow
 
-## 🚀 安装教程
+1. Create or update habits in the habit config panel.
+2. Open a day and let the app reconcile tasks from current habit rules.
+3. Move inbox tasks onto the timeline.
+4. Click a scheduled task to start a focus session.
+5. Complete sessions and review results in the profile page.
 
-### 1. 克隆仓库
-打开终端（cmd 或 PowerShell），执行以下命令将项目克隆到本地：
+## Key directories
 
-```bash
-git clone https://github.com/landonnorris1027-dev/MylifeOS.git
-cd MylifeOS
-```
+- [src/App.tsx](src/App.tsx): top-level layout and page composition
+- [src/hooks/useAppController.ts](src/hooks/useAppController.ts): unified app state and user actions
+- [src/components](src/components): UI building blocks
+- [src/services/storage.ts](src/services/storage.ts): storage facade and profile stats helpers
+- [src/services/storage](src/services/storage): repositories, task planning, backup import/export
+- [src/services/electronIPC.ts](src/services/electronIPC.ts): renderer-side Electron bridge wrapper
+- [src/services/scheduling.ts](src/services/scheduling.ts): timeline slots and overlap detection
+- [electron.js](electron.js): main process, secure IPC, timer runtime, desktop storage
+- [preload.js](preload.js): safe bridge exposed to the renderer
 
-### 2. 初始化 Git LFS
-克隆完成后，确保获取所有大文件资源：
+## Development
 
-```bash
-git lfs install
-git lfs pull
-```
-
-### 3. 安装依赖
-使用 npm 安装项目所需的各种运行库：
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-## 💻 使用教程
-
-### 开发模式运行
-如果你想在本地开发或预览应用，运行以下命令：
+Start web + Electron in development:
 
 ```bash
-# 同时启动 React 开发服务器和 Electron
 npm run electron:dev
 ```
 
-### 打包为独立程序 (.exe)
-如果你想将应用打包成一个可以在 Windows 上直接安装或运行的程序：
+Run the quality gate:
 
 ```bash
-# 编译并打包应用
+npm run verify:release
+```
+
+Build the Windows desktop app:
+
+```bash
 npm run electron:build
 ```
-打包完成后，你可以在项目根目录下的 `dist` 文件夹中找到生成的安装包或绿色版程序。
 
-## 📖 功能操作指引
+The Windows installer is written to `out/`.
 
-1. **配置习惯**：点击右上角的设置图标，进入“配置习惯”界面。你可以添加新习惯，设定优先级、每日数量以及生效模式。
-2. **安排任务**：在左侧“待办池”中点击任务，为其选择一个开始时间，任务会自动移动到右侧的时间线。
-3. **开始专注**：点击时间线上的任务卡片，即可启动番茄钟开始工作。
-4. **删除任务**：
-   - 鼠标悬停在待办池的任务卡片上。
-   - 点击 **X**：仅删除今日任务，不影响习惯规则。
-   - 点击 **垃圾桶**：永久删除，该习惯的每日派发数量会减少。
+## Android development
 
-## ⚠️ 注意事项
-- 项目源码不包含构建后的二进制文件，请按照上述教程自行打包。
-- 数据存储在本地 `localStorage` 中，清理浏览器或应用缓存可能会导致数据丢失（建议定期使用应用内的备份功能）。
+The Android project targets SDK 36, supports Android 7.0 and newer, and is locked to portrait orientation. Install Node.js 22, Android Studio with Android SDK 36, and a compatible JDK before building it.
 
----
-Made with ❤️ by MyLifeOS Team
+Synchronize the current web build into the Android project:
+
+```bash
+npm run android:sync
+```
+
+Open the native project in Android Studio:
+
+```bash
+npm run android:open
+```
+
+Or build a debug APK from a configured Windows command line:
+
+```bash
+npm run android:debug
+```
+
+The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. The Electron build remains available and unchanged.
+
+On Android, app data is hydrated from native Preferences before React starts and subsequent writes are mirrored back to native storage. JSON backups use the Android share sheet; JSON restore continues to use the system file picker.
+
+## Release checks
+
+See [RELEASE_CHECKS.md](RELEASE_CHECKS.md).
+
+## Extra docs
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/DATA_FLOW.md](docs/DATA_FLOW.md)
+- [docs/DEPENDENCY_UPGRADE_RESEARCH.md](docs/DEPENDENCY_UPGRADE_RESEARCH.md)

@@ -1,175 +1,331 @@
-import type { PomodoroBridge, PomodoroTimerPayload, PomodoroTimerUpdate } from '../types/electronBridge';
-import { logger } from './logger';
+import type { Priority } from '../types';
 
+export interface PomodoroTimerData {
+  timerId: string;
+  duration: number;
+  isFocusMode: boolean;
+  notificationsEnabled?: boolean;
+  breakDurationSeconds?: number;
+  taskId?: string;
+  taskHabitId?: string;
+  taskName?: string;
+  taskDate?: string;
+  taskPriority?: Priority;
+  taskDurationMinutes?: number;
+  notificationMessages?: PomodoroNotificationMessages;
+}
+
+export interface PomodoroNotificationMessages {
+  focusCompleteTitle: string;
+  focusCompleteBody: string;
+  breakFinishedTitle: string;
+  breakFinishedBody: string;
+}
+
+export interface PomodoroUpdateData {
+  timerId: string;
+  duration: number;
+  remaining: number;
+  endTime: number;
+  elapsed: number;
+  isFinished: boolean;
+  isActive?: boolean;
+  stopped?: boolean;
+  isFocusMode?: boolean;
+  notificationsEnabled?: boolean;
+  breakDurationSeconds?: number | null;
+  taskId?: string | null;
+  taskHabitId?: string | null;
+  taskName?: string | null;
+  taskDate?: string | null;
+  taskPriority?: string | null;
+  taskDurationMinutes?: number | null;
+  notificationMessages?: PomodoroNotificationMessages | null;
+}
+
+export interface PomodoroRecoveryData {
+  recoveryId: string;
+  timerId: string;
+  reason: string;
+  mode: 'focus' | 'break';
+  taskId?: string | null;
+  taskHabitId?: string | null;
+  taskName?: string | null;
+  taskDate?: string | null;
+  taskPriority?: string | null;
+  taskDurationMinutes?: number | null;
+  notificationMessages?: PomodoroNotificationMessages | null;
+  originalDuration?: number;
+  remaining?: number;
+  expiredAt?: number;
+}
+
+export type PomodoroRecoveryAction = 'resume-break' | 'restart-break' | 'dismiss';
+
+export interface PomodoroRecoveryResolution {
+  ok: boolean;
+  resumedTimer?: PomodoroUpdateData;
+}
 interface BrowserTimer {
   timerId: string;
   endTime: number;
   remaining: number;
   isActive: boolean;
   duration: number;
-  intervalId: any;
+  intervalId: ReturnType<typeof setInterval> | null;
+  isFocusMode: boolean;
+  notificationsEnabled: boolean;
+  breakDurationSeconds?: number | null;
+  taskId?: string | null;
+  taskHabitId?: string | null;
+  taskName?: string | null;
+  taskDate?: string | null;
+  taskPriority?: Priority | null;
+  taskDurationMinutes?: number | null;
+  notificationMessages?: PomodoroNotificationMessages | null;
 }
 
-const getPreloadPomodoroAPI = (): PomodoroBridge | null => {
-  if (typeof window === 'undefined') return null;
-  return window.myLifeOS?.pomodoro ?? null;
-};
-
 class ElectronIPCHandler {
-  private preloadPomodoroAPI: PomodoroBridge | null;
   private isElectron: boolean;
   private browserTimers: Map<string, BrowserTimer> = new Map();
-  private updateCallbacks: Set<(data: PomodoroTimerUpdate) => void> = new Set();
+  private updateCallbacks: Set<(data: PomodoroUpdateData) => void> = new Set();
 
   constructor() {
-    this.preloadPomodoroAPI = getPreloadPomodoroAPI();
-    this.isElectron = !!this.preloadPomodoroAPI;
+    this.isElectron = typeof window !== 'undefined' && typeof window.electronAPI !== 'undefined';
 
-    if (this.preloadPomodoroAPI?.onUpdate) {
+    if (this.isElectron) {
       try {
-        this.preloadPomodoroAPI.onUpdate((data: PomodoroTimerUpdate) => {
+        window.electronAPI?.on('pomodoro-update', (data: PomodoroUpdateData) => {
           this.notifySubscribers(data);
         });
       } catch (e) {
-        logger.error('Failed to register preload IPC listener', e);
+        console.error('Failed to register IPC listener', e);
       }
     }
   }
 
-  async startPomodoro(timerData: PomodoroTimerPayload): Promise<any> {
-    if (this.isElectron && this.preloadPomodoroAPI) {
+  async startPomodoro(timerData: PomodoroTimerData): Promise<PomodoroUpdateData> {
+    if (this.isElectron) {
       try {
-        await this.preloadPomodoroAPI.start(timerData);
+        return await window.electronAPI!.invoke('pomodoro-start', timerData);
       } catch (e) {
-        logger.warn('IPC start failed:', e);
+        console.warn('IPC start failed, falling back to browser timer:', e);
       }
-    } else {
-      this.startBrowserTimer(timerData);
     }
 
-    return {
-      startTime: Date.now(),
-      endTime: Date.now() + timerData.duration * 1000,
-      timerId: timerData.timerId
-    };
+    return this.startBrowserTimer(timerData);
   }
 
-  private startBrowserTimer(timerData: PomodoroTimerPayload) {
+  private startBrowserTimer(timerData: PomodoroTimerData): PomodoroUpdateData {
     if (this.browserTimers.has(timerData.timerId)) {
       this.stopBrowserTimer(timerData.timerId);
     }
 
+    const durationMs = timerData.duration * 1000;
     const timer: BrowserTimer = {
       timerId: timerData.timerId,
-      duration: timerData.duration * 1000,
-      remaining: timerData.duration * 1000,
-      endTime: Date.now() + timerData.duration * 1000,
+      duration: timerData.duration,
+      remaining: durationMs,
+      endTime: Date.now() + durationMs,
       isActive: true,
-      intervalId: null
+      intervalId: null,
+      isFocusMode: timerData.isFocusMode,
+      notificationsEnabled: timerData.notificationsEnabled !== false,
+      breakDurationSeconds: timerData.breakDurationSeconds || null,
+      taskId: timerData.taskId || null,
+      taskHabitId: timerData.taskHabitId || null,
+      taskName: timerData.taskName || null,
+      taskDate: timerData.taskDate || null,
+      taskPriority: timerData.taskPriority || null,
+      taskDurationMinutes: timerData.taskDurationMinutes || null,
+      notificationMessages: timerData.notificationMessages || null,
     };
 
     timer.intervalId = setInterval(() => {
       if (!timer.isActive) return;
 
-      const now = Date.now();
-      const realRemaining = Math.max(0, timer.endTime - now);
+      const realRemaining = Math.max(0, timer.endTime - Date.now());
       timer.remaining = realRemaining;
 
-      const updateData: PomodoroTimerUpdate = {
+      const updateData: PomodoroUpdateData = {
         timerId: timer.timerId,
+        duration: timer.duration,
         remaining: realRemaining,
-        elapsed: timer.duration - realRemaining,
+        endTime: timer.endTime,
+        elapsed: timer.duration * 1000 - realRemaining,
         isFinished: realRemaining <= 0,
-        isActive: true
+        isActive: true,
+        isFocusMode: timer.isFocusMode,
+        notificationsEnabled: timer.notificationsEnabled,
+        breakDurationSeconds: timer.breakDurationSeconds || null,
+        taskId: timerData.taskId || null,
+        taskHabitId: timerData.taskHabitId || null,
+        taskName: timerData.taskName || null,
+        taskDate: timerData.taskDate || null,
+        taskPriority: timerData.taskPriority || null,
+        taskDurationMinutes: timerData.taskDurationMinutes || null,
+        notificationMessages: timerData.notificationMessages || null,
       };
 
       this.notifySubscribers(updateData);
 
-    }, 1000);
+      if (realRemaining <= 0) {
+        this.stopBrowserTimer(timer.timerId);
+      }
+    }, 200);
 
     this.browserTimers.set(timerData.timerId, timer);
 
-    this.notifySubscribers({
-      timerId: timerData.timerId,
+    const payload: PomodoroUpdateData = {
+      timerId: timer.timerId,
+      duration: timer.duration,
       remaining: timer.remaining,
+      endTime: timer.endTime,
       elapsed: 0,
       isFinished: false,
-      isActive: true
-    });
+      isActive: true,
+      isFocusMode: timer.isFocusMode,
+      notificationsEnabled: timer.notificationsEnabled,
+      breakDurationSeconds: timer.breakDurationSeconds || null,
+      taskId: timerData.taskId || null,
+      taskHabitId: timerData.taskHabitId || null,
+      taskName: timerData.taskName || null,
+      taskDate: timerData.taskDate || null,
+      taskPriority: timerData.taskPriority || null,
+      taskDurationMinutes: timerData.taskDurationMinutes || null,
+      notificationMessages: timerData.notificationMessages || null,
+    };
+
+    this.notifySubscribers(payload);
+    return payload;
   }
 
   togglePomodoro(timerId: string): void {
-    if (this.isElectron && this.preloadPomodoroAPI) {
-      this.preloadPomodoroAPI.toggle({ timerId });
+    if (this.isElectron) {
+      window.electronAPI?.send('pomodoro-toggle', { timerId });
       return;
     }
 
     const timer = this.browserTimers.get(timerId);
-    if (timer) {
-      timer.isActive = !timer.isActive;
+    if (!timer) return;
 
-      if (timer.isActive) {
-        timer.endTime = Date.now() + timer.remaining;
-      }
+    timer.isActive = !timer.isActive;
 
-      this.notifySubscribers({
-        timerId,
-        remaining: timer.remaining,
-        elapsed: timer.duration - timer.remaining,
-        isFinished: timer.remaining <= 0,
-        isActive: timer.isActive
-      });
+    if (timer.isActive) {
+      timer.endTime = Date.now() + timer.remaining;
+    } else {
+      timer.remaining = Math.max(0, timer.endTime - Date.now());
     }
+
+    this.notifySubscribers({
+      timerId,
+      duration: timer.duration,
+      remaining: timer.remaining,
+      endTime: timer.endTime,
+      elapsed: timer.duration * 1000 - timer.remaining,
+      isFinished: timer.remaining <= 0,
+      isActive: timer.isActive,
+      isFocusMode: timer.isFocusMode,
+      notificationsEnabled: timer.notificationsEnabled,
+      breakDurationSeconds: timer.breakDurationSeconds || null,
+      taskId: timer.taskId || null,
+      taskHabitId: timer.taskHabitId || null,
+      taskName: timer.taskName || null,
+      taskDate: timer.taskDate || null,
+      taskPriority: timer.taskPriority || null,
+      taskDurationMinutes: timer.taskDurationMinutes || null,
+      notificationMessages: timer.notificationMessages || null,
+    });
   }
 
   stopPomodoro(timerId: string): void {
-    if (this.isElectron && this.preloadPomodoroAPI) {
-      this.preloadPomodoroAPI.stop({ timerId });
-      // Main process will send an event effectively stopping, but we proactively clear our list locally just in case? No, the IPC handles state.
+    if (this.isElectron) {
+      window.electronAPI?.send('pomodoro-stop', { timerId });
       return;
     }
 
     this.stopBrowserTimer(timerId);
     this.notifySubscribers({
       timerId,
+      duration: 0,
       remaining: 0,
+      endTime: Date.now(),
       elapsed: 0,
       isFinished: false,
       isActive: false,
-      stopped: true
+      stopped: true,
     });
   }
 
   private stopBrowserTimer(timerId: string) {
     const timer = this.browserTimers.get(timerId);
-    if (timer && timer.intervalId) {
+    if (timer?.intervalId) {
       clearInterval(timer.intervalId);
       this.browserTimers.delete(timerId);
     }
   }
 
-  private notifySubscribers(data: PomodoroTimerUpdate) {
-    this.updateCallbacks.forEach(callback => callback(data));
+  private notifySubscribers(data: PomodoroUpdateData) {
+    this.updateCallbacks.forEach((callback) => callback(data));
   }
 
-  async getActiveTimers(): Promise<any[]> {
-    if (this.preloadPomodoroAPI) {
+  async getActiveTimers(): Promise<PomodoroUpdateData[]> {
+    if (this.isElectron) {
       try {
-        return await this.preloadPomodoroAPI.getActive();
+        const mainProcessTimers = await window.electronAPI?.invoke('pomodoro-get-active-timers');
+        return Array.isArray(mainProcessTimers) ? mainProcessTimers : [];
       } catch (e) {
-        logger.warn('Failed to read active timers from main process, fallback to local timers', e);
+        console.warn('Failed to get active timers from main process:', e);
       }
     }
 
-    return Array.from(this.browserTimers.values()).map(t => ({
-      id: t.timerId,
-      endTime: t.endTime,
+    return Array.from(this.browserTimers.values()).map((t) => ({
+      timerId: t.timerId,
       duration: t.duration,
-      remaining: t.remaining
+      remaining: t.remaining,
+      endTime: t.endTime,
+      elapsed: t.duration * 1000 - t.remaining,
+      isFinished: false,
+      isActive: t.isActive,
+      isFocusMode: t.isFocusMode,
+      notificationsEnabled: t.notificationsEnabled,
+      breakDurationSeconds: t.breakDurationSeconds || null,
+      taskId: t.taskId || null,
+      taskHabitId: t.taskHabitId || null,
+      taskName: t.taskName || null,
+      taskDate: t.taskDate || null,
+      taskPriority: t.taskPriority || null,
+      taskDurationMinutes: t.taskDurationMinutes || null,
+      notificationMessages: t.notificationMessages || null,
     }));
   }
 
-  onPomodoroUpdate(callback: (data: PomodoroTimerUpdate) => void): () => void {
+  async getPendingRecoveries(): Promise<PomodoroRecoveryData[]> {
+    if (!this.isElectron) return [];
+
+    try {
+      const recoveries = await window.electronAPI?.invoke('pomodoro-get-pending-recoveries');
+      return Array.isArray(recoveries) ? recoveries : [];
+    } catch (e) {
+      console.warn('Failed to get pending recoveries:', e);
+      return [];
+    }
+  }
+
+  async resolveRecovery(recoveryId: string, action: PomodoroRecoveryAction): Promise<PomodoroRecoveryResolution> {
+    if (!this.isElectron) {
+      return { ok: true };
+    }
+
+    try {
+      return await window.electronAPI!.invoke('pomodoro-resolve-recovery', { recoveryId, action });
+    } catch (e) {
+      console.warn('Failed to resolve recovery:', e);
+      return { ok: false };
+    }
+  }
+
+  onPomodoroUpdate(callback: (data: PomodoroUpdateData) => void): () => void {
     this.updateCallbacks.add(callback);
     return () => {
       this.updateCallbacks.delete(callback);

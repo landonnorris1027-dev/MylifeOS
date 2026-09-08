@@ -1,9 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getYearlyStats, formatDateLocal, parseDateLocal } from '../services/storage';
-import { logger } from '../services/logger';
-
-import { useAppState } from '../contexts/AppContext';
 
 interface DayData {
   date: string;
@@ -17,57 +14,29 @@ interface MonthLabel {
   label: string;
 }
 
-// Color Scale Helper (Pure function)
-function getLevel(minutes: number) {
-  if (minutes === 0) return 0;
-  const hours = minutes / 60;
-  if (hours <= 2) return 1;
-  if (hours <= 5) return 2;
-  if (hours <= 8) return 3;
-  if (hours <= 11) return 4;
-  return 5;
+interface ContributionGraphProps {
+  refreshToken?: number;
 }
 
-const ContributionGraph: React.FC = () => {
+const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 }) => {
   const { t } = useLanguage();
-  const { state } = useAppState();
-  const [stats, setStats] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    let isMounted = true;
-    getYearlyStats().then((yearlyStats) => {
-      if (isMounted) setStats(yearlyStats);
-    }).catch((error) => {
-      logger.error('Failed to load yearly stats', error);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [state.dailyData]);
+  const currentYear = new Date().getFullYear();
+  const stats = useMemo(() => getYearlyStats(), [refreshToken]);
 
   // Calculate grid data
   const { weeks, totalMinutes } = useMemo(() => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
     const startDate = new Date(currentYear, 0, 1);
     const endDate = new Date(currentYear, 11, 31);
+    const today = new Date();
 
-    // 1. Calculate leading empty days for the first week
-    // 0 is Sunday, 1 is Monday
     const startDayOfWeek = startDate.getDay();
     
     const weeksArray: DayData[][] = [];
     let currentWeek: DayData[] = [];
     let grandTotal = 0;
 
-    // Fill leading empty days (optional but keeps Sunday-alignment style)
-    // To satisfy "Starts from Jan 1", we ensure the first week starts with Jan 1.
-    // However, to maintain the vertical weekday axis (Mon/Wed/Fri), 
-    // we need to know where Jan 1 sits.
-    
     let currentDate = new Date(startDate);
 
-    // Initial week padding
     for (let i = 0; i < startDayOfWeek; i++) {
       currentWeek.push({ date: '', minutes: 0, level: 0, isFuture: false });
     }
@@ -96,7 +65,6 @@ const ContributionGraph: React.FC = () => {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Push last partial week
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
         currentWeek.push({ date: '', minutes: 0, level: 0, isFuture: false });
@@ -105,8 +73,18 @@ const ContributionGraph: React.FC = () => {
     }
 
     return { weeks: weeksArray, totalMinutes: grandTotal };
-  }, [stats]);
+  }, [stats, currentYear]);
 
+  // Color Scale Helper
+  function getLevel(minutes: number) {
+    if (minutes === 0) return 0;
+    const hours = minutes / 60;
+    if (hours <= 2) return 1;
+    if (hours <= 5) return 2;
+    if (hours <= 8) return 3;
+    if (hours <= 11) return 4;
+    return 5;
+  }
 
   const getColorClass = (level: number, isFuture: boolean, isEmpty: boolean) => {
     if (isEmpty) return 'opacity-0 pointer-events-none'; // Invisible padding
@@ -143,18 +121,19 @@ const ContributionGraph: React.FC = () => {
   }, [weeks, t]);
 
   const totalHours = (totalMinutes / 60).toFixed(1);
+  const activityTitle = t('focus_activity_year', { year: currentYear });
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">{t('focus_activity_year', { year: new Date().getFullYear() })}</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{activityTitle}</h2>
           <p className="text-sm text-gray-500 mt-1">
             {t('total_focus_hours')}: <span className="font-bold text-gray-900">{totalHours} {t('hours_suffix')}</span>
           </p>
         </div>
         <div className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm shadow-blue-200">
-          {new Date().getFullYear()}
+          {currentYear}
         </div>
       </div>
 
@@ -177,9 +156,9 @@ const ContributionGraph: React.FC = () => {
           <div className="flex gap-1 relative z-10">
             {/* Day Labels - Fixed width w-8 */}
             <div className="flex flex-col justify-between text-[10px] text-gray-400 font-medium pb-3 pt-[1px] w-8 h-[96px]">
-              <span>{t('weekday_mon')}</span>
-              <span>{t('weekday_wed')}</span>
-              <span>{t('weekday_fri')}</span>
+              <span>{t('weekday_monday_short')}</span>
+              <span>{t('weekday_wednesday_short')}</span>
+              <span>{t('weekday_friday_short')}</span>
             </div>
 
             {/* The Grid */}
@@ -223,7 +202,7 @@ const ContributionGraph: React.FC = () => {
                                ${horizontalClass}
                              `}>
                             <div className="font-semibold mb-0.5 text-gray-100">{day.date}</div>
-                            <div className="text-gray-300">{(day.minutes / 60).toFixed(1)}h</div>
+                            <div className="text-gray-300">{(day.minutes / 60).toFixed(1)} {t('hours_suffix')}</div>
 
                             {/* Arrow */}
                             <div className={`
