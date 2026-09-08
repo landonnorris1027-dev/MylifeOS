@@ -44,6 +44,7 @@ Important files:
 - [src/services/storage.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage.ts): public storage API
 - [src/services/scheduling.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/scheduling.ts): time slot math and overlap checks
 - [src/services/electronIPC.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/electronIPC.ts): renderer-safe wrapper for Electron APIs
+- `src/services/nativePomodoro.ts`: Android timer persistence, lifecycle reconciliation, and local notifications
 
 ### Repository/storage layer
 
@@ -79,7 +80,9 @@ The native project lives in `android/` and is configured by `capacitor.config.ts
 
 On Android, native Preferences are hydrated into the renderer's synchronous storage facade before React starts. Renderer writes update WebView storage immediately and are queued to native Preferences, preserving the existing synchronous domain APIs while adding native persistence. JSON exports are written to a temporary native cache file and handed to the Android share sheet; imports continue through the system file picker.
 
-Background focus timing and local notifications remain deferred to a later phase. Electron continues to own desktop timer persistence, notifications, and file storage.
+Android focus and break sessions are managed by `NativePomodoroManager`. Active timers store an absolute deadline in native Preferences, derive their remaining time from the wall clock, reconcile immediately when the app resumes, and survive WebView process restarts. A local notification is scheduled for each active deadline and cancelled while paused or stopped. If notification or exact-alarm access is unavailable, the timer continues and Android may deliver the alert late or omit it.
+
+The Electron branch remains unchanged and continues to own desktop timer persistence, notifications, and file storage. A regular browser build still uses the renderer-only fallback timer.
 
 ## Data model
 

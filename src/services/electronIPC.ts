@@ -1,4 +1,6 @@
 import type { Priority } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { NativePomodoroManager } from './nativePomodoro';
 
 export interface PomodoroTimerData {
   timerId: string;
@@ -87,11 +89,17 @@ interface BrowserTimer {
 
 class ElectronIPCHandler {
   private isElectron: boolean;
+  private isNative: boolean;
+  private nativeTimers: NativePomodoroManager | null;
   private browserTimers: Map<string, BrowserTimer> = new Map();
   private updateCallbacks: Set<(data: PomodoroUpdateData) => void> = new Set();
 
   constructor() {
     this.isElectron = typeof window !== 'undefined' && typeof window.electronAPI !== 'undefined';
+    this.isNative = Capacitor.isNativePlatform();
+    this.nativeTimers = this.isNative
+      ? new NativePomodoroManager((data) => this.notifySubscribers(data))
+      : null;
 
     if (this.isElectron) {
       try {
@@ -105,6 +113,10 @@ class ElectronIPCHandler {
   }
 
   async startPomodoro(timerData: PomodoroTimerData): Promise<PomodoroUpdateData> {
+    if (this.nativeTimers) {
+      return this.nativeTimers.start(timerData);
+    }
+
     if (this.isElectron) {
       try {
         return await window.electronAPI!.invoke('pomodoro-start', timerData);
@@ -201,6 +213,11 @@ class ElectronIPCHandler {
   }
 
   togglePomodoro(timerId: string): void {
+    if (this.nativeTimers) {
+      void this.nativeTimers.toggle(timerId);
+      return;
+    }
+
     if (this.isElectron) {
       window.electronAPI?.send('pomodoro-toggle', { timerId });
       return;
@@ -239,6 +256,11 @@ class ElectronIPCHandler {
   }
 
   stopPomodoro(timerId: string): void {
+    if (this.nativeTimers) {
+      void this.nativeTimers.stop(timerId);
+      return;
+    }
+
     if (this.isElectron) {
       window.electronAPI?.send('pomodoro-stop', { timerId });
       return;
@@ -270,6 +292,10 @@ class ElectronIPCHandler {
   }
 
   async getActiveTimers(): Promise<PomodoroUpdateData[]> {
+    if (this.nativeTimers) {
+      return this.nativeTimers.getActiveTimers();
+    }
+
     if (this.isElectron) {
       try {
         const mainProcessTimers = await window.electronAPI?.invoke('pomodoro-get-active-timers');
@@ -334,6 +360,10 @@ class ElectronIPCHandler {
 
   getIsElectron(): boolean {
     return this.isElectron;
+  }
+
+  getUsesManagedTimer(): boolean {
+    return this.isElectron || this.isNative;
   }
 }
 

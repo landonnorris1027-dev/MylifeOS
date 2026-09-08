@@ -10,6 +10,10 @@ const config: CapacitorConfig = {
       style: 'LIGHT',
       hidden: false,
     },
+    LocalNotifications: {
+      smallIcon: 'ic_mylifeos_foreground',
+      iconColor: '#FF2F78',
+    },
   },
 };
 

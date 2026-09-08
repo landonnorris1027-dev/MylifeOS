@@ -44,7 +44,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const finishHandledRef = useRef<string | null>(null);
   const startInFlightRef = useRef(false);
   const completedFocusSecondsRef = useRef<number | null>(null);
-  const isElectron = electronIPC.getIsElectron();
+  const usesManagedTimer = electronIPC.getUsesManagedTimer();
 
   const activeTimerId = useMemo(() => {
     if (!baseTimerId) return '';
@@ -263,7 +263,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     finishHandledRef.current = null;
 
     try {
-      if (isElectron) {
+      if (usesManagedTimer) {
         const payload = buildTimerPayload(nextMode);
         if (!payload) return;
 
@@ -323,7 +323,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const toggleTimer = async () => {
     if (!task || isStarting || startInFlightRef.current) return;
 
-    if (isElectron) {
+    if (usesManagedTimer) {
       if (!hasStarted) {
         await startTimer(mode);
         return;
@@ -349,7 +349,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const markEarlyComplete = async () => {
     if (mode !== 'focus') return;
 
-    if (isElectron) {
+    if (usesManagedTimer) {
       electronIPC.stopPomodoro(currentTimerIdRef.current);
     } else if (localIntervalRef.current) {
       clearInterval(localIntervalRef.current);

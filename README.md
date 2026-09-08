@@ -7,7 +7,7 @@ MyLifeOS is a local-first productivity app built with React and TypeScript, with
 - Define habit rules with priority, quota, default duration, and effective date range
 - Auto-generate daily tasks from those rules
 - Schedule tasks onto a half-hour timeline with conflict detection
-- Run pomodoro sessions with Electron-backed background timing
+- Run pomodoro sessions with persistent background-aware timing on Electron and Android
 - Recover unfinished or expired sessions after restart
 - Track yearly focus activity and profile stats
 
@@ -93,6 +93,8 @@ npm run android:debug
 The debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. The Electron build remains available and unchanged.
 
 On Android, app data is hydrated from native Preferences before React starts and subsequent writes are mirrored back to native storage. JSON backups use the Android share sheet; JSON restore continues to use the system file picker.
+
+Focus and break sessions also persist their wall-clock deadline in native Preferences. This avoids timer drift while the WebView is paused and restores the session after the process restarts. When notifications are enabled, Android schedules a local completion alert; grant notification and alarm/reminder access when the system asks for the most timely delivery. Declining either permission does not stop the in-app timer.
 
 ## Release checks
 
