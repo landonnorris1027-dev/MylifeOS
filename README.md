@@ -1,5 +1,7 @@
 # MyLifeOS
 
+[中文使用说明](USER_GUIDE.md#中文使用说明) · [English User Guide](USER_GUIDE.md#english-user-guide)
+
 MyLifeOS is a local-first productivity app built with React and TypeScript, with Electron for Windows and a Capacitor-based Android shell. It combines habit planning, daily task generation, timeline scheduling, pomodoro focus sessions, and profile statistics in one workflow.
 
 ## What it does
