@@ -353,8 +353,12 @@ class ElectronIPCHandler {
 
   onPomodoroUpdate(callback: (data: PomodoroUpdateData) => void): () => void {
     this.updateCallbacks.add(callback);
+    this.nativeTimers?.setUpdateConsumerAvailable(true);
     return () => {
       this.updateCallbacks.delete(callback);
+      if (this.updateCallbacks.size === 0) {
+        this.nativeTimers?.setUpdateConsumerAvailable(false);
+      }
     };
   }
 

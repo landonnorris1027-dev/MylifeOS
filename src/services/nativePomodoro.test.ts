@@ -41,7 +41,7 @@ describe('NativePomodoroManager', () => {
     jest.clearAllMocks();
     appStateChange = null;
     mockAddListener.mockImplementation(async (_eventName, listener) => {
-      appStateChange = listener as (state: { isActive: boolean }) => void;
+      appStateChange = listener as unknown as (state: { isActive: boolean }) => void;
       return { remove: removeListener };
     });
     mockGet.mockResolvedValue({ value: null });
@@ -129,8 +129,9 @@ describe('NativePomodoroManager', () => {
 
     const restored = await manager.getActiveTimers();
     expect(restored[0]).toMatchObject({ remaining: 0, isActive: true, isFinished: false });
+    expect(onUpdate).not.toHaveBeenCalled();
 
-    jest.advanceTimersByTime(250);
+    manager.setUpdateConsumerAvailable(true);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -148,6 +149,7 @@ describe('NativePomodoroManager', () => {
   it('reconciles the wall-clock deadline as soon as Android resumes', async () => {
     const onUpdate = jest.fn();
     manager = new NativePomodoroManager(onUpdate);
+    manager.setUpdateConsumerAvailable(true);
     await manager.start({ timerId: 'focus-task-1', duration: 10, isFocusMode: true });
     onUpdate.mockClear();
 

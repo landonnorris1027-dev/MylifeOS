@@ -49,6 +49,7 @@ export class NativePomodoroManager {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private appStateListener: Promise<PluginListenerHandle>;
   private channelReady: Promise<void> | null = null;
+  private updateConsumerAvailable = false;
 
   constructor(private readonly onUpdate: TimerUpdateListener) {
     this.appStateListener = App.addListener('appStateChange', ({ isActive }) => {
@@ -133,6 +134,15 @@ export class NativePomodoroManager {
     return Array.from(this.timers.values()).map((timer) => this.toUpdate(timer, false));
   }
 
+  setUpdateConsumerAvailable(available: boolean): void {
+    this.updateConsumerAvailable = available;
+    if (available) {
+      void this.reconcileTimers();
+    } else {
+      this.clearTicker();
+    }
+  }
+
   async dispose(): Promise<void> {
     if (this.intervalId) clearInterval(this.intervalId);
     this.intervalId = null;
@@ -157,14 +167,22 @@ export class NativePomodoroManager {
   }
 
   private ensureTicker(): void {
-    if (this.intervalId || !Array.from(this.timers.values()).some((timer) => timer.isActive)) return;
+    if (
+      !this.updateConsumerAvailable ||
+      this.intervalId ||
+      !Array.from(this.timers.values()).some((timer) => timer.isActive)
+    ) return;
     this.intervalId = setInterval(() => void this.tick(), TICK_INTERVAL_MS);
+  }
+
+  private clearTicker(): void {
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.intervalId = null;
   }
 
   private stopTickerIfIdle(): void {
     if (Array.from(this.timers.values()).some((timer) => timer.isActive)) return;
-    if (this.intervalId) clearInterval(this.intervalId);
-    this.intervalId = null;
+    this.clearTicker();
   }
 
   private refreshRemaining(): void {
@@ -176,6 +194,10 @@ export class NativePomodoroManager {
 
   private async reconcileTimers(): Promise<void> {
     await this.ensureLoaded();
+    if (!this.updateConsumerAvailable) {
+      this.refreshRemaining();
+      return;
+    }
     await this.tick();
     this.ensureTicker();
   }
