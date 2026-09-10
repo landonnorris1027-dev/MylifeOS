@@ -729,6 +729,19 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               <label className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                 <span className="flex items-center gap-3 text-sm font-medium text-gray-700">
                   <Bell size={16} className="text-gray-400" />
+                  {t('vibration_enabled')}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={focusSettings.vibrationEnabled}
+                  onChange={(event) => handleFocusSettingsChange({ vibrationEnabled: event.target.checked })}
+                  className="h-4 w-4 accent-gray-900"
+                />
+              </label>
+
+              <label className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <span className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                  <Bell size={16} className="text-gray-400" />
                   {t('notifications_enabled')}
                 </span>
                 <input

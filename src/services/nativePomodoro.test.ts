@@ -2,6 +2,11 @@ import { App } from '@capacitor/app';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
 import { NativePomodoroManager } from './nativePomodoro';
+import { scheduleNativeReminder, cancelNativeReminder, completeNativeReminder, setNativeTimerVisible } from './nativeReminder';
+jest.mock('./nativeReminder', () => ({
+  scheduleNativeReminder: jest.fn(), cancelNativeReminder: jest.fn(), setNativeTimerVisible: jest.fn(),
+  completeNativeReminder: jest.fn(),
+}));
 
 jest.mock('@capacitor/app', () => ({
   App: { addListener: jest.fn() },
@@ -9,7 +14,7 @@ jest.mock('@capacitor/app', () => ({
 
 jest.mock('@capacitor/local-notifications', () => ({
   LocalNotifications: {
-    createChannel: jest.fn(),
+    requestPermissions: jest.fn(),
     schedule: jest.fn(),
     cancel: jest.fn(),
   },
@@ -25,8 +30,8 @@ jest.mock('@capacitor/preferences', () => ({
 const mockAddListener = App.addListener as jest.MockedFunction<typeof App.addListener>;
 const mockGet = Preferences.get as jest.MockedFunction<typeof Preferences.get>;
 const mockSet = Preferences.set as jest.MockedFunction<typeof Preferences.set>;
-const mockCreateChannel = LocalNotifications.createChannel as jest.MockedFunction<typeof LocalNotifications.createChannel>;
-const mockSchedule = LocalNotifications.schedule as jest.MockedFunction<typeof LocalNotifications.schedule>;
+
+const mockSchedule = scheduleNativeReminder as jest.MockedFunction<typeof scheduleNativeReminder>;
 const mockCancel = LocalNotifications.cancel as jest.MockedFunction<typeof LocalNotifications.cancel>;
 
 describe('NativePomodoroManager', () => {
@@ -46,8 +51,11 @@ describe('NativePomodoroManager', () => {
     });
     mockGet.mockResolvedValue({ value: null });
     mockSet.mockResolvedValue();
-    mockCreateChannel.mockResolvedValue();
-    mockSchedule.mockResolvedValue({ notifications: [] });
+    (LocalNotifications.requestPermissions as jest.Mock).mockResolvedValue({ display: 'granted' });
+    (cancelNativeReminder as jest.Mock).mockResolvedValue(undefined);
+    (setNativeTimerVisible as jest.Mock).mockResolvedValue(undefined);
+    (completeNativeReminder as jest.Mock).mockResolvedValue(undefined);
+    mockSchedule.mockResolvedValue();
     mockCancel.mockResolvedValue();
   });
 
@@ -80,15 +88,10 @@ describe('NativePomodoroManager', () => {
       key: 'mylifeos_native_pomodoro_timers',
       value: expect.stringContaining(`\"endTime\":${expectedEnd}`),
     }));
-    expect(mockSchedule).toHaveBeenCalledWith({
-      notifications: [expect.objectContaining({
-        title: '专注完成',
-        body: '休息一下吧',
-        schedule: { at: new Date(expectedEnd), allowWhileIdle: true },
-        isExactNotification: true,
-        isExactMandatory: false,
-      })],
-    });
+    expect(mockSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      title: '专注完成', body: '休息一下吧', at: expectedEnd,
+      vibrationEnabled: true, soundEnabled: true, notificationsEnabled: true,
+    }));
   });
 
   it('freezes remaining time while paused and creates a new deadline on resume', async () => {
@@ -132,8 +135,7 @@ describe('NativePomodoroManager', () => {
     expect(onUpdate).not.toHaveBeenCalled();
 
     manager.setUpdateConsumerAvailable(true);
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
 
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
       timerId: 'focus-task-1',
@@ -177,5 +179,68 @@ describe('NativePomodoroManager', () => {
     expect(mockSet).toHaveBeenCalled();
 
     consoleWarn.mockRestore();
+  });
+
+  it.each([true, false])('persists vibration=%s and sends it to the native alarm', async (vibrationEnabled) => {
+    manager = new NativePomodoroManager(jest.fn());
+    await manager.start({ timerId: 'vibration', duration: 10, isFocusMode: false, vibrationEnabled, soundEnabled: false });
+    expect(mockSchedule).toHaveBeenCalledWith(expect.objectContaining({ vibrationEnabled, soundEnabled: false }));
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ value: expect.stringContaining('"vibrationEnabled":' + vibrationEnabled) }));
+  });
+
+  it('retains the native alarm across foreground/background transitions and suppresses UI replay', async () => {
+    const onUpdate = jest.fn();
+    manager = new NativePomodoroManager(onUpdate);
+    manager.setUpdateConsumerAvailable(true);
+    await manager.start({ timerId: 'native', duration: 10, isFocusMode: true });
+    expect(mockSchedule).toHaveBeenCalledTimes(1);
+    appStateChange?.({ isActive: false });
+    appStateChange?.({ isActive: true });
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    expect(cancelNativeReminder).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(10_000);
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ isFinished: true, suppressCompletionAlert: true }));
+    expect(mockSchedule).toHaveBeenCalledTimes(1);
+    expect(completeNativeReminder).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the native alarm when the WebView disappears without a background event', async () => {
+    manager = new NativePomodoroManager(jest.fn());
+    await manager.start({ timerId: 'crash', duration: 10, isFocusMode: true });
+    await manager.dispose();
+    manager = null;
+    expect(mockSchedule).toHaveBeenCalledTimes(1);
+    expect(cancelNativeReminder).not.toHaveBeenCalled();
+    expect(setNativeTimerVisible).toHaveBeenLastCalledWith(false);
+  });
+
+  it('schedules foreground sound even with background notifications disabled', async () => {
+    manager = new NativePomodoroManager(jest.fn());
+    await manager.start({ timerId: 'quiet-background', duration: 10, isFocusMode: true, notificationsEnabled: false });
+    expect(mockSchedule).toHaveBeenCalledWith(expect.objectContaining({ notificationsEnabled: false, soundEnabled: true }));
+    expect(LocalNotifications.requestPermissions).not.toHaveBeenCalled();
+  });
+
+  it('cancels both the native alarm and any legacy alarm on stop', async () => {
+    manager = new NativePomodoroManager(jest.fn());
+    await manager.start({ timerId: 'stop', duration: 10, isFocusMode: true });
+    await manager.stop('stop');
+    expect(cancelNativeReminder).toHaveBeenCalledTimes(1);
+    expect(mockCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses only the UI fallback if native alarm registration fails', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    mockSchedule.mockRejectedValue(new Error('alarm registration failed'));
+    const onUpdate = jest.fn();
+    manager = new NativePomodoroManager(onUpdate);
+    manager.setUpdateConsumerAvailable(true);
+    await manager.start({ timerId: 'fallback', duration: 10, isFocusMode: true });
+    jest.advanceTimersByTime(10_000);
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    expect(completeNativeReminder).not.toHaveBeenCalled();
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ isFinished: true, suppressCompletionAlert: false }));
+    warn.mockRestore();
   });
 });

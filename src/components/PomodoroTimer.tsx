@@ -4,6 +4,7 @@ import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { electronIPC, PomodoroTimerData } from '../services/electronIPC';
 import { DEFAULT_FOCUS_SETTINGS, FocusSettings, getFocusSettings } from '../services/focusSettings';
+import { playCompletionAlert } from '../services/nativeReminder';
 
 export interface TimerSessionSnapshot {
   timerId: string;
@@ -44,6 +45,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const finishHandledRef = useRef<string | null>(null);
   const startInFlightRef = useRef(false);
   const completedFocusSecondsRef = useRef<number | null>(null);
+  const finishTimerRef = useRef<(mode: 'focus' | 'break', silent?: boolean) => Promise<void>>(async () => undefined);
   const usesManagedTimer = electronIPC.getUsesManagedTimer();
 
   const activeTimerId = useMemo(() => {
@@ -55,44 +57,48 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const playSound = (type: 'complete' | 'break') => {
     if (!focusSettings.soundEnabled) return;
 
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
+    void playCompletionAlert(() => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return false;
 
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
 
-      const now = ctx.currentTime;
+        const now = ctx.currentTime;
 
-      if (type === 'complete') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-        osc.start(now);
-        osc.stop(now + 0.8);
-      } else {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.setValueAtTime(0, now + 0.1);
-        gain.gain.setValueAtTime(0.3, now + 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-        osc.start(now);
-        osc.stop(now + 0.6);
+        if (type === 'complete') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+          osc.start(now);
+          osc.stop(now + 0.8);
+        } else {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, now);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.setValueAtTime(0, now + 0.1);
+          gain.gain.setValueAtTime(0.3, now + 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          osc.start(now);
+          osc.stop(now + 0.6);
+        }
+
+        setTimeout(() => {
+          ctx.close();
+        }, 1000);
+        return true;
+      } catch (e) {
+        console.error('Audio play failed', e);
+        return false;
       }
-
-      setTimeout(() => {
-        ctx.close();
-      }, 1000);
-    } catch (e) {
-      console.error('Audio play failed', e);
-    }
+    }, focusSettings.vibrationEnabled);
   };
 
   useEffect(() => {
@@ -196,7 +202,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
         if (nextMode === 'focus') {
           completedFocusSecondsRef.current = Math.max(0, Math.round((update.elapsed || 0) / 1000));
         }
-        void handleTimerFinish(nextMode);
+        void finishTimerRef.current(nextMode, update.suppressCompletionAlert);
       }
     });
   }, [task]);
@@ -209,6 +215,8 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       duration: nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds,
       isFocusMode: nextMode === 'focus',
       notificationsEnabled: focusSettings.notificationsEnabled,
+      vibrationEnabled: focusSettings.vibrationEnabled,
+      soundEnabled: focusSettings.soundEnabled,
       breakDurationSeconds,
       taskId: task.id,
       taskHabitId: task.habitId,
@@ -283,9 +291,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     }
   };
 
-  const handleTimerFinish = async (finishedMode: 'focus' | 'break') => {
+  const handleTimerFinish = async (finishedMode: 'focus' | 'break', silent = false) => {
     setIsActive(false);
-    playSound(finishedMode === 'focus' ? 'complete' : 'break');
+    if (!silent) playSound(finishedMode === 'focus' ? 'complete' : 'break');
 
     if (finishedMode === 'focus') {
       if (task && completedFocusSecondsRef.current === null) {
@@ -299,6 +307,8 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       finishBreak();
     }, 500);
   };
+
+  finishTimerRef.current = handleTimerFinish;
 
   const finishBreak = () => {
     if (localIntervalRef.current) {
@@ -347,7 +357,8 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   };
 
   const markEarlyComplete = async () => {
-    if (mode !== 'focus') return;
+    if (mode !== 'focus' || finishHandledRef.current === currentTimerIdRef.current) return;
+    finishHandledRef.current = currentTimerIdRef.current;
 
     if (usesManagedTimer) {
       electronIPC.stopPomodoro(currentTimerIdRef.current);

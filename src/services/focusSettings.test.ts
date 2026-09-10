@@ -14,12 +14,14 @@ describe('focus settings', () => {
   it('saves and reloads focus preferences', () => {
     const saved = saveFocusSettings({
       soundEnabled: false,
+      vibrationEnabled: false,
       notificationsEnabled: false,
       breakDurationMinutes: 10,
     });
 
     expect(saved).toEqual({
       soundEnabled: false,
+      vibrationEnabled: false,
       notificationsEnabled: false,
       breakDurationMinutes: 10,
     });
@@ -35,6 +37,7 @@ describe('focus settings', () => {
 
     expect(getFocusSettings()).toEqual({
       soundEnabled: false,
+      vibrationEnabled: true,
       notificationsEnabled: true,
       breakDurationMinutes: DEFAULT_FOCUS_SETTINGS.breakDurationMinutes,
     });

@@ -2,10 +2,10 @@ import { App } from '@capacitor/app';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
+import { scheduleNativeReminder, cancelNativeReminder, completeNativeReminder, setNativeTimerVisible } from './nativeReminder';
 import type { PomodoroTimerData, PomodoroUpdateData } from './electronIPC';
 
 const STORAGE_KEY = 'mylifeos_native_pomodoro_timers';
-const NOTIFICATION_CHANNEL_ID = 'mylifeos-focus';
 const TICK_INTERVAL_MS = 250;
 
 interface NativeTimerState extends PomodoroTimerData {
@@ -13,6 +13,8 @@ interface NativeTimerState extends PomodoroTimerData {
   remaining: number;
   isActive: boolean;
   notificationId: number;
+  alertScheduled?: boolean;
+  restoredExpired?: boolean;
 }
 
 type TimerUpdateListener = (data: PomodoroUpdateData) => void;
@@ -48,12 +50,14 @@ export class NativePomodoroManager {
   private loadPromise: Promise<void> | null = null;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private appStateListener: Promise<PluginListenerHandle>;
-  private channelReady: Promise<void> | null = null;
+  private appActive = true;
   private updateConsumerAvailable = false;
 
   constructor(private readonly onUpdate: TimerUpdateListener) {
     this.appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+      this.appActive = isActive;
       if (isActive) {
+        this.markExpiredTimersRestored();
         void this.reconcileTimers();
       }
     });
@@ -64,10 +68,19 @@ export class NativePomodoroManager {
     const existing = this.timers.get(timerData.timerId);
     if (existing) await this.cancelNotification(existing.notificationId);
 
+    if (this.appActive && timerData.notificationsEnabled !== false) {
+      try {
+        await LocalNotifications.requestPermissions();
+      } catch (error) {
+        console.warn('Notification permission unavailable:', error);
+      }
+    }
+
     const durationMs = timerData.duration * 1000;
     const timer: NativeTimerState = {
       ...timerData,
       notificationsEnabled: timerData.notificationsEnabled !== false,
+      vibrationEnabled: timerData.vibrationEnabled !== false,
       endTime: Date.now() + durationMs,
       remaining: durationMs,
       isActive: true,
@@ -75,8 +88,8 @@ export class NativePomodoroManager {
     };
 
     this.timers.set(timer.timerId, timer);
-    await this.persist();
     await this.scheduleNotification(timer);
+    await this.persist();
     this.ensureTicker();
 
     const update = this.toUpdate(timer, false);
@@ -107,7 +120,10 @@ export class NativePomodoroManager {
   async stop(timerId: string): Promise<void> {
     await this.ensureLoaded();
     const timer = this.timers.get(timerId);
-    if (!timer) return;
+    if (!timer) {
+      await this.cancelNotification(notificationIdFor(timerId));
+      return;
+    }
 
     this.timers.delete(timerId);
     await Promise.all([this.persist(), this.cancelNotification(timer.notificationId)]);
@@ -136,7 +152,9 @@ export class NativePomodoroManager {
 
   setUpdateConsumerAvailable(available: boolean): void {
     this.updateConsumerAvailable = available;
+    void setNativeTimerVisible(available).catch((error) => console.warn('Timer visibility unavailable:', error));
     if (available) {
+      this.markExpiredTimersRestored();
       void this.reconcileTimers();
     } else {
       this.clearTicker();
@@ -146,6 +164,7 @@ export class NativePomodoroManager {
   async dispose(): Promise<void> {
     if (this.intervalId) clearInterval(this.intervalId);
     this.intervalId = null;
+    await setNativeTimerVisible(false).catch(() => undefined);
     const listener = await this.appStateListener;
     await listener.remove();
   }
@@ -157,7 +176,15 @@ export class NativePomodoroManager {
           const { value } = await Preferences.get({ key: STORAGE_KEY });
           const parsed: unknown = value ? JSON.parse(value) : [];
           if (!Array.isArray(parsed)) return;
-          parsed.filter(isStoredTimer).forEach((timer) => this.timers.set(timer.timerId, timer));
+          for (const timer of parsed.filter(isStoredTimer)) {
+            timer.restoredExpired = timer.isActive && timer.endTime <= Date.now();
+            this.timers.set(timer.timerId, timer);
+            if (timer.isActive && !timer.restoredExpired) {
+              // Replace a legacy Capacitor alarm with the native single-owner alarm.
+              await this.cancelNotification(timer.notificationId);
+              await this.scheduleNotification(timer);
+            }
+          }
         } catch (error) {
           console.warn('Failed to restore native Pomodoro timers:', error);
         }
@@ -203,22 +230,35 @@ export class NativePomodoroManager {
   }
 
   private async tick(): Promise<void> {
+    if (!this.appActive) return;
     const now = Date.now();
     const finished: NativeTimerState[] = [];
 
-    this.timers.forEach((timer) => {
-      if (!timer.isActive) return;
+    for (const timer of Array.from(this.timers.values())) {
+      if (!timer.isActive) continue;
       timer.remaining = Math.max(0, timer.endTime - now);
       const isFinished = timer.remaining <= 0;
+      if (isFinished) {
+        finished.push(timer);
+        this.timers.delete(timer.timerId);
+        if (!timer.restoredExpired && timer.alertScheduled !== false) {
+          await completeNativeReminder(timer.notificationId).catch((error) => console.warn('Foreground reminder unavailable:', error));
+        }
+      }
       this.onUpdate(this.toUpdate(timer, isFinished));
-      if (isFinished) finished.push(timer);
-    });
+    }
 
     if (finished.length > 0) {
       finished.forEach((timer) => this.timers.delete(timer.timerId));
       await this.persist();
     }
     this.stopTickerIfIdle();
+  }
+
+  private markExpiredTimersRestored(): void {
+    this.timers.forEach((timer) => {
+      if (timer.isActive && timer.endTime <= Date.now()) timer.restoredExpired = true;
+    });
   }
 
   private toUpdate(timer: NativeTimerState, isFinished: boolean): PomodoroUpdateData {
@@ -229,6 +269,7 @@ export class NativePomodoroManager {
       endTime: timer.endTime,
       elapsed: Math.max(0, timer.duration * 1000 - timer.remaining),
       isFinished,
+      suppressCompletionAlert: timer.alertScheduled !== false || timer.restoredExpired === true,
       isActive: timer.isActive,
       isFocusMode: timer.isFocusMode,
       notificationsEnabled: timer.notificationsEnabled !== false,
@@ -254,61 +295,30 @@ export class NativePomodoroManager {
     }
   }
 
-  private async prepareNotificationChannel(): Promise<void> {
-    if (!this.channelReady) {
-      const request = LocalNotifications.createChannel({
-        id: NOTIFICATION_CHANNEL_ID,
-        name: 'Focus timer',
-        description: 'Focus and break completion alerts',
-        importance: 4,
-        visibility: 1,
-        vibration: true,
-      }).then(() => undefined);
-      this.channelReady = request;
-      request.catch(() => {
-        if (this.channelReady === request) this.channelReady = null;
-      });
-    }
-    await this.channelReady;
-  }
-
   private async scheduleNotification(timer: NativeTimerState): Promise<void> {
-    if (timer.notificationsEnabled === false || timer.remaining <= 0) return;
+    if (timer.remaining <= 0) return;
     try {
-      await this.prepareNotificationChannel();
       const messages = timer.notificationMessages;
-      const title = timer.isFocusMode
-        ? messages?.focusCompleteTitle || 'Focus complete'
-        : messages?.breakFinishedTitle || 'Break finished';
-      const body = timer.isFocusMode
-        ? messages?.focusCompleteBody || 'Time for a short break.'
-        : messages?.breakFinishedBody || 'Ready for the next focus session?';
-
-      await LocalNotifications.schedule({
-        notifications: [{
-          id: timer.notificationId,
-          title,
-          body,
-          channelId: NOTIFICATION_CHANNEL_ID,
-          smallIcon: 'ic_mylifeos_foreground',
-          iconColor: '#FF2F78',
-          schedule: { at: new Date(timer.endTime), allowWhileIdle: true },
-          isExactNotification: true,
-          isExactMandatory: false,
-        }],
+      await scheduleNativeReminder({
+        id: timer.notificationId,
+        at: timer.endTime,
+        title: timer.isFocusMode ? messages?.focusCompleteTitle || 'Focus complete' : messages?.breakFinishedTitle || 'Break finished',
+        body: timer.isFocusMode ? messages?.focusCompleteBody || 'Time for a short break.' : messages?.breakFinishedBody || 'Ready for the next focus session?',
+        soundEnabled: timer.soundEnabled !== false,
+        vibrationEnabled: timer.vibrationEnabled !== false,
+        notificationsEnabled: timer.notificationsEnabled !== false,
       });
+      timer.alertScheduled = true;
     } catch (error) {
-      // Timing remains correct from the persisted end time even when the user
-      // declines notification or exact-alarm permission.
+      timer.alertScheduled = false;
       console.warn('Failed to schedule Pomodoro notification:', error);
     }
   }
 
   private async cancelNotification(notificationId: number): Promise<void> {
-    try {
-      await LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
-    } catch (error) {
-      console.warn('Failed to cancel Pomodoro notification:', error);
-    }
+    await Promise.all([
+      cancelNativeReminder(notificationId).catch((error) => console.warn('Failed to cancel native reminder:', error)),
+      LocalNotifications.cancel({ notifications: [{ id: notificationId }] }).catch((error) => console.warn('Failed to cancel legacy notification:', error)),
+    ]);
   }
 }

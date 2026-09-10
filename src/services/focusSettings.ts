@@ -2,12 +2,14 @@ import { KEYS, getStorageItem, safeParse, setStorageItem } from './storage/local
 
 export interface FocusSettings {
   soundEnabled: boolean;
+  vibrationEnabled: boolean;
   notificationsEnabled: boolean;
   breakDurationMinutes: number;
 }
 
 export const DEFAULT_FOCUS_SETTINGS: FocusSettings = {
   soundEnabled: true,
+  vibrationEnabled: true,
   notificationsEnabled: true,
   breakDurationMinutes: 5,
 };
@@ -21,6 +23,7 @@ const normalizeFocusSettings = (value: Partial<FocusSettings>): FocusSettings =>
 
   return {
     soundEnabled: typeof value.soundEnabled === 'boolean' ? value.soundEnabled : DEFAULT_FOCUS_SETTINGS.soundEnabled,
+    vibrationEnabled: typeof value.vibrationEnabled === 'boolean' ? value.vibrationEnabled : DEFAULT_FOCUS_SETTINGS.vibrationEnabled,
     notificationsEnabled: typeof value.notificationsEnabled === 'boolean' ? value.notificationsEnabled : DEFAULT_FOCUS_SETTINGS.notificationsEnabled,
     breakDurationMinutes,
   };
