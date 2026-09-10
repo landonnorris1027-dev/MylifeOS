@@ -27,6 +27,10 @@
 
 ### 3. 专注计时和通知
 
+- 0.1.2 新增“响铃时震动”开关：在习惯配置中的专注设置区域调整，默认开启，重启应用后保留。
+- 专注结束、休息结束和提前完成时，手机可随响铃同步震动。前台震动为两次 200 毫秒短震，中间间隔 150 毫秒；暂停、取消和跳过休息不触发提醒。
+- 关闭前台声音时，也不会触发配套震动。后台及锁屏提醒由“完成提醒”开关和 Android 通知设置控制；静音、勿扰或通知频道限制可能抑制声音与震动。
+- 已经结束的计时在重新打开应用后不会重复响铃。修改设置后，从下一次开始的计时阶段生效。
 - Android 和 Windows 均使用持久化截止时间，切换应用或短暂熄屏不会造成明显计时漂移。
 - 可以暂停、继续、提前完成或跳过休息。
 - Android 进程被系统回收后，重新打开应用会恢复计时并处理已经结束的阶段。
@@ -91,6 +95,10 @@ Run the generated Windows installer and follow its setup wizard. The Windows and
 
 ### 3. Focus timers and notifications
 
+- Version 0.1.2 adds **Vibrate when ringing** in the focus settings area of habit configuration. It is enabled by default and remains saved after restarting the app.
+- Focus completion, break completion, and manual early completion can pair the sound with vibration. Foreground vibration uses two 200 ms pulses separated by 150 ms. Pause, cancel, and skip break do not alert.
+- Disabling foreground sound also disables its paired vibration. Background and lock-screen alerts follow **Completion notifications** and Android notification settings; silent mode, Do Not Disturb, and channel restrictions may suppress sound or vibration.
+- Reopening an expired timer does not replay its alert. Changed settings apply to the next timer phase that is started.
 - Android and Windows use persistent wall-clock deadlines, preventing significant timer drift while the app is backgrounded or the screen is briefly off.
 - You can pause, resume, complete a focus session early, or skip a break.
 - If Android terminates the app process, reopening the app restores the timer and processes an already elapsed stage.
