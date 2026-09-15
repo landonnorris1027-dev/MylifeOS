@@ -131,10 +131,12 @@
         "移除 electron-packager 依赖与 package:win 脚本，统一用 electron:build（NSIS）；同时评估 react-scripts 迁入 devDependencies 以给 app.asar 瘦身"
       ],
       "files": [
-        "package.json:43-74 (electron-builder build 块)",
-        "package.json:41 (electron:build 脚本)",
+        "package.json:43-76 (electron-builder build 块)",
+        "package.json:40 (electron:build 脚本)",
+        "package.json:39 (smoke:packaged 脚本)",
         "scripts/clean-build.js (新增)",
-        "RELEASE_CHECKS.md (Packaging hygiene 小节)",
+        "scripts/smoke-packaged.js (新增，打包产物冒烟检查)",
+        "RELEASE_CHECKS.md (Packaged smoke test / Packaging hygiene 小节)",
         "out/ (杂散产物实际位置，非 build/)"
       ],
       "risks": [
@@ -150,11 +152,12 @@
           "NSIS 安装包 111,107,830 B → 94,734,014 B（−16.4 MB，−14.7%）",
           "out/win-unpacked/resources 不再有 build/ 重复副本，仅 app.asar + app-update.yml + elevate.exe",
           "app.asar = 163,513,747 B；顶层条目 assets / build / electron.js / electron-timer-restore.js / electron-window-target.js / node_modules / package.json / preload.js",
-          "打包后启动实测：[MyLifeOS] Loading file: ...\\resources\\app.asar\\build\\index.html，无 did-fail-load，app-data.json 经 preload + sendSync IPC 正常读写"
+          "打包后启动实测：[MyLifeOS] Loading file: ...\\resources\\app.asar\\build\\index.html，无 did-fail-load，app-data.json 经 preload + sendSync IPC 正常读写",
+          "npm run smoke:packaged PASS（exit 0）：一次性 profile 下 readyState=complete、#root 有子节点、渲染文本 353 字、window.electronAPI=invoke/send/sendSync/on、0 条渲染错误；反向对照（空白 Electron 默认 app）正确 FAIL（exit 1，指出 #root 缺失 / preload 桥缺失）"
         ],
         "issues": [
-          "打包机需下载 Electron 105 MB：GitHub 直连失败，改用 ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ 后 4.65 s 完成（nsis/winCodeSign 已有本地缓存）",
-          "全新 profile（--user-data-dir 指向空目录）首启动十几秒后进程自行退出且未写 app-data.json，已有数据 profile 可稳定存活；疑似既有首启动问题，待单独排查",
+          "打包机需下载 Electron 105 MB：GitHub 直连失败，改用 ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ 后 4.65 s 完成（nsis/winCodeSign 已有本地缓存）；同一镜像也用于修复本地开发运行时——排查中发现 node_modules/electron/dist 缺失，导致 prod/electron:dev 无法启动",
+          "全新 profile 首启动自行退出：已排查结案为非应用缺陷（新装首启动渲染健康，见 measured；唯一可复现的自退出来自单实例锁——同 profile 起第二个实例立即退出），盲区已由 npm run smoke:packaged 覆盖；另注意全新 profile 不写 app-data.json 属正常行为",
           "react-scripts 位于 dependencies，被整个打进 app.asar（156 MB 主要来源）；迁入 devDependencies 可大幅瘦身，建议与 2.5 一并处理"
         ]
       }
@@ -289,7 +292,7 @@
       "删除 DEPENDENCY_UPGRADE_RESEARCH.md:68 关于 CDN Tailwind 的过时失实论断（现已完全离线，public/index.html 无任何外部资源）",
       "USER_GUIDE.md 补充 Windows 端：数据位置 %APPDATA%/MyLifeOS/、备份路径、恢复点功能说明（目前完全未文档化）",
       "每阶段配套单测：主进程存储缓存、useModalBehavior、托盘窗口状态",
-      "RELEASE_CHECKS.md 补桌面端回归项：大备份导入性能、磁盘满写失败、崩溃后 app-data.json 完整性"
+      "RELEASE_CHECKS.md 补桌面端回归项：大备份导入性能、磁盘满写失败、崩溃后 app-data.json 完整性（打包后冒烟 npm run smoke:packaged 已补：新装首启动渲染 + preload 桥 + 渲染错误数；其余三项仍待补）"
     ]
   },
   "fileIndex": {

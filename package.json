@@ -36,6 +36,7 @@
     "verify:quality": "npm run typecheck && npm run test && npm run build",
     "verify:release": "npm run verify:quality && npm run check:electron",
     "clean:build": "node ./scripts/clean-build.js",
+    "smoke:packaged": "node ./scripts/smoke-packaged.js",
     "prod": "node ./scripts/start-electron.js",
     "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
     "electron:build": "npm run verify:release && npm run clean:build && electron-builder -w -c.extraMetadata.main=electron.js",

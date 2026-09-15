@@ -133,7 +133,7 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 ### Phase 2 执行记录（2026-09-16，分支 `codex/windows-desktop`）
 
-已完成 2.1–2.3。改动文件：`package.json`（`asar: true`、删除 `extraResources`、新增 `clean:build` 并接入 `electron:build`）、新增 `scripts/clean-build.js`、`RELEASE_CHECKS.md`（新增「Packaging hygiene」校验说明）。
+已完成 2.1–2.3。改动文件：`package.json`（`asar: true`、删除 `extraResources`、新增 `clean:build` 与 `smoke:packaged` 并接入 `electron:build`）、新增 `scripts/clean-build.js`、新增 `scripts/smoke-packaged.js`（打包产物冒烟检查）、`RELEASE_CHECKS.md`（新增「Packaged smoke test」与「Packaging hygiene」两节）。
 
 实测证据：
 
@@ -147,10 +147,12 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 - `npm run electron:build` 完整跑通并生成安装包；`app.asar` 顶层条目 = `assets, build, electron.js, electron-timer-restore.js, electron-window-target.js, node_modules, package.json, preload.js`，`build/index.html`、`build/static/js/*`、`assets/icon.ico` 均在包内。
 - 打包后启动实测：`[MyLifeOS] Loading file: ...\resources\app.asar\build\index.html`，无 `did-fail-load`；窗口正常显示，`%APPDATA%/MyLifeOS/app-data.json` 经 preload + `sendSync` IPC 正常读写。
 
-**待办与已知坑**：
+- 新增 `npm run smoke:packaged`（`scripts/smoke-packaged.js`）：用一次性 `--user-data-dir` 启动打包产物 + CDP 探针，断言页面渲染完成、`#root` 有内容、`window.electronAPI` 暴露 `sendSync`、无渲染进程异常、进程存活。实测 PASS（exit 0，`readyState=complete`、渲染文本 353 字）；并用空白 Electron 默认 app 做反向对照，正确 FAIL（exit 1，指出"#root 缺失 / preload 桥缺失"）。
 
-1. 打包机需网络下载 Electron 二进制（105 MB）。GitHub 直连失败（`read tcp ... wsarecv: An existing connection was forcibly closed`），改用 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 后 4.65 s 完成；`nsis`/`winCodeSign` 已有本地缓存。建议把该环境变量写进打包文档或脚本。
-2. **全新 profile 首启动疑似异常（未定位）**：`--user-data-dir` 指向空目录时，窗口加载后十几秒进程自行退出且未写 `app-data.json`；而已有数据的 profile 上连续两次启动可稳定存活 20 s 以上。新装用户首次启动正是这个场景，建议在 2.4 之后单独排查。
+**后续与已排查项**：
+
+1. 打包机需网络下载 Electron 二进制（105 MB）。GitHub 直连失败（`read tcp ... wsarecv: An existing connection was forcibly closed`），改用 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 后 4.65 s 完成；`nsis`/`winCodeSign` 已有本地缓存。建议把该环境变量写进打包文档或脚本。同一镜像也可修复本地开发运行时——本次排查发现 `node_modules/electron/dist` 缺失，导致 `npm run prod` / `electron:dev` 根本起不来，用 `node node_modules/electron/install.js` 已修复。
+2. ~~全新 profile 首启动疑似异常（待排查）~~ → **已排查结案：非应用缺陷**。证据：dev 模式全新 profile 存活、打包产物分离启动存活 50 s+、重定向启动存活 20 s+；CDP 探针确认新装首启动渲染健康（UI 正常渲染、preload 桥暴露 `invoke/send/sendSync/on`、0 条 error/warning）。唯一可复现的"自行退出"来自单实例锁：同一 `--user-data-dir` 起第二个实例会立即退出（stdout 只剩 `--- ELECTRON PROCESS STARTING ---`），与当时观测特征吻合——那次是排查过程中残留的实例占着同一 profile 的锁。另：全新 profile 不写 `app-data.json` 属正常（仅数据变化时落盘）。该盲区已由 `npm run smoke:packaged` 覆盖，勿再依赖"看有没有 app-data.json"来判断首启动是否正常。
 3. `react-scripts` 位于 `dependencies`（非 `devDependencies`），被整个打进 `app.asar`（156 MB 的主要来源）；迁到 `devDependencies` 可大幅瘦身，属依赖分类变更，建议与 2.5 一并处理。
 
 ---
