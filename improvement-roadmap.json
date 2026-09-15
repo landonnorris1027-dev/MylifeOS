@@ -1,0 +1,308 @@
+{
+  "project": "MyLifeOS",
+  "version": "0.1.2",
+  "scope": "desktop-electron-windows",
+  "source": "IMPROVEMENT_ROADMAP.md",
+  "verificationGate": "npm run verify:release",
+  "executionOrder": [2, 0, 1, 3, 4],
+  "dependencyGraph": {
+    "0": [],
+    "1": [0],
+    "2": [],
+    "3": [],
+    "4": [0]
+  },
+  "notes": [
+    "每个 phase 作为一个独立提交，各自跑通 npm run verify:release 后再进入下一个。",
+    "Phase 2 与 Phase 3 互不依赖，可与其它 phase 并行。",
+    "Phase 0 是 Phase 1 与 Phase 4 的前置条件（主进程改动大，先有类型保护）。",
+    "Phase 2 的 2.1–2.3 已于 2026-09-16 完成并实测通过，详见 phases[id=2].executionRecord；2.4–2.5 仍待办。"
+  ],
+  "phases": [
+    {
+      "id": 0,
+      "title": "主进程 TypeScript 迁移",
+      "priority": "blocker",
+      "goal": "electron.js / preload.js / electron-timer-restore.js / electron-window-target.js 迁移到 TS，获得类型保护。",
+      "dependsOn": [],
+      "steps": [
+        "新建 tsconfig.main.json（module: commonjs, target: es2018, outDir: ./dist-main, rootDir: ./src/main, strict: true）",
+        "主进程源码移入 src/main/（electron.ts、preload.ts、electron-timer-restore.ts、electron-window-target.ts）",
+        "renderer 侧 src/electron.d.ts 的类型定义与主进程共享，消除重复声明",
+        "迁移 src/electron-timer-restore.test.js 与 src/electron-window-target.test.js 为 .test.ts",
+        "package.json: main 指向 dist-main/electron.js；新增 build:main 脚本（tsc -p tsconfig.main.json）",
+        "electron:dev / electron:build / prod 前置依赖 build:main",
+        "check:electron 改为 tsc --noEmit -p tsconfig.main.json（替代 node -c）",
+        "electron-builder files 加入 dist-main/**/*，移除旧的根目录 JS 条目"
+      ],
+      "files": [
+        "electron.js",
+        "preload.js",
+        "electron-timer-restore.js",
+        "electron-window-target.js",
+        "src/electron.d.ts",
+        "src/electron-timer-restore.test.js",
+        "src/electron-window-target.test.js",
+        "package.json",
+        "tsconfig.main.json",
+        ".gitignore"
+      ],
+      "risks": [
+        "require('./electron-timer-restore') 等相对引用需随目录调整",
+        ".gitignore 已忽略 dist/，需补 dist-main/",
+        "preload 的 contextBridge 类型需与 ElectronAPI 接口对齐"
+      ],
+      "verification": "npm run verify:release 全绿 + npm run electron:dev 窗口正常加载 + 计时器/恢复流程正常"
+    },
+    {
+      "id": 1,
+      "title": "存储性能",
+      "priority": "P0",
+      "goal": "把桌面存储从 O(整文件 I/O) 降为 O(内存 Map 操作)，消除渲染进程冻结。",
+      "dependsOn": [0],
+      "currentPain": {
+        "readAmplification": "单次任务更新 ≈ 6 次整文件读 + 2 次整文件写（saveDailyData → getAllDailyLogs + saveDailyLog + createAutomaticRecoveryPoint）",
+        "writeAmplification": "最多 7 个恢复点各嵌入完整 JSON 备份，app-data.json 体积达数据集 ~8 倍",
+        "blockingIpc": "sendSync 阻塞渲染进程 JS 线程，大备份导入时 UI 完全冻结"
+      },
+      "steps": [
+        {
+          "group": "1.1 主进程内存缓存 + 批量延迟写",
+          "items": [
+            "启动时一次性加载 app-data.json 到 Map<string, string>（复用 readAppDataStore）",
+            "storage-get-sync 直接 cache.get(key) 返回，零文件读",
+            "storage-set-sync 更新 cache 立即返回，写操作进入 300ms 防抖队列合并落盘",
+            "app.on('before-quit') 同步强制 flush，防止退出丢数据",
+            "写失败保留旧缓存值并返回 {ok:false}（渲染进程已有 StorageWriteError 处理路径）"
+          ]
+        },
+        {
+          "group": "1.2 恢复点移出热存储路径",
+          "items": [
+            "恢复点数据移到独立文件 userData/recovery-points.json（主进程持有，不进 app-data.json）",
+            "创建策略改为每日首次变更 + pre-import/pre-restore 强制创建，不再每次变更触发",
+            "recoveryPointService.ts:18 的 formatLocalDate 复用 dateUtils.formatDateLocal，消除重复",
+            "修复去重时区错配 bug（createdAt 为 UTC toISOString，却与本地日期 slice(0,10) 比较）"
+          ]
+        },
+        {
+          "group": "1.3（可选，低优先）异步化",
+          "items": [
+            "storage-set-sync 升级为异步 invoke('storage-set')，setStorageItem 变为 async",
+            "storage 层改为返回 Promise（牵涉面广，建议 1.1+1.2 先拿到 90% 收益）"
+          ]
+        }
+      ],
+      "files": [
+        "electron.js:393-428",
+        "src/services/storage/localStorageStore.ts:23-50",
+        "src/services/storage/recoveryPointService.ts",
+        "src/services/storage.ts"
+      ],
+      "risks": [
+        "防抖窗口内进程崩溃会丢未落盘数据（before-quit flush 缓解，极端情况仍可能丢失最近 300ms）",
+        "恢复点移文件后需兼容旧版本 app-data.json 中的历史恢复点（读取后迁移）"
+      ],
+      "verification": "新增主进程缓存单测（mock fs）；连续快速拖拽 10 个任务到时间轴确认无卡顿；npm run verify:release"
+    },
+    {
+      "id": 2,
+      "title": "打包配置",
+      "priority": "P0",
+      "goal": "开启 asar、消除资源重复复制、清理杂散产物、升级 Electron、收敛打包工具。",
+      "status": "in_progress",
+      "completedSteps": [
+        "build 块 asar: true（无原生模块，无需 asarUnpack）",
+        "删除 extraResources 配置块（与 files 重复，且 __dirname 指向 resources/app，extraResources 那份从未被读取）",
+        "新增 clean:build 脚本（scripts/clean-build.js），仅保留 index.html / manifest.json / asset-manifest.json / static/",
+        "electron:build 前置执行 clean:build，并一次性清理 out/ 下真实存在的杂散产物（android/、MyLifeOS-0.1.2-debug.apk、旧 win-unpacked/）"
+      ],
+      "dependsOn": [],
+      "steps": [
+        "build 块 asar: true（无原生模块，无需 asarUnpack）",
+        "删除 extraResources 配置块（与 files 重复，且 __dirname 指向 resources/app，extraResources 那份从未被读取）",
+        "新增 clean:build 脚本，仅保留 index.html / manifest.json / asset-manifest.json / static/",
+        "electron:build 前置执行 clean:build（清除混入的 exe/apk/win-unpacked/android/builder-debug.yml）",
+        "Electron 27.3.11 升级到最新稳定大版本",
+        "移除 electron-packager 依赖与 package:win 脚本，统一用 electron:build（NSIS）"
+      ],
+      "pendingSteps": [
+        "Electron 27.3.11 升级到最新稳定大版本",
+        "移除 electron-packager 依赖与 package:win 脚本，统一用 electron:build（NSIS）；同时评估 react-scripts 迁入 devDependencies 以给 app.asar 瘦身"
+      ],
+      "files": [
+        "package.json:43-74 (electron-builder build 块)",
+        "package.json:41 (electron:build 脚本)",
+        "scripts/clean-build.js (新增)",
+        "RELEASE_CHECKS.md (Packaging hygiene 小节)",
+        "out/ (杂散产物实际位置，非 build/)"
+      ],
+      "risks": [
+        "Electron 大版本升级需回归窗口加载、通知、sendSync 行为",
+        "asar 开启后 path.join(__dirname, 'build/index.html') 加载路径需验证（预期通过 loadFile 正常解析 asar 内路径）"
+      ],
+      "verification": "npm run electron:build 产物体积显著下降；安装后 loadFile 正常加载、番茄钟/恢复流程正常",
+      "executionRecord": {
+        "date": "2026-09-16",
+        "branch": "codex/windows-desktop",
+        "gate": "npm run verify:release 全绿（8 test suites / 53 tests 通过、CRA 生产构建成功、4 个主进程入口语法检查通过）",
+        "measured": [
+          "NSIS 安装包 111,107,830 B → 94,734,014 B（−16.4 MB，−14.7%）",
+          "out/win-unpacked/resources 不再有 build/ 重复副本，仅 app.asar + app-update.yml + elevate.exe",
+          "app.asar = 163,513,747 B；顶层条目 assets / build / electron.js / electron-timer-restore.js / electron-window-target.js / node_modules / package.json / preload.js",
+          "打包后启动实测：[MyLifeOS] Loading file: ...\\resources\\app.asar\\build\\index.html，无 did-fail-load，app-data.json 经 preload + sendSync IPC 正常读写"
+        ],
+        "issues": [
+          "打包机需下载 Electron 105 MB：GitHub 直连失败，改用 ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ 后 4.65 s 完成（nsis/winCodeSign 已有本地缓存）",
+          "全新 profile（--user-data-dir 指向空目录）首启动十几秒后进程自行退出且未写 app-data.json，已有数据 profile 可稳定存活；疑似既有首启动问题，待单独排查",
+          "react-scripts 位于 dependencies，被整个打进 app.asar（156 MB 主要来源）；迁入 devDependencies 可大幅瘦身，建议与 2.5 一并处理"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "键盘可用性",
+      "priority": "P1",
+      "goal": "补齐桌面端键盘操作能力与渲染性能（纯 renderer，可并行）。",
+      "dependsOn": [],
+      "currentPain": "src/ 内零键盘事件处理；所有弹窗无 Escape、无 focus trap；TaskCard 主操作键盘不可达。",
+      "steps": [
+        {
+          "group": "3.1 通用 Modal 基础设施",
+          "items": [
+            "新增 src/hooks/useModalBehavior.ts：Escape 关闭、焦点陷阱、打开聚焦首个元素、关闭归还焦点、注入 role=dialog/aria-modal",
+            "应用到 8 个弹窗：AlertModal、ConfirmModal、HabitConfig、ManualTaskModal、TimePickerModal、TaskReviewModal、RecoveryModal、PomodoroTimer",
+            "AlertModal/ConfirmModal 补 role=alertdialog；ConfirmModal 默认聚焦取消按钮"
+          ]
+        },
+        {
+          "group": "3.2 TaskCard 键盘可达",
+          "items": [
+            "TaskCard.tsx:66 补 role=button / tabIndex=0 / onKeyDown（Enter/Space 触发 onClick）",
+            "hover-only 操作按钮补 aria-label",
+            "删除未被任何调用方使用的 compact 死 prop"
+          ]
+        },
+        {
+          "group": "3.3 渲染性能",
+          "items": [
+            "TaskCard 包 React.memo；App.tsx:307/438 箭头函数改 useCallback，消除整列表重渲染",
+            "TimePickerModal.tsx:20-35 的 O(48 × 任务数) 槽位计算包 useMemo([dailyTasks, task, timelineMode])",
+            "HabitConfig.tsx:108 与 ManualTaskModal.tsx:33 的 useState(getGoals()) 改懒初始化",
+            "抽取共享 PrioritySelector 组件，消除两处 PRIORITY_BUTTON_KEYS 及 P1/P2/P3 网格重复"
+          ]
+        },
+        {
+          "group": "3.4 i18n 与无障碍一致性",
+          "items": [
+            "LanguageContext.tsx: t 用 useCallback([language]) 包裹",
+            "语言切换时同步 document.documentElement.lang（public/index.html 静态 lang=en 与默认 zh 不一致）",
+            "新增系统语言检测（navigator.language 首次启动，zh 兜底）",
+            "index.css 补 :focus-visible 与 prefers-reduced-motion 规则"
+          ]
+        }
+      ],
+      "files": [
+        "src/hooks/useModalBehavior.ts (新增)",
+        "src/components/AlertModal.tsx",
+        "src/components/ConfirmModal.tsx",
+        "src/components/HabitConfig.tsx:108",
+        "src/components/ManualTaskModal.tsx:33",
+        "src/components/TimePickerModal.tsx:20-35",
+        "src/components/TaskCard.tsx:66",
+        "src/components/RecoveryModal.tsx",
+        "src/components/TaskReviewModal.tsx",
+        "src/components/PomodoroTimer.tsx",
+        "src/contexts/LanguageContext.tsx",
+        "src/index.css",
+        "src/App.tsx:307,438"
+      ],
+      "risks": [
+        "focus trap 与现有 hover-only 工具栏的 z-index 层级需协调",
+        "LanguageContext 检测系统语言可能改变现有用户的首选语言（仅首次启动生效，需保留已存设置优先）"
+      ],
+      "verification": "纯键盘走查全流程（新建任务→排期→番茄钟→完成→删除）；新增 useModalBehavior 单测；npm run verify:release"
+    },
+    {
+      "id": 4,
+      "title": "桌面原生能力",
+      "priority": "P2",
+      "goal": "补齐 Windows 桌面原生体验：托盘、原生保存对话框、窗口状态持久化、快捷键。",
+      "dependsOn": [0],
+      "steps": [
+        {
+          "group": "4.1 系统托盘",
+          "items": [
+            "用 assets/icon.ico 创建 Tray，右键菜单：显示窗口 / 退出",
+            "新增 desktopSettings（最小化到托盘，默认开），关闭按钮最小化到托盘而非退出",
+            "托盘图标点击恢复窗口（复用现有 second-instance 逻辑）"
+          ]
+        },
+        {
+          "group": "4.2 原生保存对话框",
+          "items": [
+            "新增 IPC 通道 dialog-save-backup，主进程调 dialog.showSaveDialog（过滤器 *.json）",
+            "platformFiles.ts 的 Electron 分支走该通道，浏览器分支保留 blob 下载",
+            "preload.js 白名单加入新通道"
+          ]
+        },
+        {
+          "group": "4.3 窗口状态持久化",
+          "items": [
+            "主进程维护 userData/window-state.json，记录 bounds（x/y/width/height）与 isMaximized",
+            "createWindow 时恢复；resize/move/maximize 事件防抖落盘"
+          ]
+        },
+        {
+          "group": "4.4 本地快捷键",
+          "items": [
+            "渲染进程 useEffect 注册（不用 globalShortcut，避免与系统快捷键冲突）",
+            "Ctrl/Cmd+1 → planner，Ctrl/Cmd+2 → profile",
+            "Esc → 关闭番茄钟计时器（与 3.1 的 modal Escape 统一管理）",
+            "N → 新建任务（planner 视图下）"
+          ]
+        },
+        {
+          "group": "4.5（可选）自动更新",
+          "items": [
+            "引入 electron-updater + publish: github；独立大块，确认发布渠道后再推进"
+          ]
+        }
+      ],
+      "files": [
+        "src/main/electron.ts (Phase 0 后的窗口创建处)",
+        "preload.js",
+        "src/services/platformFiles.ts",
+        "src/electron.d.ts"
+      ],
+      "risks": [
+        "托盘在单实例锁下的生命周期需与 app.quit 协调，避免托盘残留进程",
+        "dialog.showSaveDialog 为异步 API，需与现有同步导出流衔接"
+      ],
+      "verification": "托盘最小化/恢复；备份导出弹出原生对话框；窗口尺寸重启后保持；快捷键生效；npm run verify:release"
+    }
+  ],
+  "crossCutting": {
+    "title": "贯穿各阶段：文档与测试",
+    "items": [
+      "修复 docs/*.md 的机器专属绝对路径（C:/Users/TZK/.codex/worktrees/69b2/...，见 ARCHITECTURE.md、DATA_FLOW.md）为仓库相对路径",
+      "删除 DEPENDENCY_UPGRADE_RESEARCH.md:68 关于 CDN Tailwind 的过时失实论断（现已完全离线，public/index.html 无任何外部资源）",
+      "USER_GUIDE.md 补充 Windows 端：数据位置 %APPDATA%/MyLifeOS/、备份路径、恢复点功能说明（目前完全未文档化）",
+      "每阶段配套单测：主进程存储缓存、useModalBehavior、托盘窗口状态",
+      "RELEASE_CHECKS.md 补桌面端回归项：大备份导入性能、磁盘满写失败、崩溃后 app-data.json 完整性"
+    ]
+  },
+  "fileIndex": {
+    "electron.js:393-428": "存储 IPC（Phase 1.1 改造点）",
+    "electron.js:430-494": "窗口创建（Phase 4.3 改造点）",
+    "preload.js": "channel 白名单（Phase 4.2 新增通道）",
+    "src/services/storage/localStorageStore.ts:23-50": "桌面存储桥（Phase 1.3 改造点）",
+    "src/services/storage/recoveryPointService.ts": "恢复点（Phase 1.2 改造点）",
+    "src/hooks/useAppController.ts": "统一状态控制器",
+    "src/components/TaskCard.tsx:66": "键盘可达性（Phase 3.2）",
+    "src/components/TimePickerModal.tsx:20-35": "槽位计算 memo 化（Phase 3.3）",
+    "src/contexts/LanguageContext.tsx": "i18n（Phase 3.4）",
+    "package.json:43-74": "electron-builder 配置（Phase 2，asar/clean:build 已落地）",
+    "scripts/clean-build.js": "build/ 杂散产物清理（Phase 2.3）"
+  }
+}

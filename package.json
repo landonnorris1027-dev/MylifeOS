@@ -35,15 +35,16 @@
     "check:electron": "node -c electron.js && node -c preload.js && node -c electron-timer-restore.js && node -c electron-window-target.js",
     "verify:quality": "npm run typecheck && npm run test && npm run build",
     "verify:release": "npm run verify:quality && npm run check:electron",
+    "clean:build": "node ./scripts/clean-build.js",
     "prod": "node ./scripts/start-electron.js",
     "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
-    "electron:build": "npm run verify:release && electron-builder -w -c.extraMetadata.main=electron.js",
+    "electron:build": "npm run verify:release && npm run clean:build && electron-builder -w -c.extraMetadata.main=electron.js",
     "package:win": "npm run verify:release && electron-packager . MyLifeOS --platform=win32 --arch=x64 --out=release --overwrite --ignore=node_modules/electron-builder --icon=assets/icon.ico"
   },
   "build": {
     "appId": "com.mylifeos.app",
     "productName": "MyLifeOS",
-    "asar": false,
+    "asar": true,
     "npmRebuild": false,
     "files": [
       "build/**/*",
@@ -70,16 +71,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    },
-    "extraResources": [
-      {
-        "from": "build/",
-        "to": "build",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ]
+    }
   },
   "browserslist": {
     "production": [

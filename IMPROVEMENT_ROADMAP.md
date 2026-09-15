@@ -1,0 +1,244 @@
+# MyLifeOS 桌面版（Electron Windows）改进路线图
+
+> 本地优先的 React 18 + TypeScript 生产力应用，三端共享渲染层：Electron（Windows 桌面）、Capacitor（Android）、浏览器降级。
+> 本文聚焦**桌面端**的优化，可直接按 Phase 逐步执行。配套结构化文件见 `improvement-roadmap.json`。
+
+## 架构概览
+
+```
+┌─ Renderer (React 18 + TS, CRA) ──────────────────────────────┐
+│  App.tsx → useAppController (reducer 统一状态)                │
+│  components/ (UI)   services/ (storage/scheduling/electronIPC)│
+└───────────────┬──────────────────────────────┬───────────────┘
+                │ preload.js (channel 白名单)   │ Capacitor (Android 另一壳)
+┌───────────────▼──────────────────────────────┘
+│  Electron 主进程 (electron.js)
+│  ├ 窗口管理 (1200×800, 单实例, contextIsolation, GPU 禁用)
+│  ├ 番茄钟运行时 (主进程持有, 持久化到 pomodoro-state.json)
+│  └ 存储 IPC (storage-get/set-sync → userData/app-data.json)
+```
+
+**核心设计优点（保留）**：local-first 无网络依赖；计时器由主进程持有实现防漂移；离线过期会话恢复（`pomodoro-state.json` + `pendingRecoveries`）；preload 白名单安全模型（`contextIsolation: true`、`nodeIntegration: false`）。
+
+## 现状关键数据
+
+| 项目 | 现状 |
+|---|---|
+| Electron | 27.3.11（已超出支持窗口，最新 42.x） |
+| 单次任务更新 | ≈ 6 次整文件读 + 2 次整文件写（同步 `sendSync` 阻塞渲染进程） |
+| `app-data.json` 体积 | 数据集的 ~8 倍（最多 7 个恢复点各嵌入完整 JSON 备份） |
+| 打包 | `asar: false` + `extraResources` 重复复制 `build/`（**Phase 2 已修复**） |
+| `src/` 键盘事件处理 | 0 处（所有弹窗无 Escape、无 focus trap） |
+| 主进程类型保护 | 无（纯 JS，仅 `node -c` 语法检查） |
+| 组件测试覆盖 | 11 个组件中 10 个零覆盖 |
+
+## 依赖关系与执行顺序
+
+```
+Phase 2 (打包配置)  ─────────────零风险，可立即执行
+      │
+Phase 0 (TS 迁移)   ──必须先于──▶  Phase 1 (存储性能)   ← 主进程改动大，先有类型保护
+      │                                 │
+      └──────────────必须先于──▶  Phase 4 (原生能力)   ← 托盘/对话框/窗口状态都在主进程
+
+Phase 3 (键盘可用性)  ────────────与主进程无关，可并行（纯 renderer）
+```
+
+**建议执行顺序**：Phase 2 → Phase 0 → Phase 1 → Phase 3 → Phase 4。每个 Phase 作为一个独立提交，各自跑通 `npm run verify:release` 后再进入下一个。
+
+---
+
+## Phase 0 — 主进程 TypeScript 迁移（blocker，后续阶段前置）
+
+**目标**：`electron.js`、`preload.js`、`electron-timer-restore.js`、`electron-window-target.js` 迁移到 TS，获得类型保护。
+
+**步骤**：
+1. 新建 `tsconfig.main.json`（`module: commonjs`、`target: es2018`、`outDir: ./dist-main`、`rootDir: ./src/main`、`strict: true`）
+2. 主进程源码移入 `src/main/`（`electron.ts`、`preload.ts`、`electron-timer-restore.ts`、`electron-window-target.ts`）；renderer 侧 `src/electron.d.ts` 的类型定义与主进程共享，消除重复声明
+3. 迁移 `src/electron-timer-restore.test.js`、`src/electron-window-target.test.js` 为 `.test.ts`
+4. `package.json`：`main` 指向编译产物 `dist-main/electron.js`；新增 `build:main`（`tsc -p tsconfig.main.json`）；`electron:dev`/`electron:build`/`prod` 前置依赖 `build:main`；`check:electron` 改为 `tsc --noEmit -p tsconfig.main.json`（替代 `node -c`）
+5. `electron-builder` 的 `files` 加入 `dist-main/**/*`，移除旧的根目录 JS 条目
+
+**风险**：
+- `electron.js` 顶部 `require('./electron-timer-restore')` 等相对引用需随目录调整
+- `.gitignore` 已忽略 `dist/`，需补 `dist-main/`
+- `preload.js` 的 `contextBridge` 类型需与 `src/electron.d.ts` 的 `ElectronAPI` 接口对齐
+
+**验证**：`npm run verify:release` 全绿 + `npm run electron:dev` 窗口正常加载 + 计时器/恢复流程正常。
+
+---
+
+## Phase 1 — 存储性能（P0，收益最大）
+
+**核心洞察**：渲染进程 API 可以完全不动（保持 `sendSync` 的同步语义），只让**主进程变快**——把 O(整文件 I/O) 降为 O(内存 Map 操作)。
+
+### 1.1 主进程内存缓存 + 批量延迟写
+
+改造 `electron.js` 的 `registerStorageIpc`（现为 `:393-428`）：
+
+- 启动时一次性加载 `app-data.json` 到 `Map<string, string>`（复用 `readAppDataStore` 逻辑）
+- `storage-get-sync`：直接 `cache.get(key)` 返回，**零文件读**
+- `storage-set-sync`：`cache.set(key, value)` 立即返回，写操作进入**防抖队列**（如 300ms 窗口内合并，一次 `writeFileSync` 落盘整个 store）
+- `app.on('before-quit')`：**同步强制 flush**，防止退出丢数据
+- 写失败保留旧缓存值并返回 `{ok:false}`（渲染进程已有 `StorageWriteError` 处理路径）
+
+**效果**：单次任务更新从 ~6 读 + 2 写 → 6 次内存读 + 1 次延迟写，UI 冻结消除。
+
+### 1.2 恢复点移出热存储路径
+
+当前 `createAutomaticRecoveryPoint` 从 `storage.ts` 的 8 个写操作处触发，每次做 3 次整文件读 + 全量导出 + 排序 + 写入。
+
+- 恢复点数据移到**独立文件** `userData/recovery-points.json`（主进程持有，不进 `app-data.json`）
+- 创建策略改为：每日首次变更时创建（保留去重）+ `pre-import`/`pre-restore` 强制创建；**不再每次变更都触发**
+- 修复 `recoveryPointService.ts:18` 的 `formatLocalDate` 与 `dateUtils.formatDateLocal` 重复（直接复用）
+- 修复去重的时区错配 bug（`createdAt` 是 UTC `toISOString`，却与本地日期 `slice(0,10)` 比较 → 非午夜零时区用户可能跳过或重复）
+
+**效果**：热文件体积回归数据集本身体积（约 1/8），恢复点开销不再进入每次按键级操作。
+
+### 1.3（可选，低优先）异步化
+
+将 `storage-set-sync` 升级为异步 `invoke('storage-set')`，`localStorageStore.ts` 的 `setStorageItem` 变为 async。需要整个 storage 层（`saveDailyLog` 等）改为返回 Promise，牵涉面广——**建议 Phase 1 先用 1.1+1.2 拿到 90% 收益**，异步化留作后续。
+
+**验证**：新增主进程缓存单元测试（mock fs）；手动测试连续快速拖拽 10 个任务到时间轴确认无卡顿；`npm run verify:release`。
+
+---
+
+## Phase 2 — 打包配置（P0，零风险，可立即执行）
+
+> **进度：2.1 / 2.2 / 2.3 已完成并实测通过（见文末「Phase 2 执行记录」）；2.4 / 2.5 待办。**
+
+### 2.1 开启 asar ✅ 已完成
+
+`package.json` 的 `build` 块：`"asar": true`。本项目无原生模块，无需 `asarUnpack`。收益：源码不裸露、冷启动更快。
+
+### 2.2 删除 `extraResources` 重复 ✅ 已完成
+
+`extraResources`（`package.json:86-94`）把 `build/` 复制到 `resources/build/`，而 `files` 已把 `build/` 放进 `resources/app/build/`。`electron.js` 的 `__dirname` 是 `resources/app`，所以 `extraResources` 那份**从未被读取**，纯属浪费。删除该配置块。
+
+### 2.3 清理杂散产物 ✅ 已完成
+
+> **勘误**：杂散产物实际位于 **`out/`**（electron-builder 的输出目录），不是 `build/`——`build/` 本身只含 CRA 产物。已删除 `out/android/`（内含 `MyLifeOS-0.1.1-phase3-debug.apk`）、`out/MyLifeOS-0.1.2-debug.apk` 以及旧的 `out/win-unpacked/`（其中 `resources/build/` 正是 2.2 的重复副本）。
+
+新增 `clean:build` 脚本（`scripts/clean-build.js`，入口 `npm run clean:build`）：`build/` 仅保留 `index.html`/`manifest.json`/`asset-manifest.json`/`static/`，其余（exe、apk、`win-unpacked/`、`android/`、`builder-debug.yml` 等）一律删除，可重复执行；`electron:build` 在 `verify:release`（会重跑 `react-scripts build`）之后、`electron-builder` 之前执行它。
+
+### 2.4 升级 Electron ⬜ 待办
+
+27.3.11 → 最新稳定大版本（42.x）。本项目仅用 `app`/`BrowserWindow`/`ipcMain`/`Notification` 稳定 API，预期无破坏性变更。升级后回归：窗口加载、通知、`sendSync` 行为、托盘（Phase 4）。注意打包机需能下载 Electron 二进制（见执行记录里的镜像方案）。
+
+### 2.5 收敛打包工具 ⬜ 待办
+
+`electron-packager`（`package:win` 脚本）与 `electron-builder` 并存。移除 `electron-packager` 依赖与 `package:win` 脚本，统一用 `electron:build`（NSIS 安装包）。建议同时评估把 `react-scripts` 从 `dependencies` 迁到 `devDependencies`（它现在被整个打进 `app.asar`，是 156 MB 体积的主要来源；electron-builder 会因它自动套用 `react-cra` preset，迁移后需复核）。
+
+**验证**：`npm run electron:build` 产物体积显著下降；安装后 `loadFile` 正常加载、番茄钟/恢复流程正常。
+
+### Phase 2 执行记录（2026-09-16，分支 `codex/windows-desktop`）
+
+已完成 2.1–2.3。改动文件：`package.json`（`asar: true`、删除 `extraResources`、新增 `clean:build` 并接入 `electron:build`）、新增 `scripts/clean-build.js`、`RELEASE_CHECKS.md`（新增「Packaging hygiene」校验说明）。
+
+实测证据：
+
+| 项目 | 改进前 | 改进后 |
+|---|---|---|
+| NSIS 安装包 | 111,107,830 B | **94,734,014 B（−16.4 MB，−14.7%）** |
+| `out/win-unpacked/resources/` | `app/`（内含 `app/build/`）+ **`build/`（重复副本）** | 仅 `app.asar` + `app-update.yml` + `elevate.exe` |
+| `app.asar` | — | 163,513,747 B（156 MB，大头是 `node_modules`） |
+
+- `npm run verify:release` 全绿：8 个测试套件 / 53 个测试通过、CRA 生产构建成功、4 个主进程入口语法检查通过。
+- `npm run electron:build` 完整跑通并生成安装包；`app.asar` 顶层条目 = `assets, build, electron.js, electron-timer-restore.js, electron-window-target.js, node_modules, package.json, preload.js`，`build/index.html`、`build/static/js/*`、`assets/icon.ico` 均在包内。
+- 打包后启动实测：`[MyLifeOS] Loading file: ...\resources\app.asar\build\index.html`，无 `did-fail-load`；窗口正常显示，`%APPDATA%/MyLifeOS/app-data.json` 经 preload + `sendSync` IPC 正常读写。
+
+**待办与已知坑**：
+
+1. 打包机需网络下载 Electron 二进制（105 MB）。GitHub 直连失败（`read tcp ... wsarecv: An existing connection was forcibly closed`），改用 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 后 4.65 s 完成；`nsis`/`winCodeSign` 已有本地缓存。建议把该环境变量写进打包文档或脚本。
+2. **全新 profile 首启动疑似异常（未定位）**：`--user-data-dir` 指向空目录时，窗口加载后十几秒进程自行退出且未写 `app-data.json`；而已有数据的 profile 上连续两次启动可稳定存活 20 s 以上。新装用户首次启动正是这个场景，建议在 2.4 之后单独排查。
+3. `react-scripts` 位于 `dependencies`（非 `devDependencies`），被整个打进 `app.asar`（156 MB 的主要来源）；迁到 `devDependencies` 可大幅瘦身，属依赖分类变更，建议与 2.5 一并处理。
+
+---
+
+## Phase 3 — 键盘可用性（P1，纯 renderer，可并行）
+
+### 3.1 通用 Modal 基础设施
+
+新增 `src/hooks/useModalBehavior.ts`（或 `src/components/Modal.tsx` 包装器）：
+
+- `Escape` 键关闭
+- 焦点陷阱（Tab/Shift+Tab 循环于 modal 内可聚焦元素）
+- 打开时聚焦首个输入框/主按钮，关闭后焦点归还触发元素
+- 注入 `role="dialog"` / `aria-modal="true"`
+
+应用到全部 8 个弹窗：`AlertModal`、`ConfirmModal`、`HabitConfig`、`ManualTaskModal`、`TimePickerModal`、`TaskReviewModal`、`RecoveryModal`、`PomodoroTimer`。`AlertModal`/`ConfirmModal` 补 `role="alertdialog"`；`ConfirmModal` 默认聚焦「取消」按钮（破坏性操作防误触）。
+
+### 3.2 TaskCard 键盘可达
+
+`TaskCard.tsx:66` 根 div 补 `role="button"`、`tabIndex={0}`、`onKeyDown`（Enter/Space 触发 `onClick`）；hover-only 操作按钮补 `aria-label`。删除未被任何调用方使用的 `compact` 死 prop。
+
+### 3.3 渲染性能
+
+- `TaskCard` 包 `React.memo`；`App.tsx:307/438` 的箭头函数改为 `useCallback` 稳定引用 → 消除整列表重渲染
+- `TimePickerModal.tsx:20-35` 的 O(48 × 任务数) 槽位计算包 `useMemo([dailyTasks, task, timelineMode])`
+- 修复 `HabitConfig.tsx:108`、`ManualTaskModal.tsx:33` 的 `useState(getGoals())` 为懒初始化 `useState(() => getGoals())`
+- 抽取共享 `PrioritySelector` 组件，消除 `PRIORITY_BUTTON_KEYS` 及 P1/P2/P3 网格的两处重复（`HabitConfig.tsx:28-32/491-516` ≡ `ManualTaskModal.tsx:8-12/121-142`）
+
+### 3.4 i18n 与无障碍一致性
+
+- `LanguageContext.tsx`：`t` 用 `useCallback([language])` 包裹；语言切换时同步 `document.documentElement.lang`；新增系统语言检测（`navigator.language` 首次启动，默认 `'zh'` 保留为兜底）
+- `index.css`：补 `:focus-visible` 全局样式与 `prefers-reduced-motion` 规则
+
+**验证**：纯键盘走查全流程（新建任务→排期→番茄钟→完成→删除）；新增 `useModalBehavior` 单测；`npm run verify:release`。
+
+---
+
+## Phase 4 — 桌面原生能力（P2，依赖 Phase 0）
+
+### 4.1 系统托盘
+
+- 用 `assets/icon.ico` 创建 `Tray`，右键菜单：显示窗口 / 退出
+- 「最小化到托盘」设置项（`desktopSettings`，默认开），关闭按钮最小化到托盘而非退出
+- 托盘图标点击恢复窗口（复用现有 `second-instance` 逻辑）
+
+### 4.2 原生保存对话框
+
+备份导出现在走 Chromium blob 下载（默认下载目录、无保存位置选择）。新增 IPC 通道 `dialog-save-backup`，主进程调 `dialog.showSaveDialog`（过滤器 `*.json`），把备份内容写入用户选定路径。`platformFiles.ts` 的 Electron 分支走该通道，浏览器分支保留 blob 下载。
+
+### 4.3 窗口状态持久化
+
+主进程维护 `userData/window-state.json`，记录 `bounds`（x/y/width/height）与 `isMaximized`；`createWindow` 时恢复；`resize`/`move`/`maximize` 事件防抖落盘。
+
+### 4.4 本地快捷键
+
+渲染进程 `useEffect` 注册（无需 `globalShortcut`，避免与系统快捷键冲突）：
+
+- `Ctrl/Cmd+1` → planner，`Ctrl/Cmd+2` → profile
+- `Esc` → 关闭番茄钟计时器（与 3.1 的 modal Escape 统一管理）
+- `N` → 新建任务（planner 视图下）
+
+### 4.5（可选）自动更新
+
+引入 `electron-updater` + `publish: github`。独立大块，建议单独立项——先确认发布渠道再推进。
+
+**验证**：托盘最小化/恢复；备份导出弹出原生对话框；窗口尺寸重启后保持；快捷键生效；`npm run verify:release`。
+
+---
+
+## 贯穿各阶段：文档与测试
+
+- 修复 `docs/*.md` 的机器专属绝对路径（`C:/Users/TZK/.codex/worktrees/69b2/...`，见 `ARCHITECTURE.md`、`DATA_FLOW.md`）为仓库相对路径
+- 删除 `DEPENDENCY_UPGRADE_RESEARCH.md:68` 关于 CDN Tailwind 的过时失实论断（现已完全离线，`public/index.html` 无任何外部资源，Tailwind 是本地依赖，字体为系统字体栈）
+- `USER_GUIDE.md` 补充 Windows 端内容：数据位置 `%APPDATA%/MyLifeOS/`、备份路径、恢复点功能说明（目前完全未文档化）
+- 每阶段配套单测：主进程存储缓存、`useModalBehavior`、托盘窗口状态
+- `RELEASE_CHECKS.md` 补桌面端回归项：大备份导入性能、磁盘满写失败（`storage_write_failed` 已有文案但无测试步骤）、崩溃后 `app-data.json` 完整性
+
+## 关键文件索引
+
+| 文件 | 作用 |
+|---|---|
+| `electron.js:393-428` | 存储 IPC（Phase 1.1 改造点） |
+| `electron.js:430-494` | 窗口创建（Phase 4.3 改造点） |
+| `preload.js` | channel 白名单（Phase 4.2 新增通道） |
+| `src/services/storage/localStorageStore.ts:23-50` | 桌面存储桥（Phase 1.3 改造点） |
+| `src/services/storage/recoveryPointService.ts` | 恢复点（Phase 1.2 改造点） |
+| `src/hooks/useAppController.ts` | 统一状态控制器 |
+| `src/components/TaskCard.tsx:66` | 键盘可达性（Phase 3.2） |
+| `src/components/TimePickerModal.tsx:20-35` | 槽位计算 memo 化（Phase 3.3） |
+| `src/contexts/LanguageContext.tsx` | i18n（Phase 3.4） |
+| `package.json:55-95` | electron-builder 配置（Phase 2） |
