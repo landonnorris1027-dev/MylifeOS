@@ -16,7 +16,7 @@
     "每个 phase 作为一个独立提交，各自跑通 npm run verify:release 后再进入下一个。",
     "Phase 2 与 Phase 3 互不依赖，可与其它 phase 并行。",
     "Phase 0 是 Phase 1 与 Phase 4 的前置条件（主进程改动大，先有类型保护）。",
-    "Phase 2 的 2.1–2.3 已于 2026-09-16 完成并实测通过，详见 phases[id=2].executionRecord；2.4–2.5 仍待办。"
+    "Phase 2 的 2.1–2.3 已于 2026-09-16 完成并实测通过，详见 phases[id=2].executionRecord；2.5 已于 2026-09-18 完成（详见 phases[id=2].executionRecord2）；2.4（Electron 大版本升级）仍待办。"
   ],
   "phases": [
     {
@@ -115,7 +115,8 @@
         "build 块 asar: true（无原生模块，无需 asarUnpack）",
         "删除 extraResources 配置块（与 files 重复，且 __dirname 指向 resources/app，extraResources 那份从未被读取）",
         "新增 clean:build 脚本（scripts/clean-build.js），仅保留 index.html / manifest.json / asset-manifest.json / static/",
-        "electron:build 前置执行 clean:build，并一次性清理 out/ 下真实存在的杂散产物（android/、MyLifeOS-0.1.2-debug.apk、旧 win-unpacked/）"
+        "electron:build 前置执行 clean:build，并一次性清理 out/ 下真实存在的杂散产物（android/、MyLifeOS-0.1.2-debug.apk、旧 win-unpacked/）",
+        "移除 electron-packager 依赖与 package:win 脚本，打包入口收敛为 electron:build（NSIS）单一路径（2026-09-18）"
       ],
       "dependsOn": [],
       "steps": [
@@ -127,8 +128,8 @@
         "移除 electron-packager 依赖与 package:win 脚本，统一用 electron:build（NSIS）"
       ],
       "pendingSteps": [
-        "Electron 27.3.11 升级到最新稳定大版本",
-        "移除 electron-packager 依赖与 package:win 脚本，统一用 electron:build（NSIS）；同时评估 react-scripts 迁入 devDependencies 以给 app.asar 瘦身"
+        "Electron 27.3.11 升级到最新稳定大版本（打包机需能下载 Electron 二进制，见 executionRecord.issues 的镜像方案）",
+        "评估 react-scripts 迁入 devDependencies 以给 app.asar 瘦身：独立立项，需连同打包产物与 react-cra preset 行为一起实测"
       ],
       "files": [
         "package.json:43-76 (electron-builder build 块)",
@@ -159,6 +160,21 @@
           "打包机需下载 Electron 105 MB：GitHub 直连失败，改用 ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ 后 4.65 s 完成（nsis/winCodeSign 已有本地缓存）；同一镜像也用于修复本地开发运行时——排查中发现 node_modules/electron/dist 缺失，导致 prod/electron:dev 无法启动",
           "全新 profile 首启动自行退出：已排查结案为非应用缺陷（新装首启动渲染健康，见 measured；唯一可复现的自退出来自单实例锁——同 profile 起第二个实例立即退出），盲区已由 npm run smoke:packaged 覆盖；另注意全新 profile 不写 app-data.json 属正常行为",
           "react-scripts 位于 dependencies，被整个打进 app.asar（156 MB 主要来源）；迁入 devDependencies 可大幅瘦身，建议与 2.5 一并处理"
+        ]
+      },
+      "executionRecord2": {
+        "date": "2026-09-18",
+        "branch": "codex/windows-desktop",
+        "gate": "npm run verify:release 全绿（8 test suites / 53 tests 通过、CRA 生产构建成功、4 个主进程入口语法检查通过），随后 npm run clean:build 幂等复查通过",
+        "changes": [
+          "package.json devDependencies 移除 electron-packager",
+          "package.json scripts 移除 package:win；electron:build 成为唯一打包入口（NSIS）",
+          "RELEASE_CHECKS.md 打包命令清单收敛为 electron:build 单入口",
+          "electron.js / preload.js / build 块 / asar / clean:build 均未改动，打包产物路径与行为不变"
+        ],
+        "measured": [
+          "clean:build 复跑输出：[clean:build] build/ already contains only expected entries. remaining: asset-manifest.json, index.html, manifest.json, static",
+          "build/ 顶层实测与白名单完全一致（public/ 仅含 index.html 与 manifest.json，无 favicon/logo/robots 等被误删风险）"
         ]
       }
     },

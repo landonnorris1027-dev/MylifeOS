@@ -18,8 +18,7 @@ What each script does:
 
 Packaging commands now depend on the release gate:
 
-- `npm run electron:build`
-- `npm run package:win`
+- `npm run electron:build` (NSIS installer; the only packaging entry point)
 
 ## Packaged smoke test
 

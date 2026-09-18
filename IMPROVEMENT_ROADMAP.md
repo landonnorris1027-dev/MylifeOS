@@ -105,7 +105,7 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 ## Phase 2 — 打包配置（P0，零风险，可立即执行）
 
-> **进度：2.1 / 2.2 / 2.3 已完成并实测通过（见文末「Phase 2 执行记录」）；2.4 / 2.5 待办。**
+> **进度：2.1 / 2.2 / 2.3 已完成并实测通过（见文末「Phase 2 执行记录」）；2.5 已完成；2.4（Electron 大版本升级）仍待办。**
 
 ### 2.1 开启 asar ✅ 已完成
 
@@ -125,9 +125,11 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 27.3.11 → 最新稳定大版本（42.x）。本项目仅用 `app`/`BrowserWindow`/`ipcMain`/`Notification` 稳定 API，预期无破坏性变更。升级后回归：窗口加载、通知、`sendSync` 行为、托盘（Phase 4）。注意打包机需能下载 Electron 二进制（见执行记录里的镜像方案）。
 
-### 2.5 收敛打包工具 ⬜ 待办
+### 2.5 收敛打包工具 ✅ 已完成
 
 `electron-packager`（`package:win` 脚本）与 `electron-builder` 并存。移除 `electron-packager` 依赖与 `package:win` 脚本，统一用 `electron:build`（NSIS 安装包）。建议同时评估把 `react-scripts` 从 `dependencies` 迁到 `devDependencies`（它现在被整个打进 `app.asar`，是 156 MB 体积的主要来源；electron-builder 会因它自动套用 `react-cra` preset，迁移后需复核）。
+
+**本次结论（2026-09-18）**：已移除 `electron-packager` 依赖与 `package:win` 脚本，打包入口收敛为 `npm run electron:build` 单一路径，`RELEASE_CHECKS.md` 的打包命令清单同步更新。`react-scripts` 仍留在 `dependencies`：把 `@capacitor/*`（Android 分支）之外的构建期依赖下沉虽有体积收益，但 electron-builder 会依据依赖位置套用 `react-cra` preset，需连同打包产物一起实测，故单独立项，不混在本次收敛里。
 
 **验证**：`npm run electron:build` 产物体积显著下降；安装后 `loadFile` 正常加载、番茄钟/恢复流程正常。
 
