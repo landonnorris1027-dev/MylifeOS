@@ -174,7 +174,11 @@
         ],
         "measured": [
           "clean:build 复跑输出：[clean:build] build/ already contains only expected entries. remaining: asset-manifest.json, index.html, manifest.json, static",
-          "build/ 顶层实测与白名单完全一致（public/ 仅含 index.html 与 manifest.json，无 favicon/logo/robots 等被误删风险）"
+          "build/ 顶层实测与白名单完全一致（public/ 仅含 index.html 与 manifest.json，无 favicon/logo/robots 等被误删风险）",
+          "移除依赖后重跑 npm run electron:build 全链路成功：out/MyLifeOS Setup 0.1.1.exe = 94,734,015 B（与 9-16 基线 94,734,014 B 一致），app.asar = 163,513,747 B（与基线逐字节相同）",
+          "out/win-unpacked/resources 仅含 app-update.yml / app.asar / elevate.exe，无 build/ 重复副本（相位 2.2 复核通过）",
+          "npm run smoke:packaged PASS（exit 0）：asar 内路径 file:///...resources/app.asar/build/index.html 加载成功、readyState=complete、#root 有子节点、窗口桥 invoke/send/sendSync/on 齐全、bodyText 352 字、无残留进程",
+          "注意：验证时若带 CI=true，electron-builder 会走 CI 发布分支并在缺少 GH_TOKEN 时以非零码退出（打包产物本身正常），本地打包请勿设置 CI"
         ]
       }
     },

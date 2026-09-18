@@ -54,6 +54,10 @@ with `node ./scripts/smoke-packaged.js --exe=path\to\app.exe` or `MYLIFEOS_SMOKE
 - Note: a second launch with the **same** `--user-data-dir` while another MyLifeOS
   instance is running exits immediately by design (single-instance lock). Use a fresh
   profile per check, which `smoke:packaged` does automatically.
+- Do not set `CI=true` for local packaging: electron-builder then takes the CI branch and
+  tries to publish, exiting non-zero when no `GH_TOKEN` is present (the installer and
+  `app.asar` are still produced correctly). Chained commands such as
+  `npm run electron:build && npm run smoke:packaged` will stop early because of it.
 
 ## Packaging hygiene
 
