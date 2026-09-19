@@ -70,9 +70,11 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 ## Phase 1 — 存储性能（P0，收益最大）
 
+> **进度：1.1 + 1.2 已于 2026-09-19 完成并实测通过（提交 `e81f286`）；1.3（异步化）按原计划留作后续，Phase 1 关闭。**
+
 **核心洞察**：渲染进程 API 可以完全不动（保持 `sendSync` 的同步语义），只让**主进程变快**——把 O(整文件 I/O) 降为 O(内存 Map 操作)。
 
-### 1.1 主进程内存缓存 + 批量延迟写
+### 1.1 主进程内存缓存 + 批量延迟写 ✅ 已完成
 
 改造 `electron.js` 的 `registerStorageIpc`（现为 `:393-428`）：
 
@@ -84,7 +86,7 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 **效果**：单次任务更新从 ~6 读 + 2 写 → 6 次内存读 + 1 次延迟写，UI 冻结消除。
 
-### 1.2 恢复点移出热存储路径
+### 1.2 恢复点移出热存储路径 ✅ 已完成
 
 当前 `createAutomaticRecoveryPoint` 从 `storage.ts` 的 8 个写操作处触发，每次做 3 次整文件读 + 全量导出 + 排序 + 写入。
 
@@ -100,6 +102,20 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 将 `storage-set-sync` 升级为异步 `invoke('storage-set')`，`localStorageStore.ts` 的 `setStorageItem` 变为 async。需要整个 storage 层（`saveDailyLog` 等）改为返回 Promise，牵涉面广——**建议 Phase 1 先用 1.1+1.2 拿到 90% 收益**，异步化留作后续。
 
 **验证**：新增主进程缓存单元测试（mock fs）；手动测试连续快速拖拽 10 个任务到时间轴确认无卡顿；`npm run verify:release`。
+
+### Phase 1 执行记录（2026-09-19，分支 `codex/windows-desktop`，提交 `e81f286`）
+
+- 新增 `src/main/app-data-store.ts`（`AppDataStore`：内存 `Map` 缓存 + 300ms 防抖批量落盘 + `before-quit` 同步 flush + 写失败回滚到磁盘状态）与 `src/app-data-store.test.ts`（6 个用例：单次加载、防抖合并、flush 取消定时器、删除键、写失败回滚、损坏文件恢复）。
+- `src/main/electron.ts`：`storage-get-sync`/`storage-set-sync` 全部改走缓存（读零磁盘 I/O）；`app.on('before-quit')` 强制 flush。
+- 恢复点键 `mylifeos_recovery_points` 在主进程重定向到独立存储 `userData/recovery-points.json`（同样内存缓存）；启动时自动把存量恢复点从 `app-data.json` 迁出并删除热键。浏览器分支行为不变（仍走 localStorage）。
+- `recoveryPointService.ts`：删除本地 `formatLocalDate` 副本，复用 `dateUtils.formatDateLocal`；auto-daily 去重改为按本地日历日比较（修复 UTC `createdAt.slice(0,10)` 与本地日期比较的时区错配）。
+
+实测证据：
+
+- `npm run verify:release` 全绿：9 个测试套件 / 60 个测试通过（含 6 个新缓存用例）、CRA 构建成功、主进程 `tsc --noEmit` + `tsc -p tsconfig.main.json` 通过。
+- 真实数据目录冒烟（`%APPDATA%/MyLifeOS`）：启动后 `recovery-points.json` 新建并含全部 7 个历史恢复点；`app-data.json` 中 `mylifeos_recovery_points` 键被移除，仅余 6 个热键（habits/goals/daily_logs/lang/profile_settings/focus_settings）。
+
+**遗留**：1.3 渲染层异步化（`invoke('storage-set')`）按原计划不在本阶段，后续单独立项。
 
 ---
 
