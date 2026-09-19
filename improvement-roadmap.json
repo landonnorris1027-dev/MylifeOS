@@ -18,7 +18,8 @@
     "Phase 0 是 Phase 1 与 Phase 4 的前置条件（主进程改动大，先有类型保护）。",
     "Phase 2 的 2.1–2.3 已于 2026-09-16 完成，2.5 已于 2026-09-18 完成，2.4 于 2026-09-19 完成；Phase 2 已关闭，详见 phases[id=2] 的三次 executionRecord。",
     "Phase 0 于 2026-09-19 完成（提交 8809deb）：主进程迁移到 src/main/*.ts，tsconfig.main.json 编译到 dist-main/，check:electron 改用 tsc --noEmit。",
-    "Phase 1 的 1.1+1.2 于 2026-09-19 完成（提交 e81f286）：主进程 AppDataStore 内存缓存 + 300ms 防抖批量写 + before-quit flush + 写失败回滚；恢复点迁往 userData/recovery-points.json 并自动迁移存量数据；时区去重 bug 修复。1.3 异步化留作后续。"
+    "Phase 1 的 1.1+1.2 于 2026-09-19 完成（提交 e81f286）：主进程 AppDataStore 内存缓存 + 300ms 防抖批量写 + before-quit flush + 写失败回滚；恢复点迁往 userData/recovery-points.json 并自动迁移存量数据；时区去重 bug 修复。1.3 异步化留作后续。",
+    "Phase 3 于 2026-09-19 完成（提交 09cd952）：useModalBehavior 统一 8 个弹窗的 Escape/焦点陷阱/焦点进出；TaskCard 键盘可达 + React.memo；TimePickerModal 槽位 memo 化；PrioritySelector 去重；LanguageContext 系统语言检测 + <html lang> 同步；:focus-visible 与 prefers-reduced-motion。"
   ],
   "phases": [
     {

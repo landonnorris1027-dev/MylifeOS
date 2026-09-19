@@ -181,7 +181,9 @@ Electron 已由 27.3.11 升至 44.4.2，`electron-builder` 由 24.13.3 升至 26
 
 ## Phase 3 — 键盘可用性（P1，纯 renderer，可并行）
 
-### 3.1 通用 Modal 基础设施
+> **进度：3.1–3.4 已于 2026-09-19 完成并实测通过（提交 `09cd952`）；Phase 3 关闭。**
+
+### 3.1 通用 Modal 基础设施 ✅ 已完成
 
 新增 `src/hooks/useModalBehavior.ts`（或 `src/components/Modal.tsx` 包装器）：
 
@@ -192,23 +194,34 @@ Electron 已由 27.3.11 升至 44.4.2，`electron-builder` 由 24.13.3 升至 26
 
 应用到全部 8 个弹窗：`AlertModal`、`ConfirmModal`、`HabitConfig`、`ManualTaskModal`、`TimePickerModal`、`TaskReviewModal`、`RecoveryModal`、`PomodoroTimer`。`AlertModal`/`ConfirmModal` 补 `role="alertdialog"`；`ConfirmModal` 默认聚焦「取消」按钮（破坏性操作防误触）。
 
-### 3.2 TaskCard 键盘可达
+### 3.2 TaskCard 键盘可达 ✅ 已完成
 
 `TaskCard.tsx:66` 根 div 补 `role="button"`、`tabIndex={0}`、`onKeyDown`（Enter/Space 触发 `onClick`）；hover-only 操作按钮补 `aria-label`。删除未被任何调用方使用的 `compact` 死 prop。
 
-### 3.3 渲染性能
+### 3.3 渲染性能 ✅ 已完成
 
 - `TaskCard` 包 `React.memo`；`App.tsx:307/438` 的箭头函数改为 `useCallback` 稳定引用 → 消除整列表重渲染
 - `TimePickerModal.tsx:20-35` 的 O(48 × 任务数) 槽位计算包 `useMemo([dailyTasks, task, timelineMode])`
 - 修复 `HabitConfig.tsx:108`、`ManualTaskModal.tsx:33` 的 `useState(getGoals())` 为懒初始化 `useState(() => getGoals())`
 - 抽取共享 `PrioritySelector` 组件，消除 `PRIORITY_BUTTON_KEYS` 及 P1/P2/P3 网格的两处重复（`HabitConfig.tsx:28-32/491-516` ≡ `ManualTaskModal.tsx:8-12/121-142`）
 
-### 3.4 i18n 与无障碍一致性
+### 3.4 i18n 与无障碍一致性 ✅ 已完成
 
 - `LanguageContext.tsx`：`t` 用 `useCallback([language])` 包裹；语言切换时同步 `document.documentElement.lang`；新增系统语言检测（`navigator.language` 首次启动，默认 `'zh'` 保留为兜底）
 - `index.css`：补 `:focus-visible` 全局样式与 `prefers-reduced-motion` 规则
 
 **验证**：纯键盘走查全流程（新建任务→排期→番茄钟→完成→删除）；新增 `useModalBehavior` 单测；`npm run verify:release`。
+
+### Phase 3 执行记录（2026-09-19，分支 `codex/windows-desktop`，提交 `09cd952`）
+
+- 新增 `src/hooks/useModalBehavior.ts`（Escape 关闭、Tab/Shift+Tab 焦点陷阱、打开时聚焦首个可聚焦元素或 `initialFocusSelector`、关闭后焦点归还触发元素、注入 `role="dialog"`/`aria-modal`）与 `src/hooks/useModalBehavior.test.tsx`（5 个用例：焦点进出、Escape、Tab/Shift+Tab 循环、`initialFocusSelector`、`closeOnEscape=false`）。
+- 应用到全部 8 个弹窗：`AlertModal`/`ConfirmModal` 用 `role="alertdialog"`（ConfirmModal 默认聚焦「取消」防误触），`HabitConfig`、`ManualTaskModal`、`TimePickerModal`、`TaskReviewModal`、`RecoveryModal`（Escape 映射为「稍后」而非丢弃恢复）、`PomodoroTimer`（Escape 关闭计时器覆盖层）。
+- `TaskCard`：`role="button"` + `tabIndex={0}` + Enter/Space 触发 `onClick`（内部原生按钮自行处理按键）；4 个 hover-only 操作按钮补 `aria-label`；删除 `compact` 死 prop；整体包 `React.memo`。
+- 渲染性能：`App.tsx` 的 `onClick`/`onDragStart` 改 `useCallback` 稳定引用；`TimePickerModal` 槽位计算包 `useMemo([dailyTasks, task, timelineMode])`；`HabitConfig`/`ManualTaskModal` 的 `useState(getGoals())` 改懒初始化；抽取共享 `PrioritySelector` 组件（两处 P1/P2/P3 网格去重）。
+- i18n：`LanguageContext` 的 `t` 包 `useCallback([language])`；语言切换同步 `<html lang>`；首次启动系统语言检测（`zh*` → zh、`en*` → en、已存偏好优先）。`index.css` 补 `:focus-visible` 焦点框与 `prefers-reduced-motion`。
+- 测试修正：`PomodoroTimer.test.tsx` 固定存储语言偏好为 `zh`（此前依赖 jsdom 默认 en-US 恰好回落 zh；引入系统语言检测后该隐式假设失效，断言变成机器区域设置无关）。
+
+实测证据：`npm run verify:release` 全绿 —— 10 个测试套件 / 65 个测试通过（新增 5 个 `useModalBehavior` 用例）、CRA 构建成功、主进程 `tsc` 通过；Electron 冒烟启动正常（窗口创建并加载 `build/index.html`）。
 
 ---
 
