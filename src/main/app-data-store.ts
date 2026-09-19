@@ -1,13 +1,15 @@
 import fs from 'fs';
 import path from 'path';
+import { DurableFileSystem, writeTextAtomically } from './durable-file';
 
-type FileSystemLike = Pick<typeof fs, 'existsSync' | 'mkdirSync' | 'readFileSync' | 'writeFileSync'>;
+type FileSystemLike = DurableFileSystem;
 
 export interface AppDataStoreOptions {
   filePath: string;
   flushDelayMs?: number;
   fileSystem?: FileSystemLike;
   logger?: Pick<Console, 'error'>;
+  onFlushError?: (result: AppDataStoreFlushResult) => void;
   scheduleFlush?: (callback: () => void, delayMs: number) => unknown;
   cancelScheduledFlush?: (handle: unknown) => void;
 }
@@ -32,6 +34,7 @@ export class AppDataStore {
   private readonly flushDelayMs: number;
   private readonly fs: FileSystemLike;
   private readonly logger: Pick<Console, 'error'>;
+  private readonly onFlushError?: (result: AppDataStoreFlushResult) => void;
   private readonly scheduleFlush: (callback: () => void, delayMs: number) => unknown;
   private readonly cancelScheduledFlush: (handle: unknown) => void;
 
@@ -44,6 +47,7 @@ export class AppDataStore {
     this.flushDelayMs = options.flushDelayMs ?? DEFAULT_FLUSH_DELAY_MS;
     this.fs = options.fileSystem ?? fs;
     this.logger = options.logger ?? console;
+    this.onFlushError = options.onFlushError;
     this.scheduleFlush = options.scheduleFlush ?? ((callback, delayMs) => setTimeout(callback, delayMs));
     this.cancelScheduledFlush = options.cancelScheduledFlush ?? ((handle) => clearTimeout(handle as NodeJS.Timeout));
 
@@ -60,28 +64,32 @@ export class AppDataStore {
   private loadFromDisk(): void {
     try {
       this.ensureDirectoryForFile();
+      if (this.loadFileIntoCache(this.filePath)) return;
+      this.loadFileIntoCache(`${this.filePath}.bak`);
+    } catch (error) {
+      this.logger.error('[MyLifeOS] Failed to read app data store:', error);
+    }
+  }
 
-      if (!this.fs.existsSync(this.filePath)) {
-        return;
-      }
+  private loadFileIntoCache(filePath: string): boolean {
+    if (!this.fs.existsSync(filePath)) return false;
 
-      const raw = this.fs.readFileSync(this.filePath, 'utf8');
-      if (!raw.trim()) {
-        return;
-      }
+    try {
+      const raw = this.fs.readFileSync(filePath, 'utf8');
+      if (!raw.trim()) return false;
 
       const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return;
-      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
 
       Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => {
         if (typeof value === 'string') {
           this.cache.set(key, value);
         }
       });
+      return true;
     } catch (error) {
-      this.logger.error('[MyLifeOS] Failed to read app data store:', error);
+      this.logger.error(`[MyLifeOS] Failed to read data store file ${filePath}:`, error);
+      return false;
     }
   }
 
@@ -129,16 +137,22 @@ export class AppDataStore {
 
     try {
       this.ensureDirectoryForFile();
-      this.fs.writeFileSync(this.filePath, JSON.stringify(Object.fromEntries(this.cache), null, 2), 'utf8');
+      writeTextAtomically(this.filePath, JSON.stringify(Object.fromEntries(this.cache), null, 2), this.fs);
       this.dirty = false;
       return { ok: true };
     } catch (error) {
       this.logger.error('[MyLifeOS] Failed to write app data store:', error);
       this.rollbackToDiskState();
-      return {
+      const result = {
         ok: false,
         error: error instanceof Error ? error.message : 'Failed to write app data store',
-      };
+      } as const;
+      try {
+        this.onFlushError?.(result);
+      } catch (callbackError) {
+        this.logger.error('[MyLifeOS] Failed to report app data store write failure:', callbackError);
+      }
+      return result;
     }
   }
 

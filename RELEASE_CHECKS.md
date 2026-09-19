@@ -135,8 +135,11 @@ the app version, profile path, file hashes, timings, and result.
 5. Fail the release for startup failure, invalid JSON, a partially written object, or
    unrecoverable loss of the previous durable state.
 
-These three scenarios are manual release gates until equivalent fault-injection tests
-are automated.
+The application-data path now has automated fault-injection coverage for partial
+temporary writes, flush failures, fallback to the last complete `.bak`, delayed-write
+error reporting, and real-filesystem atomic replacement on Windows. These scenarios
+remain manual release gates for OS-level disk exhaustion, forced process termination,
+the native save dialog, and end-to-end recovery across every persisted JSON file.
 
 ## Packaging hygiene
 

@@ -48,6 +48,7 @@
     "electron:build": "npm run verify:release && npm run clean:build && electron-builder --win --x64 --publish never && npm run verify:packaged"
   },
   "build": {
+    "extends": null,
     "appId": "com.mylifeos.app",
     "productName": "MyLifeOS",
     "asar": true,

@@ -71,6 +71,9 @@ Responsibilities:
 - Queue offline-expired sessions for later resolution
 - Cache application data in memory and debounce writes to `app-data.json`
 - Store recovery points separately in `recovery-points.json`
+- Persist every JSON file through a same-directory temporary file, flush it to
+  disk, atomically replace the destination, and retain the previous complete
+  version as `.bak`
 - Manage the tray, native backup dialog, and persisted window state
 - Send notifications when sessions finish
 
@@ -85,6 +88,12 @@ Desktop data is stored under Electron's `userData` directory, which is normally
 - `recovery-points.json`: up to seven automatic and pre-operation recovery points
 - `pomodoro-state.json`: active timer snapshots and pending recoveries
 - `window-state.json`: window bounds and maximized state
+
+All four files use the same crash-safe writer. Startup reads the `.bak` copy if
+the primary JSON is unreadable. A failed debounced application-data write is
+also reported to the renderer instead of failing silently. A forced process
+termination can still discard edits made during the 300 ms debounce window,
+but it cannot leave the last durable JSON partially overwritten.
 
 ## Data model
 

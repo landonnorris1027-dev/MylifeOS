@@ -25,6 +25,10 @@ interface StorageSetResult {
   error?: string;
 }
 
+interface StorageWriteFailure {
+  error?: string;
+}
+
 interface SaveBackupPayload {
   filename: string;
   content: string;
@@ -50,6 +54,7 @@ interface ElectronAPI {
   sendSync(channel: 'storage-get-sync', payload: StorageGetPayload): string | null;
   sendSync(channel: 'storage-set-sync', payload: StorageSetPayload): StorageSetResult;
   on(channel: 'pomodoro-update', callback: (data: PomodoroUpdateData) => void): () => void;
+  on(channel: 'storage-write-error', callback: (data: StorageWriteFailure) => void): () => void;
 }
 
 declare global {

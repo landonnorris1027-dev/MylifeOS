@@ -3,10 +3,11 @@ console.log('--- ELECTRON PROCESS STARTING ---');
 import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, Tray } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { AppDataStore } from './app-data-store';
+import { AppDataStore, AppDataStoreFlushResult } from './app-data-store';
 import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
 import { resolveWindowLoadTarget } from './electron-window-target';
 import { migrateRecoveryPoints } from './recovery-points-migration';
+import { readJsonWithBackup, writeTextAtomically } from './durable-file';
 import { DEFAULT_WINDOW_BOUNDS, normalizeWindowState, WindowStateSnapshot } from './window-state';
 import type {
   MainTimer,
@@ -76,7 +77,10 @@ function ensureRecoveryPointsPath(): string {
 
 function getAppDataStore(): AppDataStore {
   if (!appDataStore) {
-    appDataStore = new AppDataStore({ filePath: ensureAppDataPath() });
+    appDataStore = new AppDataStore({
+      filePath: ensureAppDataPath(),
+      onFlushError: broadcastStorageWriteFailure,
+    });
   }
 
   return appDataStore;
@@ -85,7 +89,10 @@ function getAppDataStore(): AppDataStore {
 function getRecoveryPointsStore(): AppDataStore {
   if (recoveryPointsStore) return recoveryPointsStore;
 
-  const candidateStore = new AppDataStore({ filePath: ensureRecoveryPointsPath() });
+  const candidateStore = new AppDataStore({
+    filePath: ensureRecoveryPointsPath(),
+    onFlushError: broadcastStorageWriteFailure,
+  });
   const result = migrateRecoveryPoints(getAppDataStore(), candidateStore, RECOVERY_POINTS_KEY);
   if (!result.ok) {
     console.error('[MyLifeOS] Failed to migrate recovery points:', result.error ?? 'Unknown write failure');
@@ -98,6 +105,15 @@ function getRecoveryPointsStore(): AppDataStore {
 
 function getStorageStoreForKey(key: string): AppDataStore {
   return key === RECOVERY_POINTS_KEY ? getRecoveryPointsStore() : getAppDataStore();
+}
+
+function broadcastStorageWriteFailure(result: AppDataStoreFlushResult): void {
+  const payload = { error: result.error ?? 'Failed to persist application data' };
+  BrowserWindow.getAllWindows().forEach((window) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('storage-write-error', payload);
+    }
+  });
 }
 
 function flushPendingStorageWrites(): void {
@@ -115,12 +131,12 @@ function ensureWindowStatePath(): string {
 function readWindowState(): WindowStateSnapshot {
   try {
     const filePath = ensureWindowStatePath();
-    if (!fs.existsSync(filePath)) return {};
-
-    const raw = fs.readFileSync(filePath, 'utf8');
-    if (!raw.trim()) return {};
-
-    const parsed = JSON.parse(raw);
+    const result = readJsonWithBackup(filePath);
+    if (!result) return {};
+    if (result.recoveredFromBackup) {
+      console.warn('[MyLifeOS] Recovered window state from backup.');
+    }
+    const parsed = result.value;
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? (parsed as WindowStateSnapshot)
       : {};
@@ -139,10 +155,9 @@ function writeWindowState(): void {
     const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
     const filePath = ensureWindowStatePath();
     ensureDirectoryForFile(filePath);
-    fs.writeFileSync(
+    writeTextAtomically(
       filePath,
       JSON.stringify({ ...bounds, isMaximized }, null, 2),
-      'utf8',
     );
   } catch (error) {
     console.warn('[MyLifeOS] Failed to write window state:', error);
@@ -274,7 +289,7 @@ function registerDialogIpc(): void {
           return { ok: true, canceled: true };
         }
 
-        fs.writeFileSync(result.filePath, content, 'utf8');
+        writeTextAtomically(result.filePath, content);
         return { ok: true, canceled: false, path: result.filePath };
       } catch (error) {
         console.error('[MyLifeOS] Failed to save backup file:', error);
@@ -295,7 +310,7 @@ function persistActiveTimers(): void {
       activeTimers: Array.from(activeTimers.values()).map((timer) => toTimerPayload(timer)),
       pendingRecoveries,
     };
-    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf8');
+    writeTextAtomically(filePath, JSON.stringify(payload, null, 2));
   } catch (error) {
     console.error('[MyLifeOS] Failed to persist timers:', error);
   }
@@ -335,13 +350,13 @@ function queuePendingRecovery(
 function restorePersistedTimers(): void {
   try {
     const filePath = ensureTimerStatePath();
-    if (!fs.existsSync(filePath)) return;
-
-    const raw = fs.readFileSync(filePath, 'utf8');
-    if (!raw.trim()) return;
-
     type PersistedTimerRecord = Partial<MainTimer> & PersistedTimerSnapshot;
-    const parsedState = JSON.parse(raw) as
+    const result = readJsonWithBackup(filePath);
+    if (!result) return;
+    if (result.recoveredFromBackup) {
+      console.warn('[MyLifeOS] Recovered pomodoro state from backup.');
+    }
+    const parsedState = result.value as
       | PersistedTimerRecord[]
       | { activeTimers?: PersistedTimerRecord[]; pendingRecoveries?: PomodoroRecoveryData[] };
     const persistedTimers = Array.isArray(parsedState) ? parsedState : parsedState.activeTimers;

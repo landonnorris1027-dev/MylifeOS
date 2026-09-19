@@ -33,6 +33,10 @@ export interface PomodoroRecoveryResolution {
   ok: boolean;
   resumedTimer?: PomodoroUpdateData;
 }
+
+export interface StorageWriteFailure {
+  error?: string;
+}
 interface BrowserTimer {
   timerId: string;
   endTime: number;
@@ -297,6 +301,17 @@ class ElectronIPCHandler {
     return () => {
       this.updateCallbacks.delete(callback);
     };
+  }
+
+  onStorageWriteError(callback: (failure: StorageWriteFailure) => void): () => void {
+    if (!this.isElectron) return () => undefined;
+
+    try {
+      return window.electronAPI?.on('storage-write-error', callback) ?? (() => undefined);
+    } catch (error) {
+      console.error('Failed to register storage write error listener', error);
+      return () => undefined;
+    }
   }
 
   getIsElectron(): boolean {

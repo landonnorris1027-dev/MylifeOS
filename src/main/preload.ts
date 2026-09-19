@@ -17,6 +17,7 @@ const validSendChannels = new Set<string>([
 
 const validOnChannels = new Set<string>([
   'pomodoro-update',
+  'storage-write-error',
 ]);
 
 contextBridge.exposeInMainWorld('electronAPI', {

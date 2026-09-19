@@ -19,6 +19,7 @@ jest.mock('../services/electronIPC', () => ({
     togglePomodoro: jest.fn(),
     stopPomodoro: jest.fn(),
     onPomodoroUpdate: jest.fn(() => () => undefined),
+    onStorageWriteError: jest.fn(() => () => undefined),
   },
 }));
 
@@ -27,6 +28,8 @@ const getActiveTimersMock = electronIPC.getActiveTimers as unknown as jest.Mock;
 // CRA resets mock implementations before each test, including factory defaults.
 beforeEach(() => {
   (electronIPC.getPendingRecoveries as jest.Mock).mockResolvedValue([]);
+  ((electronIPC as unknown as { onStorageWriteError: jest.Mock }).onStorageWriteError)
+    .mockImplementation(() => () => undefined);
 });
 
 const drainMicrotasks = async () => {
@@ -112,6 +115,7 @@ describe('useAppController scheduling guards', () => {
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
+    localStorage.setItem('mylifeos_lang', 'zh');
     jest.useFakeTimers();
     jest.setSystemTime(new Date(2026, 3, 22, 23, 10, 0, 0));
     getActiveTimersMock.mockImplementation(() => Promise.resolve([]));
@@ -138,6 +142,35 @@ describe('useAppController scheduling guards', () => {
       });
       expect(electronIPC.getPendingRecoveries).toHaveBeenCalled();
       expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('shows an alert when a debounced desktop write fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      let reportFailure: ((failure: { error?: string }) => void) | undefined;
+      ((electronIPC as unknown as { onStorageWriteError: jest.Mock }).onStorageWriteError)
+        .mockImplementation((callback: (failure: { error?: string }) => void) => {
+          reportFailure = callback;
+          return () => undefined;
+        });
+
+      await act(async () => {
+        root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+        await drainMicrotasks();
+      });
+
+      expect(reportFailure).toBeDefined();
+      await act(async () => {
+        reportFailure?.({ error: 'disk full' });
+      });
+
+      expect(controller?.state.alertConfig).toMatchObject({
+        isOpen: true,
+        message: '保存失败，请检查磁盘权限或可用空间。',
+      });
     } finally {
       errorSpy.mockRestore();
     }

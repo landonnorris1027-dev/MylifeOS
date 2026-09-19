@@ -297,6 +297,12 @@ export const useAppController = () => {
     dispatch({ type: 'OPEN_ALERT', message: t('storage_write_failed') });
   }, [t]);
 
+  useEffect(() => {
+    return electronIPC.onStorageWriteError((failure) => {
+      reportStorageError(new Error(failure.error || t('storage_write_failed')));
+    });
+  }, [reportStorageError, t]);
+
   const loadData = useCallback((date: string) => {
     try {
       const data = initializeDay(date);

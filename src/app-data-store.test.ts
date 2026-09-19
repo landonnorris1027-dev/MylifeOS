@@ -1,4 +1,7 @@
 import { AppDataStore } from './main/app-data-store';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 const FILE_PATH = 'D:/fake/userData/app-data.json';
 
@@ -7,6 +10,12 @@ interface FakeFs {
   mkdirSync: jest.Mock;
   readFileSync: jest.Mock;
   writeFileSync: jest.Mock;
+  copyFileSync: jest.Mock;
+  openSync: jest.Mock;
+  fsyncSync: jest.Mock;
+  closeSync: jest.Mock;
+  renameSync: jest.Mock;
+  unlinkSync: jest.Mock;
   files: Map<string, string>;
 }
 
@@ -27,6 +36,24 @@ const createFakeFs = (initialFiles: Record<string, string> = {}): FakeFs => {
     }),
     writeFileSync: jest.fn((target: unknown, content: unknown) => {
       files.set(String(target), String(content));
+    }),
+    copyFileSync: jest.fn((source: unknown, destination: unknown) => {
+      const content = files.get(String(source));
+      if (content === undefined) throw new Error(`ENOENT: ${source}`);
+      files.set(String(destination), content);
+    }),
+    openSync: jest.fn(() => 42),
+    fsyncSync: jest.fn(),
+    closeSync: jest.fn(),
+    renameSync: jest.fn((source: unknown, destination: unknown) => {
+      const sourcePath = String(source);
+      const content = files.get(sourcePath);
+      if (content === undefined) throw new Error(`ENOENT: ${source}`);
+      files.set(String(destination), content);
+      files.delete(sourcePath);
+    }),
+    unlinkSync: jest.fn((target: unknown) => {
+      files.delete(String(target));
     }),
   };
 };
@@ -68,6 +95,29 @@ const createStore = (fakeFs: FakeFs, scheduler: FakeScheduler) =>
   });
 
 describe('AppDataStore', () => {
+  it('atomically replaces an existing file and keeps its previous complete version', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mylifeos-durable-store-'));
+    const filePath = path.join(tempDir, 'app-data.json');
+
+    try {
+      const store = new AppDataStore({ filePath, flushDelayMs: 60_000 });
+      store.set('a', 'old');
+      expect(store.flush()).toEqual({ ok: true });
+      store.set('a', 'new');
+      expect(store.flush()).toEqual({ ok: true });
+
+      expect(JSON.parse(fs.readFileSync(filePath, 'utf8'))).toEqual({ a: 'new' });
+      expect(JSON.parse(fs.readFileSync(`${filePath}.bak`, 'utf8'))).toEqual({ a: 'old' });
+      expect(fs.existsSync(`${filePath}.tmp`)).toBe(false);
+    } finally {
+      const resolvedTempDir = path.resolve(tempDir);
+      const resolvedSystemTemp = path.resolve(os.tmpdir());
+      if (resolvedTempDir.startsWith(`${resolvedSystemTemp}${path.sep}`)) {
+        fs.rmSync(resolvedTempDir, { recursive: true, force: true });
+      }
+    }
+  });
+
   it('loads the existing file once and serves reads from memory', () => {
     const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: '1', b: '2' }) });
     const scheduler = createFakeScheduler();
@@ -146,6 +196,62 @@ describe('AppDataStore', () => {
     expect(store.get('b')).toBeNull();
   });
 
+  it('keeps the last complete file when a write is interrupted after writing partial content', () => {
+    const durableContent = JSON.stringify({ a: 'old' });
+    const fakeFs = createFakeFs({ [FILE_PATH]: durableContent });
+    const scheduler = createFakeScheduler();
+    const store = createStore(fakeFs, scheduler);
+
+    store.set('a', 'new');
+    fakeFs.writeFileSync.mockImplementationOnce((target: unknown) => {
+      fakeFs.files.set(String(target), '{"a":');
+      throw new Error('process interrupted');
+    });
+
+    expect(store.flush()).toEqual({ ok: false, error: 'process interrupted' });
+    expect(fakeFs.files.get(FILE_PATH)).toBe(durableContent);
+    expect(store.get('a')).toBe('old');
+  });
+
+  it('keeps the last complete file when the temporary file cannot be flushed to disk', () => {
+    const durableContent = JSON.stringify({ a: 'old' });
+    const fakeFs = createFakeFs({ [FILE_PATH]: durableContent });
+    const scheduler = createFakeScheduler();
+    const store = createStore(fakeFs, scheduler);
+
+    store.set('a', 'new');
+    fakeFs.fsyncSync.mockImplementationOnce(() => {
+      throw new Error('fsync failed');
+    });
+
+    expect(store.flush()).toEqual({ ok: false, error: 'fsync failed' });
+    expect(fakeFs.files.get(FILE_PATH)).toBe(durableContent);
+    expect(store.get('a')).toBe('old');
+  });
+
+  it('reports a debounced flush failure to the application', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: 'old' }) });
+    const scheduler = createFakeScheduler();
+    const onFlushError = jest.fn();
+    const store = new AppDataStore({
+      filePath: FILE_PATH,
+      fileSystem: fakeFs,
+      scheduleFlush: scheduler.scheduleFlush,
+      cancelScheduledFlush: scheduler.cancelScheduledFlush,
+      logger: { error: jest.fn() },
+      onFlushError,
+    });
+
+    store.set('a', 'new');
+    fakeFs.writeFileSync.mockImplementationOnce(() => {
+      throw new Error('disk full');
+    });
+    scheduler.runPending();
+
+    expect(onFlushError).toHaveBeenCalledWith({ ok: false, error: 'disk full' });
+    expect(store.get('a')).toBe('old');
+  });
+
   it('recovers from a corrupted file by starting empty', () => {
     const fakeFs = createFakeFs({ [FILE_PATH]: '{ not json' });
     const logger = { error: jest.fn() };
@@ -165,5 +271,44 @@ describe('AppDataStore', () => {
     store.set('a', '1');
     scheduler.runPending();
     expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: '1' });
+  });
+
+  it('loads the last complete backup when the primary file is corrupted', () => {
+    const fakeFs = createFakeFs({
+      [FILE_PATH]: '{"a":',
+      [`${FILE_PATH}.bak`]: JSON.stringify({ a: 'durable-backup' }),
+    });
+    const logger = { error: jest.fn() };
+    const scheduler = createFakeScheduler();
+
+    const store = new AppDataStore({
+      filePath: FILE_PATH,
+      fileSystem: fakeFs,
+      scheduleFlush: scheduler.scheduleFlush,
+      cancelScheduledFlush: scheduler.cancelScheduledFlush,
+      logger,
+    });
+
+    expect(store.get('a')).toBe('durable-backup');
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('does not replace a valid backup with a corrupted primary before an interrupted repair', () => {
+    const durableBackup = JSON.stringify({ a: 'durable-backup' });
+    const fakeFs = createFakeFs({
+      [FILE_PATH]: '{"a":',
+      [`${FILE_PATH}.bak`]: durableBackup,
+    });
+    const scheduler = createFakeScheduler();
+    const store = createStore(fakeFs, scheduler);
+
+    store.set('a', 'repaired');
+    fakeFs.renameSync.mockImplementationOnce(() => {
+      throw new Error('process interrupted before replace');
+    });
+
+    expect(store.flush()).toEqual({ ok: false, error: 'process interrupted before replace' });
+    expect(fakeFs.files.get(`${FILE_PATH}.bak`)).toBe(durableBackup);
+    expect(store.get('a')).toBe('durable-backup');
   });
 });
