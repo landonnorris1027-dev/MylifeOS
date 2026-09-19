@@ -6,6 +6,7 @@ import path from 'path';
 import { AppDataStore } from './app-data-store';
 import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
 import { resolveWindowLoadTarget } from './electron-window-target';
+import { migrateRecoveryPoints } from './recovery-points-migration';
 import { DEFAULT_WINDOW_BOUNDS, normalizeWindowState, WindowStateSnapshot } from './window-state';
 import type {
   MainTimer,
@@ -82,30 +83,17 @@ function getAppDataStore(): AppDataStore {
 }
 
 function getRecoveryPointsStore(): AppDataStore {
-  if (!recoveryPointsStore) {
-    recoveryPointsStore = new AppDataStore({ filePath: ensureRecoveryPointsPath() });
-    migrateLegacyRecoveryPoints();
+  if (recoveryPointsStore) return recoveryPointsStore;
+
+  const candidateStore = new AppDataStore({ filePath: ensureRecoveryPointsPath() });
+  const result = migrateRecoveryPoints(getAppDataStore(), candidateStore, RECOVERY_POINTS_KEY);
+  if (!result.ok) {
+    console.error('[MyLifeOS] Failed to migrate recovery points:', result.error ?? 'Unknown write failure');
+    return result.activeStore as AppDataStore;
   }
 
+  recoveryPointsStore = candidateStore;
   return recoveryPointsStore;
-}
-
-/**
- * Moves legacy recovery points out of the hot app-data.json file into the
- * dedicated recovery-points.json store, shrinking the hot storage path.
- */
-function migrateLegacyRecoveryPoints(): void {
-  const store = getAppDataStore();
-  const legacy = store.get(RECOVERY_POINTS_KEY);
-  if (legacy === null || !recoveryPointsStore) return;
-
-  if (recoveryPointsStore.get(RECOVERY_POINTS_KEY) === null) {
-    recoveryPointsStore.set(RECOVERY_POINTS_KEY, legacy);
-    recoveryPointsStore.flush();
-  }
-
-  store.set(RECOVERY_POINTS_KEY, null);
-  store.flush();
 }
 
 function getStorageStoreForKey(key: string): AppDataStore {

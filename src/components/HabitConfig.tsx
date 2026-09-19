@@ -350,10 +350,9 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     ].join('\n');
   };
 
-  const downloadPreRestoreBackup = () => {
+  const downloadPreRestoreBackup = async () => {
     const filename = `mylifeos_pre_restore_${formatBackupTimestamp(new Date())}.json`;
-    void saveJSONFile(getAllDataJSON(), filename);
-    return filename;
+    return saveJSONFile(getAllDataJSON(), filename);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,14 +373,19 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       setConfirmConfig({
         isOpen: true,
         message: buildRestorePreviewMessage(preview),
-        onConfirm: () => {
+        onConfirm: async () => {
           setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
-          let backupFilename = '';
+          let backupPath: string | null = null;
           try {
-            backupFilename = downloadPreRestoreBackup();
+            backupPath = await downloadPreRestoreBackup();
           } catch (error) {
             console.error('Failed to create pre-restore backup', error);
+            setAlertConfig({ isOpen: true, message: t('pre_restore_backup_failed') });
+            return;
+          }
+
+          if (!backupPath) {
             setAlertConfig({ isOpen: true, message: t('pre_restore_backup_failed') });
             return;
           }
@@ -391,7 +395,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
             const detailParts = buildImportDetailParts(result);
             setAlertConfig({
               isOpen: true,
-              message: `${t('import_success')} ${t('pre_restore_backup_created', { filename: backupFilename })} ${detailParts.join(' ')}`.trim(),
+              message: `${t('import_success')} ${t('pre_restore_backup_created', { filename: backupPath })} ${detailParts.join(' ')}`.trim(),
             });
             refreshList();
             onAdded();
