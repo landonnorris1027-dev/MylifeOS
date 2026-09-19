@@ -54,29 +54,36 @@ The migration should keep React 18 initially. MyLifeOS has a standard `createRoo
 
 Vite `8.0.14` and `@vitejs/plugin-react@6.0.2` require Node `^20.19.0 || >=22.12.0`. The current local Node version satisfies this.
 
-### Electron needs a dedicated upgrade phase
+### Electron needed a dedicated upgrade phase
 
-Electron supports only the latest three stable major versions. The project currently uses Electron `27.3.11`, while the registry latest is `42.3.0`. This is a security and maintenance priority, but it should remain separate from the renderer migration so regressions are easier to locate.
+At the research date, the project used Electron `27.3.11` while the registry
+latest was `42.3.0`. That work has since been completed independently of the
+renderer migration: the project now pins Electron `44.4.2` and
+electron-builder `26.16.1`.
 
 The main-process surface is compact: window creation, local JSON persistence, IPC, notification handling, and pomodoro recovery. Upgrade Electron and `electron-builder` together, then run packaged Windows smoke tests for:
 
-- App startup through `electron.js`
-- `preload.js` bridge exposure
+- App startup through the compiled `dist-main/electron.js` entry
+- Compiled preload bridge exposure from `src/main/preload.ts`
 - Sync desktop storage read/write
 - Pomodoro start, pause, close, notification, and restart recovery
 - NSIS output in `out/`
 
-The secondary packaging script still uses deprecated `electron-packager`. The installed package explicitly recommends moving to `@electron/packager`; its current release requires Node `>=22.12.0`.
+The deprecated `electron-packager` path has been removed. `electron:build` is the
+single Windows packaging entry point and requires Node `>=22.12.0`.
 
-### Desktop assets should become local during Vite migration
+### Desktop assets are already local
 
-`public/index.html` currently loads Tailwind from `https://cdn.tailwindcss.com` and Inter from Google Fonts. A packaged desktop app should not depend on network access for its styling or font rendering.
+The earlier audit incorrectly described Tailwind and Inter as CDN dependencies.
+The current `public/index.html` contains no external resources: Tailwind is built
+from the local dependency and the UI uses a system-font stack. Packaged offline
+startup is covered by `npm run verify:packaged`.
 
-During the Vite phase:
+During the future Vite phase:
 
-- Declare Tailwind as a direct project dependency and build CSS locally.
-- Keep local font assets in the app bundle or use a system-font fallback.
-- Verify the packaged application while offline.
+- Preserve the existing local Tailwind build.
+- Preserve the system-font fallback unless local font assets are deliberately added.
+- Keep the packaged offline verification green.
 
 ### TypeScript and React upgrades should remain separate
 

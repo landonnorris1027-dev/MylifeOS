@@ -279,23 +279,26 @@ Electron 已由 27.3.11 升至 44.4.2，`electron-builder` 由 24.13.3 升至 26
 
 ## 贯穿各阶段：文档与测试
 
-- 修复 `docs/*.md` 的机器专属绝对路径（`C:/Users/TZK/.codex/worktrees/69b2/...`，见 `ARCHITECTURE.md`、`DATA_FLOW.md`）为仓库相对路径
-- 删除 `DEPENDENCY_UPGRADE_RESEARCH.md:68` 关于 CDN Tailwind 的过时失实论断（现已完全离线，`public/index.html` 无任何外部资源，Tailwind 是本地依赖，字体为系统字体栈）
-- `USER_GUIDE.md` 补充 Windows 端内容：数据位置 `%APPDATA%/MyLifeOS/`、备份路径、恢复点功能说明（目前完全未文档化）
-- 每阶段配套单测：主进程存储缓存、`useModalBehavior`、托盘窗口状态
-- `RELEASE_CHECKS.md` 补桌面端回归项：大备份导入性能、磁盘满写失败（`storage_write_failed` 已有文案但无测试步骤）、崩溃后 `app-data.json` 完整性
+> **进度：跨阶段文档与测试任务已于 2026-09-19 完成。**
+
+- ✅ `docs/*.md` 的机器专属绝对路径已改为仓库相对路径；架构和数据流入口同步到 `src/main/*.ts`
+- ✅ `DEPENDENCY_UPGRADE_RESEARCH.md` 已删除 Tailwind/字体依赖 CDN 的过时论断，并记录 Electron 与打包工具升级完成状态
+- ✅ 新增 `USER_GUIDE.md`：Windows 启动/托盘/快捷键、`%APPDATA%/MyLifeOS/` 数据文件、手动备份、恢复点和常见问题
+- ✅ 各阶段配套单测已覆盖主进程存储缓存、`useModalBehavior`、窗口状态，以及恢复前备份和恢复点安全迁移
+- ✅ `RELEASE_CHECKS.md` 已补大备份导入性能、磁盘满或写拒绝、崩溃时 `app-data.json` 完整性三项隔离环境人工回归步骤
+- ✅ `start-local.ps1` 每次启动前运行 `npm run build:main`，干净克隆和分支切换都不再依赖残留编译产物
 
 ## 关键文件索引
 
 | 文件 | 作用 |
 |---|---|
-| `electron.js:393-428` | 存储 IPC（Phase 1.1 改造点） |
-| `electron.js:430-494` | 窗口创建（Phase 4.3 改造点） |
-| `preload.js` | channel 白名单（Phase 4.2 新增通道） |
+| `src/main/electron.ts:627` | 存储 IPC（Phase 1.1） |
+| `src/main/electron.ts:651` | 窗口创建与桌面原生能力（Phase 4） |
+| `src/main/preload.ts` | channel 白名单（Phase 4.2） |
 | `src/services/storage/localStorageStore.ts:23-50` | 桌面存储桥（Phase 1.3 改造点） |
 | `src/services/storage/recoveryPointService.ts` | 恢复点（Phase 1.2 改造点） |
 | `src/hooks/useAppController.ts` | 统一状态控制器 |
 | `src/components/TaskCard.tsx:66` | 键盘可达性（Phase 3.2） |
 | `src/components/TimePickerModal.tsx:20-35` | 槽位计算 memo 化（Phase 3.3） |
 | `src/contexts/LanguageContext.tsx` | i18n（Phase 3.4） |
-| `package.json:55-95` | electron-builder 配置（Phase 2） |
+| `package.json:51-79` | electron-builder 配置（Phase 2） |

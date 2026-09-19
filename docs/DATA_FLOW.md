@@ -9,8 +9,8 @@
 
 Important entry points:
 
-- [src/services/storage.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage.ts)
-- [src/services/storage/taskPlanner.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage/taskPlanner.ts)
+- [`src/services/storage.ts`](../src/services/storage.ts)
+- [`src/services/storage/taskPlanner.ts`](../src/services/storage/taskPlanner.ts)
 
 ## Scheduling flow
 
@@ -21,9 +21,9 @@ Important entry points:
 
 Important files:
 
-- [src/components/TimePickerModal.tsx](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/components/TimePickerModal.tsx)
-- [src/services/scheduling.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/scheduling.ts)
-- [src/hooks/useAppController.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/hooks/useAppController.ts)
+- [`src/components/TimePickerModal.tsx`](../src/components/TimePickerModal.tsx)
+- [`src/services/scheduling.ts`](../src/services/scheduling.ts)
+- [`src/hooks/useAppController.ts`](../src/hooks/useAppController.ts)
 
 ## Pomodoro flow
 
@@ -35,9 +35,9 @@ Important files:
 
 Important files:
 
-- [src/components/PomodoroTimer.tsx](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/components/PomodoroTimer.tsx)
-- [src/services/electronIPC.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/electronIPC.ts)
-- [electron.js](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/electron.js)
+- [`src/components/PomodoroTimer.tsx`](../src/components/PomodoroTimer.tsx)
+- [`src/services/electronIPC.ts`](../src/services/electronIPC.ts)
+- [`src/main/electron.ts`](../src/main/electron.ts)
 
 ## Profile stats flow
 
@@ -47,18 +47,21 @@ Important files:
 
 Important files:
 
-- [src/services/storage.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage.ts)
-- [src/components/ContributionGraph.tsx](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/components/ContributionGraph.tsx)
-- [src/components/ProfileStats.tsx](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/components/ProfileStats.tsx)
+- [`src/services/storage.ts`](../src/services/storage.ts)
+- [`src/components/ContributionGraph.tsx`](../src/components/ContributionGraph.tsx)
+- [`src/components/ProfileStats.tsx`](../src/components/ProfileStats.tsx)
 
 ## Import/export and versioning
 
 1. Backups include a schema version.
 2. Older payloads are normalized during import.
 3. Invalid data is filtered before persistence.
-4. Import returns a summary so the UI can report migrations and filtered rows.
+4. Before importing, the desktop app waits for the user-selected pre-restore backup
+   to be saved successfully; canceling or failing the save stops the import.
+5. Import returns a summary so the UI can report migrations and filtered rows.
 
 Important files:
 
-- [src/services/storage/backupService.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage/backupService.ts)
-- [src/components/HabitConfig.tsx](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/components/HabitConfig.tsx)
+- [`src/services/storage/backupService.ts`](../src/services/storage/backupService.ts)
+- [`src/services/platformFiles.ts`](../src/services/platformFiles.ts)
+- [`src/components/HabitConfig.tsx`](../src/components/HabitConfig.tsx)

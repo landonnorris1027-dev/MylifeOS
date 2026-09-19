@@ -46,6 +46,10 @@ try {
     Invoke-Checked 'npm.cmd' @('run', 'build')
   }
 
+  # Always refresh the gitignored dist-main/ output so a pull or branch switch
+  # cannot launch stale Electron main-process code.
+  Invoke-Checked 'npm.cmd' @('run', 'build:main')
+
   $env:ELECTRON_START_URL = ''
   $env:NODE_ENV = 'production'
 

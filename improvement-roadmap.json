@@ -293,7 +293,7 @@
           "items": [
             "新增 IPC 通道 dialog-save-backup，主进程调 dialog.showSaveDialog（过滤器 *.json）",
             "platformFiles.ts 的 Electron 分支走该通道，浏览器分支保留 blob 下载",
-            "preload.js 白名单加入新通道"
+            "src/main/preload.ts 白名单加入新通道"
           ]
         },
         {
@@ -321,7 +321,7 @@
       ],
       "files": [
         "src/main/electron.ts (Phase 0 后的窗口创建处)",
-        "preload.js",
+        "src/main/preload.ts",
         "src/services/platformFiles.ts",
         "src/electron.d.ts"
       ],
@@ -334,25 +334,28 @@
   ],
   "crossCutting": {
     "title": "贯穿各阶段：文档与测试",
+    "completed": true,
+    "completedDate": "2026-09-19",
     "items": [
-      "修复 docs/*.md 的机器专属绝对路径（C:/Users/TZK/.codex/worktrees/69b2/...，见 ARCHITECTURE.md、DATA_FLOW.md）为仓库相对路径",
-      "删除 DEPENDENCY_UPGRADE_RESEARCH.md:68 关于 CDN Tailwind 的过时失实论断（现已完全离线，public/index.html 无任何外部资源）",
-      "USER_GUIDE.md 补充 Windows 端：数据位置 %APPDATA%/MyLifeOS/、备份路径、恢复点功能说明（目前完全未文档化）",
-      "每阶段配套单测：主进程存储缓存、useModalBehavior、托盘窗口状态",
-      "RELEASE_CHECKS.md 补桌面端回归项：大备份导入性能、磁盘满写失败、崩溃后 app-data.json 完整性（打包后冒烟 npm run smoke:packaged 已补：新装首启动渲染 + preload 桥 + 渲染错误数；其余三项仍待补）"
+      "已将 docs/*.md 的机器专属绝对路径改为仓库相对路径，并同步 TypeScript 主进程入口",
+      "已修正 DEPENDENCY_UPGRADE_RESEARCH.md 的 CDN 失实论断和已完成的 Electron/打包状态",
+      "已新增 USER_GUIDE.md，覆盖 Windows 数据位置、备份路径、恢复点、托盘、快捷键和常见问题",
+      "已补主进程缓存、useModalBehavior、窗口状态、恢复前备份和恢复点安全迁移测试",
+      "已在 RELEASE_CHECKS.md 补大备份导入、磁盘满或写拒绝、崩溃后 app-data.json 完整性三项人工回归",
+      "start-local.ps1 每次启动前自动运行 npm run build:main，避免复用过期的 dist-main"
     ]
   },
   "fileIndex": {
-    "electron.js:393-428": "存储 IPC（Phase 1.1 改造点）",
-    "electron.js:430-494": "窗口创建（Phase 4.3 改造点）",
-    "preload.js": "channel 白名单（Phase 4.2 新增通道）",
+    "src/main/electron.ts:627": "存储 IPC（Phase 1.1）",
+    "src/main/electron.ts:651": "窗口创建与桌面原生能力（Phase 4）",
+    "src/main/preload.ts": "channel 白名单（Phase 4.2）",
     "src/services/storage/localStorageStore.ts:23-50": "桌面存储桥（Phase 1.3 改造点）",
     "src/services/storage/recoveryPointService.ts": "恢复点（Phase 1.2 改造点）",
     "src/hooks/useAppController.ts": "统一状态控制器",
     "src/components/TaskCard.tsx:66": "键盘可达性（Phase 3.2）",
     "src/components/TimePickerModal.tsx:20-35": "槽位计算 memo 化（Phase 3.3）",
     "src/contexts/LanguageContext.tsx": "i18n（Phase 3.4）",
-    "package.json:43-74": "electron-builder 配置（Phase 2，asar/clean:build 已落地）",
+    "package.json:51-79": "electron-builder 配置（Phase 2，asar/clean:build 已落地）",
     "scripts/clean-build.js": "build/ 杂散产物清理（Phase 2.3）"
   }
 }

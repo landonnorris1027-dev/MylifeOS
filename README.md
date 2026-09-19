@@ -36,8 +36,8 @@ MyLifeOS is a desktop productivity app built with React, TypeScript, and Electro
 - [src/services/storage](src/services/storage): repositories, task planning, backup import/export
 - [src/services/electronIPC.ts](src/services/electronIPC.ts): renderer-side Electron bridge wrapper
 - [src/services/scheduling.ts](src/services/scheduling.ts): timeline slots and overlap detection
-- [electron.js](electron.js): main process, secure IPC, timer runtime, desktop storage
-- [preload.js](preload.js): safe bridge exposed to the renderer
+- [src/main/electron.ts](src/main/electron.ts): main process, secure IPC, timer runtime, desktop storage, tray, and window lifecycle
+- [src/main/preload.ts](src/main/preload.ts): whitelisted bridge exposed to the renderer
 
 ## Development
 
@@ -78,6 +78,7 @@ See [RELEASE_CHECKS.md](RELEASE_CHECKS.md).
 
 ## Extra docs
 
+- [USER_GUIDE.md](USER_GUIDE.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/DATA_FLOW.md](docs/DATA_FLOW.md)
 - [docs/DEPENDENCY_UPGRADE_RESEARCH.md](docs/DEPENDENCY_UPGRADE_RESEARCH.md)

@@ -12,7 +12,7 @@ MyLifeOS uses a split desktop architecture:
 
 ### UI layer
 
-Located in [src/components](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/components).
+Located in [`src/components`](../src/components).
 
 Important components:
 
@@ -26,7 +26,7 @@ Important components:
 
 ### Controller layer
 
-Located in [src/hooks/useAppController.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/hooks/useAppController.ts).
+Located in [`src/hooks/useAppController.ts`](../src/hooks/useAppController.ts).
 
 Responsibilities:
 
@@ -40,13 +40,13 @@ Responsibilities:
 
 Important files:
 
-- [src/services/storage.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage.ts): public storage API
-- [src/services/scheduling.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/scheduling.ts): time slot math and overlap checks
-- [src/services/electronIPC.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/electronIPC.ts): renderer-safe wrapper for Electron APIs
+- [`src/services/storage.ts`](../src/services/storage.ts): public storage API
+- [`src/services/scheduling.ts`](../src/services/scheduling.ts): time slot math and overlap checks
+- [`src/services/electronIPC.ts`](../src/services/electronIPC.ts): renderer-safe wrapper for Electron APIs
 
 ### Repository/storage layer
 
-Located in [src/services/storage](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/services/storage).
+Located in [`src/services/storage`](../src/services/storage).
 
 Modules:
 
@@ -59,7 +59,9 @@ Modules:
 
 ## Electron runtime
 
-Main process logic lives in [electron.js](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/electron.js).
+Main-process TypeScript lives in [`src/main`](../src/main) and compiles to the
+git-ignored `dist-main/` directory before Electron starts. The application entry
+point is [`src/main/electron.ts`](../src/main/electron.ts).
 
 Responsibilities:
 
@@ -67,14 +69,26 @@ Responsibilities:
 - Maintain active pomodoro timers
 - Persist timer snapshots for restart recovery
 - Queue offline-expired sessions for later resolution
-- Store app data in `app-data.json`
+- Cache application data in memory and debounce writes to `app-data.json`
+- Store recovery points separately in `recovery-points.json`
+- Manage the tray, native backup dialog, and persisted window state
 - Send notifications when sessions finish
 
-The preload bridge in [preload.js](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/preload.js) exposes only limited APIs to the renderer.
+The preload bridge in [`src/main/preload.ts`](../src/main/preload.ts) exposes only
+whitelisted APIs to the renderer. Electron runs with `contextIsolation: true` and
+`nodeIntegration: false`.
+
+Desktop data is stored under Electron's `userData` directory, which is normally
+`%APPDATA%\MyLifeOS\` on Windows:
+
+- `app-data.json`: habits, goals, daily logs, language, and user settings
+- `recovery-points.json`: up to seven automatic and pre-operation recovery points
+- `pomodoro-state.json`: active timer snapshots and pending recoveries
+- `window-state.json`: window bounds and maximized state
 
 ## Data model
 
-Core types are defined in [src/types.ts](C:/Users/TZK/.codex/worktrees/69b2/MylifeOS-main/src/types.ts):
+Core renderer types are defined in [`src/types.ts`](../src/types.ts):
 
 - `Habit`
 - `Task`

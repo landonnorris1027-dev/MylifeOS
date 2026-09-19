@@ -13,8 +13,8 @@ What each script does:
 
 - `npm run typecheck`: runs TypeScript without emitting files
 - `npm run test`: runs the React test suite once
-- `npm run verify:quality`: runs typecheck, tests, and web build
-- `npm run verify:release`: runs the full quality gate plus Electron entry syntax checks
+- `npm run verify:quality`: runs renderer typecheck, tests, the web build, and the main-process build
+- `npm run verify:release`: runs the full quality gate plus a no-emit Electron main-process typecheck
 
 Packaging commands now depend on the release gate:
 
@@ -86,6 +86,58 @@ visually delivered. Installation/upgrade/uninstallation and visible notification
 delivery need separate acceptance evidence. Chromium host-resolution isolation checks
 renderer network independence, not a machine-wide firewall block.
 
+## Manual desktop data-safety checks
+
+Run the following checks in a disposable Windows account, virtual machine, or an
+isolated `--user-data-dir`. Never create disk-full or forced-crash conditions against
+the live `%APPDATA%\MyLifeOS` profile. Copy the test profile before each case and record
+the app version, profile path, file hashes, timings, and result.
+
+### Large-backup import performance
+
+1. Prepare a valid backup containing at least 10,000 tasks across multiple years, or
+   a JSON payload of at least 25 MB. Keep a known count of habits, goals, days, and tasks.
+2. Start with an isolated profile, open the restore flow, and record the time required
+   to show the import preview.
+3. Confirm the pre-restore backup is saved, then record the time until the success
+   summary appears. The window must continue repainting and must not show an OS
+   “Not responding” state.
+4. Restart the app and verify the expected counts, several early/middle/late dates,
+   profile totals, and JSON validity of `app-data.json`.
+5. Fail the release if the import crashes, loses records, produces invalid JSON, or
+   regresses materially from the last recorded baseline.
+
+### Disk-full or write-denied behavior
+
+1. Use a disposable profile on a constrained virtual disk, or deny writes only to a
+   copied test profile. Preserve the original file hashes.
+2. Trigger a normal edit and wait longer than the 300 ms write debounce; repeat for a
+   recovery-point creation and a manual backup save.
+3. Verify that the app reports the write failure where supported, remains usable, and
+   never claims a backup was saved when it was not.
+4. Restore disk access, restart, and confirm every JSON file parses. Existing durable
+   data must remain readable; a failed recovery-point migration must continue using
+   the legacy copy and retry safely later.
+5. Fail the release for silent durable-data loss, truncated JSON, a false success
+   message, or deletion of the last valid recovery-point copy.
+
+### Crash-time `app-data.json` integrity
+
+1. In an isolated profile, create known baseline data and record the SHA-256 hash of
+   `app-data.json`.
+2. Perform rapid edits and terminate the Electron process during the debounce/write
+   window. Repeat several times, including immediately before and after the 300 ms
+   boundary.
+3. Restart after each attempt. `app-data.json` must parse and represent either the last
+   durable state or the complete newer state—never a partial JSON document.
+4. Verify recovery points and timer recovery still open, then export a backup and
+   validate that it can be previewed and restored in a second isolated profile.
+5. Fail the release for startup failure, invalid JSON, a partially written object, or
+   unrecoverable loss of the previous durable state.
+
+These three scenarios are manual release gates until equivalent fault-injection tests
+are automated.
+
 ## Packaging hygiene
 
 - `npm run clean:build`: prunes `build/` down to the only entries the packaged app needs
@@ -101,7 +153,9 @@ renderer network independence, not a machine-wide firewall block.
   npx asar list out/win-unpacked/resources/app.asar
   ```
 
-  Expected top-level entries: `build/`, `electron.js`, `preload.js`,
-  `electron-timer-restore.js`, `electron-window-target.js`, `assets/`, `package.json`.
+  Expected top-level entries: `build/`, `dist-main/`, `assets/`, and `package.json`.
+  `dist-main/` must contain `electron.js`, `preload.js`,
+  `electron-timer-restore.js`, `electron-window-target.js`, and the other compiled
+  main-process modules.
   There must be no `resources/build/` duplicate next to `app.asar` any more.
 
