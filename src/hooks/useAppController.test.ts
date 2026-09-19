@@ -24,6 +24,11 @@ jest.mock('../services/electronIPC', () => ({
 
 const getActiveTimersMock = electronIPC.getActiveTimers as unknown as jest.Mock;
 
+// CRA resets mock implementations before each test, including factory defaults.
+beforeEach(() => {
+  (electronIPC.getPendingRecoveries as jest.Mock).mockResolvedValue([]);
+});
+
 const drainMicrotasks = async () => {
   await Promise.resolve();
   await Promise.resolve();
@@ -122,6 +127,20 @@ describe('useAppController scheduling guards', () => {
     });
     container.remove();
     jest.useRealTimers();
+  });
+
+  it('checks pending recoveries on startup without logging an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error');
+    try {
+      await act(async () => {
+        root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+        await drainMicrotasks();
+      });
+      expect(electronIPC.getPendingRecoveries).toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('rejects direct schedule confirmation for a past slot today', async () => {

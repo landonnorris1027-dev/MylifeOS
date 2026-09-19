@@ -439,9 +439,13 @@ async function main() {
   }
 }
 
-main()
-  .then((code) => process.exit(code))
-  .catch((error) => {
-    console.log(`[smoke] FAIL: ${error && error.stack}`);
-    process.exit(1);
-  });
+module.exports = { freePort, waitForPageTarget, connectWebSocket, killTree, waitForProcessExit, removeDir };
+
+if (require.main === module) {
+  main()
+    .then((code) => process.exit(code))
+    .catch((error) => {
+      console.log(`[smoke] FAIL: ${error && error.stack}`);
+      process.exit(1);
+    });
+}

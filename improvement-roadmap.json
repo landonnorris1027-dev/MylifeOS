@@ -16,7 +16,7 @@
     "每个 phase 作为一个独立提交，各自跑通 npm run verify:release 后再进入下一个。",
     "Phase 2 与 Phase 3 互不依赖，可与其它 phase 并行。",
     "Phase 0 是 Phase 1 与 Phase 4 的前置条件（主进程改动大，先有类型保护）。",
-    "Phase 2 的 2.1–2.3 已于 2026-09-16 完成并实测通过，详见 phases[id=2].executionRecord；2.5 已于 2026-09-18 完成（详见 phases[id=2].executionRecord2）；2.4（Electron 大版本升级）仍待办。"
+    "Phase 2 的 2.1–2.3 已于 2026-09-16 完成，2.5 已于 2026-09-18 完成，2.4 于 2026-09-19 完成；Phase 2 已关闭，详见 phases[id=2] 的三次 executionRecord。"
   ],
   "phases": [
     {
@@ -110,13 +110,14 @@
       "title": "打包配置",
       "priority": "P0",
       "goal": "开启 asar、消除资源重复复制、清理杂散产物、升级 Electron、收敛打包工具。",
-      "status": "in_progress",
+      "status": "completed",
       "completedSteps": [
         "build 块 asar: true（无原生模块，无需 asarUnpack）",
         "删除 extraResources 配置块（与 files 重复，且 __dirname 指向 resources/app，extraResources 那份从未被读取）",
         "新增 clean:build 脚本（scripts/clean-build.js），仅保留 index.html / manifest.json / asset-manifest.json / static/",
         "electron:build 前置执行 clean:build，并一次性清理 out/ 下真实存在的杂散产物（android/、MyLifeOS-0.1.2-debug.apk、旧 win-unpacked/）",
-        "移除 electron-packager 依赖与 package:win 脚本，打包入口收敛为 electron:build（NSIS）单一路径（2026-09-18）"
+        "移除 electron-packager 依赖与 package:win 脚本，打包入口收敛为 electron:build（NSIS）单一路径（2026-09-18）",
+        "Electron 27.3.11 → 44.4.2，electron-builder 24.13.3 → 26.16.1；锁定 Node 22.12.0+ / Windows x64 基线并完成安装、升级、卸载与跨版本数据回归（2026-09-19）"
       ],
       "dependsOn": [],
       "steps": [
@@ -127,8 +128,7 @@
         "Electron 27.3.11 升级到最新稳定大版本",
         "移除 electron-packager 依赖与 package:win 脚本，统一用 electron:build（NSIS）"
       ],
-      "pendingSteps": [
-        "Electron 27.3.11 升级到最新稳定大版本（打包机需能下载 Electron 二进制，见 executionRecord.issues 的镜像方案）",
+      "followUps": [
         "评估 react-scripts 迁入 devDependencies 以给 app.asar 瘦身：独立立项，需连同打包产物与 react-cra preset 行为一起实测"
       ],
       "files": [
@@ -141,10 +141,10 @@
         "out/ (杂散产物实际位置，非 build/)"
       ],
       "risks": [
-        "Electron 大版本升级需回归窗口加载、通知、sendSync 行为",
-        "asar 开启后 path.join(__dirname, 'build/index.html') 加载路径需验证（预期通过 loadFile 正常解析 asar 内路径）"
+        "Electron 44 已移除 Windows ia32 预编译包，本项目打包入口固定为 Windows x64",
+        "Electron 44 首次本地运行才下载运行时；网络受限环境需使用镜像或预先准备经过校验的归档"
       ],
-      "verification": "npm run electron:build 产物体积显著下降；安装后 loadFile 正常加载、番茄钟/恢复流程正常",
+      "verification": "npm run electron:build 全绿；安装、覆盖升级和卸载成功；loadFile、存储、备份、番茄钟、恢复与旧版数据兼容流程正常",
       "executionRecord": {
         "date": "2026-09-16",
         "branch": "codex/windows-desktop",
@@ -179,6 +179,29 @@
           "out/win-unpacked/resources 仅含 app-update.yml / app.asar / elevate.exe，无 build/ 重复副本（相位 2.2 复核通过）",
           "npm run smoke:packaged PASS（exit 0）：asar 内路径 file:///...resources/app.asar/build/index.html 加载成功、readyState=complete、#root 有子节点、窗口桥 invoke/send/sendSync/on 齐全、bodyText 352 字、无残留进程",
           "注意：验证时若带 CI=true，electron-builder 会走 CI 发布分支并在缺少 GH_TOKEN 时以非零码退出（打包产物本身正常），本地打包请勿设置 CI"
+        ]
+      },
+      "executionRecord3": {
+        "date": "2026-09-19",
+        "branch": "codex/windows-desktop",
+        "gate": "npm run verify:release 全绿（8 test suites / 54 tests），Electron 44.4.2 x64 NSIS 打包成功，自动启动冒烟与功能回归全部通过",
+        "changes": [
+          "electron 锁定 44.4.2；electron-builder 锁定 26.16.1；package.json 声明 Node >=22.12.0",
+          "electron:build 固定 --win --x64 --publish never，并在生成安装包后自动运行 verify:packaged",
+          "新增 test:packaged / verify:packaged 和 scripts/regression-packaged.js；smoke-packaged 导出共享的 CDP 与进程清理工具",
+          "修复 useAppController 测试在 CRA resetMocks 后把 getPendingRecoveries mock 清空所产生的 undefined.length 噪声，并新增启动恢复回归测试"
+        ],
+        "measured": [
+          "Electron 44 NSIS 安装包 = 139,177,150 B；app.asar = 150,128,868 B",
+          "打包功能回归覆盖离线渲染、单实例、任务创建与排期、同步存储、真实 JSON 导出/导入、重启持久化、画像渲染、番茄钟生命周期和离线过期恢复",
+          "Electron 27 测试数据与暂停计时器由 Electron 44 直接读取；打包应用与安装后应用均通过同一组回归",
+          "原生 Notification.isSupported() = true，通知实例触发 show 事件",
+          "旧版安装、Electron 44 同目录覆盖升级、静默卸载退出码均为 0；升级和卸载前后现有 app-data.json SHA-256 不变"
+        ],
+        "issues": [
+          "Electron 44.4.2 压缩归档约 158 MB；镜像传输曾发生 ECONNRESET，最终使用 checksums.json 的 SHA-256 校验本地归档后完成打包",
+          "electron-builder 26.16.1 首次需要额外 NSIS 工具资源；网络不稳时可复用其本地缓存",
+          "运行时升级使安装包从 94,734,015 B 增至 139,177,150 B；react-scripts 依赖分类和进一步瘦身留作独立后续"
         ]
       }
     },

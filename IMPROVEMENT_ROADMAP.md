@@ -24,7 +24,7 @@
 
 | 项目 | 现状 |
 |---|---|
-| Electron | 27.3.11（已超出支持窗口，最新 42.x） |
+| Electron | 44.4.2（Phase 2.4 已完成，Windows 仅构建 x64） |
 | 单次任务更新 | ≈ 6 次整文件读 + 2 次整文件写（同步 `sendSync` 阻塞渲染进程） |
 | `app-data.json` 体积 | 数据集的 ~8 倍（最多 7 个恢复点各嵌入完整 JSON 备份） |
 | 打包 | `asar: false` + `extraResources` 重复复制 `build/`（**Phase 2 已修复**） |
@@ -105,7 +105,7 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 ## Phase 2 — 打包配置（P0，零风险，可立即执行）
 
-> **进度：2.1 / 2.2 / 2.3 已完成并实测通过（见文末「Phase 2 执行记录」）；2.5 已完成；2.4（Electron 大版本升级）仍待办。**
+> **进度：2.1–2.5 全部完成并实测通过；Phase 2 已于 2026-09-19 关闭。**
 
 ### 2.1 开启 asar ✅ 已完成
 
@@ -121,9 +121,13 @@ Phase 3 (键盘可用性)  ────────────与主进程无�
 
 新增 `clean:build` 脚本（`scripts/clean-build.js`，入口 `npm run clean:build`）：`build/` 仅保留 `index.html`/`manifest.json`/`asset-manifest.json`/`static/`，其余（exe、apk、`win-unpacked/`、`android/`、`builder-debug.yml` 等）一律删除，可重复执行；`electron:build` 在 `verify:release`（会重跑 `react-scripts build`）之后、`electron-builder` 之前执行它。
 
-### 2.4 升级 Electron ⬜ 待办
+### 2.4 升级 Electron ✅ 已完成
 
-27.3.11 → 最新稳定大版本（42.x）。本项目仅用 `app`/`BrowserWindow`/`ipcMain`/`Notification` 稳定 API，预期无破坏性变更。升级后回归：窗口加载、通知、`sendSync` 行为、托盘（Phase 4）。注意打包机需能下载 Electron 二进制（见执行记录里的镜像方案）。
+Electron 已由 27.3.11 升至 44.4.2，`electron-builder` 由 24.13.3 升至 26.16.1，并锁定具体版本。Node.js 基线明确为 22.12.0+，Windows 构建明确为 x64。`electron:build` 现在显式使用 `--publish never`，即使存在 `CI=true` 也不会尝试发布；打包成功后会自动运行启动冒烟与打包功能回归。
+
+**2026-09-19 验证结果**：8 个测试套件 / 54 个测试通过；生产构建和 4 个主进程入口检查通过；Electron 44 安装包、解包应用、全新临时 profile 和离线渲染均通过。自动回归覆盖单实例、任务创建与排期、同步存储、真实 JSON 导出/导入、重启持久化、画像页面、番茄钟开始/暂停/重启恢复/继续/停止、完成事件、离线过期恢复及完成任务。Electron 27 生成的数据与暂停计时器可由 Electron 44 直接读取。原生通知 API 返回支持并触发 `show` 事件。NSIS 旧版安装、同目录覆盖升级和静默卸载均返回 0，升级与卸载期间现有 `app-data.json` 哈希保持不变。
+
+安装包由 94,734,015 B 增至 139,177,150 B，主要来自 Electron/Chromium 跨大版本升级；`app.asar` 由 163,513,747 B 降至 150,128,868 B。`react-scripts` 生产依赖瘦身仍作为独立后续事项，不阻塞 Phase 2 完成。
 
 ### 2.5 收敛打包工具 ✅ 已完成
 

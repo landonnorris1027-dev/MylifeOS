@@ -2,6 +2,11 @@
 
 Research date: 2026-05-30
 
+> Completion update (2026-09-19): the desktop runtime phase is complete. Electron is
+> pinned to 44.4.2 and electron-builder to 26.16.1; electron-packager was removed.
+> Node 22.12.0+ and Windows x64 are the supported packaging baseline. The original
+> version table below is retained as the research snapshot that informed the work.
+
 This document is a migration plan, not an instruction to upgrade every dependency at once. MyLifeOS currently passes `npm run verify:release`; each phase below should preserve that baseline.
 
 ## Executive decision

@@ -41,6 +41,9 @@ MyLifeOS is a desktop productivity app built with React, TypeScript, and Electro
 
 ## Development
 
+Use Node.js 22.12.0 or newer. Desktop release builds target Windows x64 with
+Electron 44.4.2 and electron-builder 26.16.1.
+
 Install dependencies:
 
 ```bash
@@ -65,7 +68,9 @@ Build the Windows desktop app:
 npm run electron:build
 ```
 
-The Windows installer is written to `out/`.
+The Windows installer is written to `out/`. Packaging also runs the startup and
+functional packaged-app regression checks; see the release checklist for coverage
+and network mirror setup.
 
 ## Release checks
 
