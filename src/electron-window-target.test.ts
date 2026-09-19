@@ -1,5 +1,5 @@
-const path = require('path');
-const { isAllowedDevServerUrl, resolveWindowLoadTarget } = require('../electron-window-target');
+import path from 'path';
+import { isAllowedDevServerUrl, resolveWindowLoadTarget } from './main/electron-window-target';
 
 describe('electron window load target', () => {
   it('uses localhost dev server when ELECTRON_START_URL is provided', () => {

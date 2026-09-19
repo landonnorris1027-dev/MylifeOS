@@ -1,30 +1,39 @@
 console.log('--- ELECTRON PROCESS STARTING ---');
 
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
-const fs = require('fs');
-const path = require('path');
-const { normalizePersistedTimerForRestore } = require('./electron-timer-restore');
-const { resolveWindowLoadTarget } = require('./electron-window-target');
+import { app, BrowserWindow, ipcMain, Notification } from 'electron';
+import fs from 'fs';
+import path from 'path';
+import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
+import { resolveWindowLoadTarget } from './electron-window-target';
+import type {
+  MainTimer,
+  PomodoroNotificationMessages,
+  PomodoroRecoveryAction,
+  PomodoroRecoveryData,
+  PomodoroTimerData,
+} from './types';
 
 try {
   app.disableHardwareAcceleration();
   app.commandLine.appendSwitch('disable-gpu');
 } catch (e) {}
 
-let mainWindow = null;
-const activeTimers = new Map();
-const pendingRecoveries = [];
+type AppDataStore = Record<string, string>;
+
+let mainWindow: BrowserWindow | null = null;
+const activeTimers = new Map<string, MainTimer>();
+const pendingRecoveries: PomodoroRecoveryData[] = [];
 let timerStateFilePath = '';
 let appDataFilePath = '';
 
-function ensureDirectoryForFile(filePath) {
+function ensureDirectoryForFile(filePath: string): void {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-function ensureTimerStatePath() {
+function ensureTimerStatePath(): string {
   if (!timerStateFilePath) {
     timerStateFilePath = path.join(app.getPath('userData'), 'pomodoro-state.json');
   }
@@ -32,7 +41,7 @@ function ensureTimerStatePath() {
   return timerStateFilePath;
 }
 
-function ensureAppDataPath() {
+function ensureAppDataPath(): string {
   if (!appDataFilePath) {
     appDataFilePath = path.join(app.getPath('userData'), 'app-data.json');
   }
@@ -40,7 +49,7 @@ function ensureAppDataPath() {
   return appDataFilePath;
 }
 
-function readAppDataStore() {
+function readAppDataStore(): AppDataStore {
   try {
     const filePath = ensureAppDataPath();
     ensureDirectoryForFile(filePath);
@@ -62,13 +71,13 @@ function readAppDataStore() {
   }
 }
 
-function writeAppDataStore(store) {
+function writeAppDataStore(store: AppDataStore): void {
   const filePath = ensureAppDataPath();
   ensureDirectoryForFile(filePath);
   fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf8');
 }
 
-function persistActiveTimers() {
+function persistActiveTimers(): void {
   try {
     const filePath = ensureTimerStatePath();
     ensureDirectoryForFile(filePath);
@@ -82,8 +91,11 @@ function persistActiveTimers() {
   }
 }
 
-function queuePendingRecovery(timer, reason = 'expired_while_offline') {
-  const recovery = {
+function queuePendingRecovery(
+  timer: Partial<MainTimer> & { timerId: string; isFocusMode?: boolean; duration?: number; remaining?: number },
+  reason = 'expired_while_offline',
+): void {
+  const recovery: PomodoroRecoveryData = {
     recoveryId: `${timer.timerId}_recovery`,
     timerId: timer.timerId,
     reason,
@@ -110,7 +122,7 @@ function queuePendingRecovery(timer, reason = 'expired_while_offline') {
   }
 }
 
-function restorePersistedTimers() {
+function restorePersistedTimers(): void {
   try {
     const filePath = ensureTimerStatePath();
     if (!fs.existsSync(filePath)) return;
@@ -118,45 +130,51 @@ function restorePersistedTimers() {
     const raw = fs.readFileSync(filePath, 'utf8');
     if (!raw.trim()) return;
 
-    const parsedState = JSON.parse(raw);
+    type PersistedTimerRecord = Partial<MainTimer> & PersistedTimerSnapshot;
+    const parsedState = JSON.parse(raw) as
+      | PersistedTimerRecord[]
+      | { activeTimers?: PersistedTimerRecord[]; pendingRecoveries?: PomodoroRecoveryData[] };
     const persistedTimers = Array.isArray(parsedState) ? parsedState : parsedState.activeTimers;
-    const persistedRecoveries = Array.isArray(parsedState?.pendingRecoveries) ? parsedState.pendingRecoveries : [];
+    const persistedRecoveries = Array.isArray(parsedState) || !Array.isArray(parsedState?.pendingRecoveries)
+      ? []
+      : parsedState.pendingRecoveries;
     if (!Array.isArray(persistedTimers)) return;
 
     const now = Date.now();
 
-    pendingRecoveries.splice(0, pendingRecoveries.length, ...persistedRecoveries);
+    pendingRecoveries.splice(0, pendingRecoveries.length, ...(persistedRecoveries ?? []));
 
-    persistedTimers.forEach((timer) => {
-      const restoreState = normalizePersistedTimerForRestore(timer, now);
+    persistedTimers.forEach((timerRecord) => {
+      const restoreState = normalizePersistedTimerForRestore(timerRecord, now);
 
       if (restoreState.shouldRecover) {
         queuePendingRecovery({
-          ...timer,
+          ...timerRecord,
+          timerId: timerRecord.timerId ?? `timer-${now}`,
           remaining: restoreState.remaining,
-          isFocusMode: Boolean(timer.isFocusMode),
+          isFocusMode: Boolean(timerRecord.isFocusMode),
         });
         return;
       }
 
-      const restoredTimer = {
-        timerId: timer.timerId,
-        duration: timer.duration,
+      const restoredTimer: MainTimer = {
+        timerId: timerRecord.timerId ?? `timer-${now}`,
+        duration: timerRecord.duration ?? 0,
         remaining: restoreState.remaining,
         endTime: restoreState.endTime,
         isActive: restoreState.isActive,
         isFinished: false,
-        isFocusMode: Boolean(timer.isFocusMode),
-        taskId: timer.taskId || null,
-        taskHabitId: timer.taskHabitId || null,
-        taskName: timer.taskName || null,
-        taskDate: timer.taskDate || null,
-        taskPriority: timer.taskPriority || null,
-        taskDurationMinutes: timer.taskDurationMinutes || null,
-        notificationMessages: timer.notificationMessages || null,
-        notificationsEnabled: timer.notificationsEnabled !== false,
-        breakDurationSeconds: timer.breakDurationSeconds || null,
-        startedAt: timer.startedAt || now,
+        isFocusMode: Boolean(timerRecord.isFocusMode),
+        taskId: timerRecord.taskId || null,
+        taskHabitId: timerRecord.taskHabitId || null,
+        taskName: timerRecord.taskName || null,
+        taskDate: timerRecord.taskDate || null,
+        taskPriority: timerRecord.taskPriority || null,
+        taskDurationMinutes: timerRecord.taskDurationMinutes || null,
+        notificationMessages: timerRecord.notificationMessages || null,
+        notificationsEnabled: timerRecord.notificationsEnabled !== false,
+        breakDurationSeconds: timerRecord.breakDurationSeconds || null,
+        startedAt: timerRecord.startedAt || now,
         updatedAt: now,
         intervalId: null,
       };
@@ -174,7 +192,7 @@ function restorePersistedTimers() {
   }
 }
 
-function toTimerPayload(timer) {
+function toTimerPayload(timer: MainTimer) {
   return {
     timerId: timer.timerId,
     duration: timer.duration,
@@ -198,7 +216,7 @@ function toTimerPayload(timer) {
   };
 }
 
-function broadcastTimerUpdate(timer, extra = {}) {
+function broadcastTimerUpdate(timer: MainTimer, extra: Record<string, unknown> = {}): void {
   const payload = {
     ...toTimerPayload(timer),
     ...extra,
@@ -211,18 +229,19 @@ function broadcastTimerUpdate(timer, extra = {}) {
   });
 }
 
-function clearTimerInterval(timer) {
+function clearTimerInterval(timer: MainTimer): void {
   if (timer.intervalId) {
     clearInterval(timer.intervalId);
     timer.intervalId = null;
   }
 }
 
-function showTimerNotification(timer) {
+
+function showTimerNotification(timer: MainTimer): void {
   if (timer.notificationsEnabled === false) return;
 
   try {
-    const messages = timer.notificationMessages || {};
+    const messages: Partial<PomodoroNotificationMessages> = timer.notificationMessages || {};
     const title = timer.isFocusMode
       ? messages.focusCompleteTitle || 'Focus session completed'
       : messages.breakFinishedTitle || 'Break finished';
@@ -238,7 +257,7 @@ function showTimerNotification(timer) {
   }
 }
 
-function finishTimer(timerId) {
+function finishTimer(timerId: string): void {
   const timer = activeTimers.get(timerId);
   if (!timer) return;
 
@@ -255,7 +274,7 @@ function finishTimer(timerId) {
   persistActiveTimers();
 }
 
-function startTicker(timer) {
+function startTicker(timer: MainTimer): void {
   clearTimerInterval(timer);
 
   timer.intervalId = setInterval(() => {
@@ -274,14 +293,14 @@ function startTicker(timer) {
   }, 250);
 }
 
-function upsertTimer(timerData) {
+function upsertTimer(timerData: PomodoroTimerData): MainTimer {
   const previous = activeTimers.get(timerData.timerId);
   if (previous) {
     clearTimerInterval(previous);
   }
 
   const durationMs = timerData.duration * 1000;
-  const timer = {
+  const timer: MainTimer = {
     timerId: timerData.timerId,
     duration: timerData.duration,
     remaining: durationMs,
@@ -311,8 +330,9 @@ function upsertTimer(timerData) {
   return timer;
 }
 
-function registerPomodoroIpc() {
-  ipcMain.handle('pomodoro-start', async (_event, timerData) => {
+
+function registerPomodoroIpc(): void {
+  ipcMain.handle('pomodoro-start', async (_event, timerData: PomodoroTimerData) => {
     return toTimerPayload(upsertTimer(timerData));
   });
 
@@ -324,40 +344,43 @@ function registerPomodoroIpc() {
     return [...pendingRecoveries];
   });
 
-  ipcMain.handle('pomodoro-resolve-recovery', async (_event, { recoveryId, action }) => {
-    const recoveryIndex = pendingRecoveries.findIndex((item) => item.recoveryId === recoveryId);
-    if (recoveryIndex === -1) {
-      return { ok: false };
-    }
+  ipcMain.handle(
+    'pomodoro-resolve-recovery',
+    async (_event, { recoveryId, action }: { recoveryId: string; action: PomodoroRecoveryAction }) => {
+      const recoveryIndex = pendingRecoveries.findIndex((item) => item.recoveryId === recoveryId);
+      if (recoveryIndex === -1) {
+        return { ok: false };
+      }
 
-    const recovery = pendingRecoveries[recoveryIndex];
-    pendingRecoveries.splice(recoveryIndex, 1);
+      const recovery = pendingRecoveries[recoveryIndex];
+      pendingRecoveries.splice(recoveryIndex, 1);
 
-    if (action === 'resume-break' || action === 'restart-break') {
-      const breakTimer = upsertTimer({
-        timerId: recovery.timerId.replace(/_break$/, '') + '_break',
-        duration: recovery.breakDurationSeconds || 5 * 60,
-        isFocusMode: false,
-        notificationsEnabled: recovery.notificationsEnabled !== false,
-        breakDurationSeconds: recovery.breakDurationSeconds || null,
-        taskId: recovery.taskId,
-        taskHabitId: recovery.taskHabitId,
-        taskName: recovery.taskName,
-        taskDate: recovery.taskDate,
-        taskPriority: recovery.taskPriority,
-        taskDurationMinutes: recovery.taskDurationMinutes,
-        notificationMessages: recovery.notificationMessages || null,
-      });
+      if (action === 'resume-break' || action === 'restart-break') {
+        const breakTimer = upsertTimer({
+          timerId: recovery.timerId.replace(/_break$/, '') + '_break',
+          duration: recovery.breakDurationSeconds || 5 * 60,
+          isFocusMode: false,
+          notificationsEnabled: recovery.notificationsEnabled !== false,
+          breakDurationSeconds: recovery.breakDurationSeconds || undefined,
+          taskId: recovery.taskId || undefined,
+          taskHabitId: recovery.taskHabitId || undefined,
+          taskName: recovery.taskName || undefined,
+          taskDate: recovery.taskDate || undefined,
+          taskPriority: (recovery.taskPriority as PomodoroTimerData['taskPriority']) || undefined,
+          taskDurationMinutes: recovery.taskDurationMinutes || undefined,
+          notificationMessages: recovery.notificationMessages || undefined,
+        });
+
+        persistActiveTimers();
+        return { ok: true, resumedTimer: toTimerPayload(breakTimer) };
+      }
 
       persistActiveTimers();
-      return { ok: true, resumedTimer: toTimerPayload(breakTimer) };
-    }
+      return { ok: true };
+    },
+  );
 
-    persistActiveTimers();
-    return { ok: true };
-  });
-
-  ipcMain.on('pomodoro-toggle', (_event, { timerId }) => {
+  ipcMain.on('pomodoro-toggle', (_event, { timerId }: { timerId: string }) => {
     const timer = activeTimers.get(timerId);
     if (!timer) return;
 
@@ -377,7 +400,7 @@ function registerPomodoroIpc() {
     persistActiveTimers();
   });
 
-  ipcMain.on('pomodoro-stop', (_event, { timerId }) => {
+  ipcMain.on('pomodoro-stop', (_event, { timerId }: { timerId: string }) => {
     const timer = activeTimers.get(timerId);
     if (!timer) return;
 
@@ -390,8 +413,9 @@ function registerPomodoroIpc() {
   });
 }
 
-function registerStorageIpc() {
-  ipcMain.on('storage-get-sync', (event, { key }) => {
+
+function registerStorageIpc(): void {
+  ipcMain.on('storage-get-sync', (event, { key }: { key: unknown }) => {
     if (typeof key !== 'string') {
       event.returnValue = null;
       return;
@@ -402,7 +426,7 @@ function registerStorageIpc() {
     event.returnValue = typeof value === 'string' ? value : null;
   });
 
-  ipcMain.on('storage-set-sync', (event, { key, value }) => {
+  ipcMain.on('storage-set-sync', (event, { key, value }: { key: unknown; value: unknown }) => {
     if (typeof key !== 'string') {
       event.returnValue = { ok: false };
       return;
@@ -427,7 +451,7 @@ function registerStorageIpc() {
   });
 }
 
-function createWindow() {
+function createWindow(): void {
   console.log('[MyLifeOS] Creating window...');
 
   mainWindow = new BrowserWindow({
@@ -435,7 +459,7 @@ function createWindow() {
     height: 800,
     title: 'MyLifeOS',
     backgroundColor: '#F7F7F5',
-    icon: path.join(__dirname, 'assets/icon.ico'),
+    icon: path.join(__dirname, '../assets/icon.ico'),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -448,7 +472,7 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
 
   const loadTarget = resolveWindowLoadTarget({
-    appRoot: __dirname,
+    appRoot: path.join(__dirname, '..'),
     startUrl: process.env.ELECTRON_START_URL,
   });
   console.log(`[MyLifeOS] Loading ${loadTarget.type}: ${loadTarget.value}`);
@@ -470,8 +494,8 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     try {
-      mainWindow.show();
-      mainWindow.focus();
+      mainWindow?.show();
+      mainWindow?.focus();
     } catch (e) {
       console.error('[MyLifeOS] failed to show window:', e);
     }
@@ -530,3 +554,4 @@ if (!gotSingleInstanceLock) {
     }
   });
 }
+

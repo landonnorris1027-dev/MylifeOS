@@ -1,4 +1,19 @@
-function getPersistedRemaining(timer, now) {
+export interface PersistedTimerSnapshot {
+  timerId?: string;
+  duration?: number;
+  remaining?: number;
+  endTime?: number;
+  isActive?: boolean;
+}
+
+export interface RestoredTimerState {
+  shouldRecover: boolean;
+  remaining: number;
+  endTime: number;
+  isActive: boolean;
+}
+
+function getPersistedRemaining(timer: PersistedTimerSnapshot, now: number): number {
   if (typeof timer.remaining === 'number') {
     return Math.max(0, timer.remaining);
   }
@@ -6,7 +21,10 @@ function getPersistedRemaining(timer, now) {
   return Math.max(0, Number(timer.endTime || 0) - now);
 }
 
-function normalizePersistedTimerForRestore(timer, now) {
+export function normalizePersistedTimerForRestore(
+  timer: PersistedTimerSnapshot,
+  now: number,
+): RestoredTimerState {
   const isActive = Boolean(timer.isActive);
   const persistedRemaining = getPersistedRemaining(timer, now);
   const persistedEndTime = typeof timer.endTime === 'number' ? timer.endTime : null;
@@ -30,7 +48,3 @@ function normalizePersistedTimerForRestore(timer, now) {
     isActive: false,
   };
 }
-
-module.exports = {
-  normalizePersistedTimerForRestore,
-};

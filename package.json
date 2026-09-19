@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=22.12.0"
   },
-  "main": "electron.js",
+  "main": "dist-main/electron.js",
   "homepage": "./",
   "dependencies": {
     "lucide-react": "^0.292.0",
@@ -34,16 +34,17 @@
     "build": "react-scripts build",
     "typecheck": "tsc --noEmit",
     "test": "react-scripts test --watchAll=false --passWithNoTests",
-    "check:electron": "node -c electron.js && node -c preload.js && node -c electron-timer-restore.js && node -c electron-window-target.js",
-    "verify:quality": "npm run typecheck && npm run test && npm run build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "check:electron": "tsc --noEmit -p tsconfig.main.json",
+    "verify:quality": "npm run typecheck && npm run test && npm run build && npm run build:main",
     "verify:release": "npm run verify:quality && npm run check:electron",
     "clean:build": "node ./scripts/clean-build.js",
     "smoke:packaged": "node ./scripts/smoke-packaged.js",
     "test:packaged": "node ./scripts/regression-packaged.js",
     "verify:packaged": "npm run smoke:packaged && npm run test:packaged",
-    "prod": "node ./scripts/start-electron.js",
-    "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
-    "electron:build": "npm run verify:release && npm run clean:build && electron-builder --win --x64 --publish never --config.extraMetadata.main=electron.js && npm run verify:packaged"
+    "prod": "npm run build:main && node ./scripts/start-electron.js",
+    "electron:dev": "npm run build:main && concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
+    "electron:build": "npm run verify:release && npm run clean:build && electron-builder --win --x64 --publish never && npm run verify:packaged"
   },
   "build": {
     "appId": "com.mylifeos.app",
@@ -52,10 +53,7 @@
     "npmRebuild": false,
     "files": [
       "build/**/*",
-      "electron.js",
-      "preload.js",
-      "electron-timer-restore.js",
-      "electron-window-target.js",
+      "dist-main/**/*",
       "assets/icon.ico"
     ],
     "directories": {

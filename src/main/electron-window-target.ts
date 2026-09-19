@@ -1,6 +1,16 @@
-const path = require('path');
+import path from 'path';
 
-function isAllowedDevServerUrl(value) {
+export interface WindowLoadTargetOptions {
+  appRoot?: string;
+  startUrl?: string;
+}
+
+export interface WindowLoadTarget {
+  type: 'url' | 'file';
+  value: string;
+}
+
+export function isAllowedDevServerUrl(value: unknown): boolean {
   if (typeof value !== 'string' || !value.trim()) return false;
 
   try {
@@ -12,7 +22,7 @@ function isAllowedDevServerUrl(value) {
   }
 }
 
-function resolveWindowLoadTarget(options = {}) {
+export function resolveWindowLoadTarget(options: WindowLoadTargetOptions = {}): WindowLoadTarget {
   const appRoot = options.appRoot || __dirname;
   const startUrl = options.startUrl || '';
 
@@ -28,8 +38,3 @@ function resolveWindowLoadTarget(options = {}) {
     value: path.join(appRoot, 'build/index.html'),
   };
 }
-
-module.exports = {
-  isAllowedDevServerUrl,
-  resolveWindowLoadTarget,
-};

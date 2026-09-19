@@ -1,4 +1,4 @@
-const { normalizePersistedTimerForRestore } = require('../electron-timer-restore');
+import { normalizePersistedTimerForRestore } from './main/electron-timer-restore';
 
 const NOW = 1_800_000;
 
