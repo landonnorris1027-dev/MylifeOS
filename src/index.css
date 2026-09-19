@@ -7,6 +7,25 @@ body {
   color: #37352F;
 }
 
+/* Keyboard users need a visible focus indicator; mouse users keep the
+   clean look thanks to :focus-visible. */
+:focus-visible {
+  outline: 2px solid #37352F;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

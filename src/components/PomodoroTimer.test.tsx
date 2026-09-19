@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import PomodoroTimer from './PomodoroTimer';
 import { LanguageProvider } from '../contexts/LanguageContext';
+import { KEYS, setStorageItem } from '../services/storage/localStorageStore';
 import type { Task } from '../types';
 
 describe('PomodoroTimer task completion', () => {
@@ -20,6 +21,9 @@ describe('PomodoroTimer task completion', () => {
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
+    // Pin the language preference so the assertion on the Chinese title below
+    // does not depend on the machine's system language.
+    setStorageItem(KEYS.LANGUAGE, 'zh');
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, CalendarClock, Clock3, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TimelineMode, buildTimelineSlotsForMode, getOverlappingTasks, getTaskTimeLabel, isTaskStartInPastForDate, isTaskWithinDay } from '../services/scheduling';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface TimePickerModalProps {
   task: Task | null;
@@ -14,29 +15,41 @@ interface TimePickerModalProps {
 
 const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, timelineMode, onClose, onConfirm }) => {
   const { t } = useLanguage();
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
+
+  // The O(48 × task count) slot computation is memoized so re-renders that do
+  // not touch the schedule inputs (e.g. focus changes) stay cheap.
+  const slotStates = useMemo(() => {
+    if (!task) return [];
+
+    return buildTimelineSlotsForMode(timelineMode).map((slot) => {
+      const conflicts = getOverlappingTasks(dailyTasks, slot.time, task.durationMinutes);
+      const isWithinDay = isTaskWithinDay(slot.time, task.durationMinutes);
+      const isPast = isTaskStartInPastForDate(task.date, slot.time);
+      return {
+        ...slot,
+        conflicts,
+        isWithinDay,
+        isPast,
+        isAvailable: isWithinDay && !isPast && conflicts.length === 0,
+      };
+    });
+  }, [dailyTasks, task, timelineMode]);
+
   if (!task) return null;
 
   const styles = PRIORITY_STYLES[task.priority];
-  const slots = buildTimelineSlotsForMode(timelineMode);
-  const slotStates = slots.map((slot) => {
-    const conflicts = getOverlappingTasks(dailyTasks, slot.time, task.durationMinutes);
-    const isWithinDay = isTaskWithinDay(slot.time, task.durationMinutes);
-    const isPast = isTaskStartInPastForDate(task.date, slot.time);
-    return {
-      ...slot,
-      conflicts,
-      isWithinDay,
-      isPast,
-      isAvailable: isWithinDay && !isPast && conflicts.length === 0,
-    };
-  });
   const firstAvailableSlot = slotStates.find((slot) => slot.isAvailable);
   const recommendedSlots = slotStates.filter((slot) => slot.isAvailable).slice(0, 3);
   const hasPastSlots = slotStates.some((slot) => slot.isPast);
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-100">
+      <div
+        {...dialogProps}
+        ref={containerRef}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-100"
+      >
         <div className={`p-4 rounded-t-2xl border-b border-gray-100 flex justify-between items-center ${styles.bg}`}>
           <h2 className={`text-sm font-bold flex items-center gap-2 ${styles.text}`}>
             <CalendarClock size={16} />

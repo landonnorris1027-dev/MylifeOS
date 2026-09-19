@@ -23,12 +23,8 @@ import { FocusSettings, getFocusSettings, saveFocusSettings } from '../services/
 import { ProfileSettings, getProfileSettings, saveProfileSettings } from '../services/profileSettings';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
-
-const PRIORITY_BUTTON_KEYS: Record<Priority, TranslationKey> = {
-  P1: 'p1_btn',
-  P2: 'p2_btn',
-  P3: 'p3_btn',
-};
+import PrioritySelector from './PrioritySelector';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface HabitTemplate {
   id: string;
@@ -124,7 +120,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
   const [profileSettings, setProfileSettings] = useState<ProfileSettings>(() => getProfileSettings());
 
   const [existingHabits, setExistingHabits] = useState<Habit[]>([]);
-  const [goalOptions, setGoalOptions] = useState(getGoals());
+  const [goalOptions, setGoalOptions] = useState(() => getGoals());
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
   const [recoveryPoints, setRecoveryPoints] = useState<RecoveryPoint[]>([]);
 
   const [alertConfig, setAlertConfig] = useState({ isOpen: false, message: '' });
@@ -411,7 +408,11 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div
+        {...dialogProps}
+        ref={containerRef}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
+      >
         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Plus size={18} className="text-gray-400" />
@@ -506,27 +507,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 {t('priority_class')}
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                {(['P1', 'P2', 'P3'] as Priority[]).map((p) => {
-                  const styles = PRIORITY_STYLES[p];
-                  const isSelected = priority === p;
-                  const btnLabelKey = PRIORITY_BUTTON_KEYS[p];
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPriority(p)}
-                      className={`
-                        relative p-3 rounded-lg border text-sm font-medium transition-all
-                        ${isSelected ? `${styles.bg} ${styles.border} ${styles.text} ring-1 ring-offset-1` : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}
-                      `}
-                    >
-                      {t(btnLabelKey)}
-                      {isSelected && <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${styles.accent}`} />}
-                    </button>
-                  );
-                })}
-              </div>
+              <PrioritySelector value={priority} onChange={setPriority} />
             </div>
 
             <div className="grid grid-cols-2 gap-6">

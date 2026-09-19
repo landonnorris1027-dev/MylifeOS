@@ -88,6 +88,19 @@ export default function App() {
   const formatHours = (minutes: number) => (minutes / 60).toFixed(1);
   const timelineSlots = React.useMemo(() => buildTimelineSlotsForMode(timelineMode), [timelineMode]);
 
+  // Stable callbacks so memoized TaskCards don't re-render on every App render.
+  const handleTaskCardClick = React.useCallback(
+    (task: Parameters<typeof handleTaskClick>[0]) => handleTaskClick(task),
+    [handleTaskClick],
+  );
+  const handleTaskDragStart = React.useCallback(
+    (dragTask: { id: string }, event: React.DragEvent<HTMLDivElement>) => {
+      event.dataTransfer.setData('text/plain', dragTask.id);
+      event.dataTransfer.effectAllowed = 'move';
+    },
+    [],
+  );
+
   return (
     <div className="min-h-screen bg-[#F7F7F5] pb-10 font-sans text-[#37352F]">
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 mb-6">
@@ -303,12 +316,9 @@ export default function App() {
                         key={task.id}
                         task={task}
                         mode="pool"
-                        onClick={() => handleTaskClick(task)}
+                        onClick={handleTaskCardClick}
                         draggable
-                        onDragStart={(dragTask, event) => {
-                          event.dataTransfer.setData('text/plain', dragTask.id);
-                          event.dataTransfer.effectAllowed = 'move';
-                        }}
+                        onDragStart={handleTaskDragStart}
                         onDeleteToday={handleTaskDeleteToday}
                         onDeletePermanent={handleTaskDeletePermanent}
                         onEditReview={openTaskReview}
@@ -434,7 +444,7 @@ export default function App() {
                                   key={task.id}
                                   task={task}
                                   mode="schedule"
-                                  onClick={() => handleTaskClick(task)}
+                                  onClick={handleTaskCardClick}
                                   onUnschedule={handleTaskUnschedule}
                                   onEditReview={openTaskReview}
                                 />

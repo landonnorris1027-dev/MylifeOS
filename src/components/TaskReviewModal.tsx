@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FileText, X } from 'lucide-react';
 import { Task } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface TaskReviewModalProps {
   task: Task | null;
@@ -13,6 +14,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave
   const { t } = useLanguage();
   const [note, setNote] = useState('');
   const [review, setReview] = useState('');
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
 
   useEffect(() => {
     setNote(task?.note || '');
@@ -23,7 +25,11 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
+      <div
+        {...dialogProps}
+        ref={containerRef}
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl"
+      >
         <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/70 p-4">
           <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800">
             <FileText size={16} className="text-gray-400" />

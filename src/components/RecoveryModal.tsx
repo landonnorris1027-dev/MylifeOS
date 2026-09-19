@@ -2,6 +2,7 @@ import React from 'react';
 import { History, Coffee, CheckCircle2, XCircle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { PomodoroRecoveryData } from '../services/electronIPC';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface RecoveryModalProps {
   recovery: PomodoroRecoveryData | null;
@@ -13,6 +14,11 @@ interface RecoveryModalProps {
 
 const RecoveryModal: React.FC<RecoveryModalProps> = ({ recovery, onResumeBreak, onCompleteTask, onDismiss, onLater }) => {
   const { t } = useLanguage();
+  // Escape maps to "later" (keep the recovery pending) rather than dismiss.
+  const { containerRef, dialogProps } = useModalBehavior({
+    isOpen: recovery !== null,
+    onClose: onLater,
+  });
 
   if (!recovery) return null;
 
@@ -25,7 +31,11 @@ const RecoveryModal: React.FC<RecoveryModalProps> = ({ recovery, onResumeBreak, 
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 overflow-hidden">
+      <div
+        {...dialogProps}
+        ref={containerRef}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 overflow-hidden"
+      >
         <div className="p-6 text-center">
           <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <History size={24} className="text-amber-500" />

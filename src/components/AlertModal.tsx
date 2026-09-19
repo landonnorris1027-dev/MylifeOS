@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -12,6 +13,11 @@ interface AlertModalProps {
 
 const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title, tone = 'alert' }) => {
   const { t } = useLanguage();
+  const isSuccessTone = tone === 'success';
+  const { containerRef, dialogProps } = useModalBehavior({
+    isOpen: isOpen && !isSuccessTone,
+    onClose,
+  });
 
   if (!isOpen) return null;
 
@@ -53,7 +59,12 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm border ${borderClass} overflow-hidden`}>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        ref={containerRef}
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm border ${borderClass} overflow-hidden`}
+      >
         <div className="p-6 text-center">
           <div className={`w-12 h-12 ${iconBgClass} rounded-full flex items-center justify-center mx-auto mb-4`}>
             <Icon size={24} className={iconClass} />

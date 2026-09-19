@@ -4,6 +4,7 @@ import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { electronIPC, PomodoroTimerData } from '../services/electronIPC';
 import { DEFAULT_FOCUS_SETTINGS, FocusSettings, getFocusSettings } from '../services/focusSettings';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 export interface TimerSessionSnapshot {
   timerId: string;
@@ -45,6 +46,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const startInFlightRef = useRef(false);
   const completedFocusSecondsRef = useRef<number | null>(null);
   const isElectron = electronIPC.getIsElectron();
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
 
   const activeTimerId = useMemo(() => {
     if (!baseTimerId) return '';
@@ -384,8 +386,16 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const accentColor = isBreak ? 'text-emerald-600' : styles.text;
 
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center">
-      <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+    <div
+      {...dialogProps}
+      ref={containerRef}
+      className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center"
+    >
+      <button
+        onClick={onClose}
+        aria-label={t('cancel')}
+        className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+      >
         <X size={24} className="text-gray-600" />
       </button>
 

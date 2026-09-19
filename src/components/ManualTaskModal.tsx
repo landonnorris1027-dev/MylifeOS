@@ -1,15 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, FileText, Plus, Target, X } from 'lucide-react';
-import { Priority, PRIORITY_STYLES } from '../types';
+import { Priority } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getGoals } from '../services/storage';
-import type { TranslationKey } from '../locales';
-
-const PRIORITY_BUTTON_KEYS: Record<Priority, TranslationKey> = {
-  P1: 'p1_btn',
-  P2: 'p2_btn',
-  P3: 'p3_btn',
-};
+import { useModalBehavior } from '../hooks/useModalBehavior';
+import PrioritySelector from './PrioritySelector';
 
 interface ManualTaskModalProps {
   isOpen: boolean;
@@ -30,7 +25,8 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   const [priority, setPriority] = useState<Priority>('P1');
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [note, setNote] = useState('');
-  const [goalOptions, setGoalOptions] = useState(getGoals());
+  const [goalOptions, setGoalOptions] = useState(() => getGoals());
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
 
   useEffect(() => {
     if (isOpen) {
@@ -70,7 +66,11 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden">
+      <div
+        {...dialogProps}
+        ref={containerRef}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden"
+      >
         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Plus size={18} className="text-gray-400" />
@@ -122,23 +122,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
             <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
               {t('priority_class')}
             </span>
-            <div className="grid grid-cols-3 gap-3">
-              {(['P1', 'P2', 'P3'] as Priority[]).map((item) => {
-                const styles = PRIORITY_STYLES[item];
-                const isSelected = priority === item;
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setPriority(item)}
-                    className={`relative p-3 rounded-lg border text-sm font-medium transition-all ${isSelected ? `${styles.bg} ${styles.border} ${styles.text} ring-1 ring-offset-1` : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}
-                  >
-                    {t(PRIORITY_BUTTON_KEYS[item])}
-                    {isSelected && <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${styles.accent}`} />}
-                  </button>
-                );
-              })}
-            </div>
+            <PrioritySelector value={priority} onChange={setPriority} />
           </div>
 
           <label className="block">
