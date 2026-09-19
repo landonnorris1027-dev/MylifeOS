@@ -14,14 +14,14 @@ function Show-StartupError($message) {
 
 function Invoke-Checked {
   param(
-    [string]$filePath,
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$arguments
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+    [string[]]$ArgumentList = @()
   )
 
-  & $filePath @arguments
+  & $FilePath @ArgumentList
   if ($LASTEXITCODE -ne 0) {
-    throw "$filePath $($arguments -join ' ') failed with exit code $LASTEXITCODE"
+    throw "$FilePath $($ArgumentList -join ' ') failed with exit code $LASTEXITCODE"
   }
 }
 
@@ -33,22 +33,22 @@ try {
   }
 
   if (-not (Test-Path (Join-Path $projectRoot 'node_modules'))) {
-    Invoke-Checked 'npm.cmd' @('install')
+    Invoke-Checked -FilePath 'npm.cmd' -ArgumentList @('install')
   }
 
   $electronCli = Join-Path $projectRoot 'node_modules\electron\cli.js'
   if (-not (Test-Path $electronCli)) {
-    Invoke-Checked 'npm.cmd' @('install')
+    Invoke-Checked -FilePath 'npm.cmd' -ArgumentList @('install')
   }
 
   $buildIndex = Join-Path $projectRoot 'build\index.html'
   if (-not (Test-Path $buildIndex)) {
-    Invoke-Checked 'npm.cmd' @('run', 'build')
+    Invoke-Checked -FilePath 'npm.cmd' -ArgumentList @('run', 'build')
   }
 
   # Always refresh the gitignored dist-main/ output so a pull or branch switch
   # cannot launch stale Electron main-process code.
-  Invoke-Checked 'npm.cmd' @('run', 'build:main')
+  Invoke-Checked -FilePath 'npm.cmd' -ArgumentList @('run', 'build:main')
 
   $env:ELECTRON_START_URL = ''
   $env:NODE_ENV = 'production'
