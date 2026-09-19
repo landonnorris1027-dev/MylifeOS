@@ -101,6 +101,61 @@ export default function App() {
     [],
   );
 
+  // Local shortcuts (registered in the renderer, not via globalShortcut, so
+  // they never shadow system-wide bindings). Escape for dialogs is handled by
+  // useModalBehavior.
+  React.useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.altKey) return;
+
+      if (event.ctrlKey || event.metaKey) {
+        if (event.key === '1') {
+          event.preventDefault();
+          setView('planner');
+          return;
+        }
+        if (event.key === '2') {
+          event.preventDefault();
+          setView('profile');
+        }
+        return;
+      }
+
+      if (event.key !== 'n' && event.key !== 'N') return;
+
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isEditingField =
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        Boolean(target?.isContentEditable);
+      if (isEditingField) return;
+
+      // Only in the planner view, and never on top of another dialog.
+      if (view !== 'planner') return;
+      if (isHabitConfigOpen || isManualTaskOpen || activeTask || schedulingTask || reviewingTask || isRecoveryModalOpen) {
+        return;
+      }
+
+      event.preventDefault();
+      openManualTask();
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, [
+    setView,
+    view,
+    openManualTask,
+    isHabitConfigOpen,
+    isManualTaskOpen,
+    activeTask,
+    schedulingTask,
+    reviewingTask,
+    isRecoveryModalOpen,
+  ]);
+
   return (
     <div className="min-h-screen bg-[#F7F7F5] pb-10 font-sans text-[#37352F]">
       <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 mb-6">

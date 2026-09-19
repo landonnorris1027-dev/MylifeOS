@@ -227,21 +227,23 @@ Electron 已由 27.3.11 升至 44.4.2，`electron-builder` 由 24.13.3 升至 26
 
 ## Phase 4 — 桌面原生能力（P2，依赖 Phase 0）
 
-### 4.1 系统托盘
+> **进度：4.1–4.4 已于 2026-09-19 完成并实测通过；4.5（自动更新）按原计划单独立项，Phase 4 关闭。**
+
+### 4.1 系统托盘 ✅ 已完成
 
 - 用 `assets/icon.ico` 创建 `Tray`，右键菜单：显示窗口 / 退出
 - 「最小化到托盘」设置项（`desktopSettings`，默认开），关闭按钮最小化到托盘而非退出
 - 托盘图标点击恢复窗口（复用现有 `second-instance` 逻辑）
 
-### 4.2 原生保存对话框
+### 4.2 原生保存对话框 ✅ 已完成
 
 备份导出现在走 Chromium blob 下载（默认下载目录、无保存位置选择）。新增 IPC 通道 `dialog-save-backup`，主进程调 `dialog.showSaveDialog`（过滤器 `*.json`），把备份内容写入用户选定路径。`platformFiles.ts` 的 Electron 分支走该通道，浏览器分支保留 blob 下载。
 
-### 4.3 窗口状态持久化
+### 4.3 窗口状态持久化 ✅ 已完成
 
 主进程维护 `userData/window-state.json`，记录 `bounds`（x/y/width/height）与 `isMaximized`；`createWindow` 时恢复；`resize`/`move`/`maximize` 事件防抖落盘。
 
-### 4.4 本地快捷键
+### 4.4 本地快捷键 ✅ 已完成
 
 渲染进程 `useEffect` 注册（无需 `globalShortcut`，避免与系统快捷键冲突）：
 
@@ -254,6 +256,24 @@ Electron 已由 27.3.11 升至 44.4.2，`electron-builder` 由 24.13.3 升至 26
 引入 `electron-updater` + `publish: github`。独立大块，建议单独立项——先确认发布渠道再推进。
 
 **验证**：托盘最小化/恢复；备份导出弹出原生对话框；窗口尺寸重启后保持；快捷键生效；`npm run verify:release`。
+
+### Phase 4 执行记录（2026-09-19，分支 `codex/windows-desktop`）
+
+- **4.1 系统托盘**：主进程用 `assets/icon.ico` 创建 `Tray`，右键菜单「显示窗口 / 退出 MyLifeOS」（文案跟随已存语言设置）；点击托盘图标恢复窗口；新增 `desktopSettings`（`mylifeos_desktop_settings`，`minimizeToTray` 默认开），开启时点关闭按钮只隐藏窗口，托盘退出或 `app.quit()`（`isQuitting` 标志）才真正退出，避免托盘残留进程。设置开关 UI 在 HabitConfig 新增「桌面端」区块。
+- **4.2 原生保存对话框**：新增 IPC 通道 `dialog-save-backup`（`ipcMain.handle` + `dialog.showSaveDialog`，`*.json` 过滤器，缺 content 时直接返回错误不弹窗），`preload` 白名单加入该通道，`src/electron.d.ts` 补类型；新 `src/services/platformFiles.ts` 的 `saveJSONFile`：Electron 走原生对话框（返回所选路径，取消返回 null），浏览器/Android 保留 blob 下载。`HabitConfig` 的备份导出与恢复前备份改走该通道，成功后提示保存路径。
+- **4.3 窗口状态持久化**：主进程维护 `userData/window-state.json`（bounds + `isMaximized`，最大化时存 `getNormalBounds()`），`createWindow` 恢复并设 `minWidth/minHeight`；`resize/move/maximize/unmaximize` 事件 400ms 防抖落盘，`close` 与 `before-quit` 同步强制 flush。`src/main/window-state.ts` 负责归一化（非法/缺失回退 1200×800），配 4 个单测。
+- **4.4 本地快捷键**：渲染进程 `window` 级 `keydown`（不用 `globalShortcut`）：`Ctrl/Cmd+1` → planner、`Ctrl/Cmd+2` → profile、`N` → 新建任务（仅 planner 视图、非输入框聚焦、无其他弹窗时）；Esc 关弹窗由 3.1 的 `useModalBehavior` 统一管理。
+- 新增 `scripts/verify-native.js`（`npm run verify:native`）：隔离 `--user-data-dir` 启动 + CDP 探针，覆盖窗口状态恢复、对话框通道白名单、快捷键、WM_CLOSE 隐藏到托盘、second-instance 经 `showMainWindow` 恢复窗口、`window-state.json` 落盘，全自动化。
+
+实测证据（`npm run verify:native` PASS + `npm run verify:release` 全绿 11 套件/69 测试）：
+
+- 种子 `window-state.json {x:60,y:45,1024x640}` 启动后 CDP 实测 `window.screenX/Y=60/45`、外框 1026×644（Windows 边框度量差在容差内）。
+- `dialog-save-backup` 探针返回 `{"ok":false,"error":"Missing backup content"}` —— 通道已白名单且主进程校验生效（未弹窗）。
+- Ctrl+2 → profile、Ctrl+1 → planner（导航按钮激活态实测翻转）；`N` 打开临时任务弹窗、Escape 关闭。
+- WM_CLOSE 后主进程存活、主窗口 `IsWindowVisible=false`（隐藏到托盘）；随后 second-instance 触发 `showMainWindow`，同一句柄恢复 `visible=true`，第二实例因单实例锁退出。
+- 退出后 `window-state.json` = `{x:60,y:45,width:1026,height:644,isMaximized:false}`。
+
+**遗留**：4.5 自动更新（electron-updater + publish: github）需先确认发布渠道，单独立项。
 
 ---
 

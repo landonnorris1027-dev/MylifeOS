@@ -5,6 +5,7 @@ const validInvokeChannels = new Set<string>([
   'pomodoro-get-active-timers',
   'pomodoro-get-pending-recoveries',
   'pomodoro-resolve-recovery',
+  'dialog-save-backup',
 ]);
 
 const validSendChannels = new Set<string>([

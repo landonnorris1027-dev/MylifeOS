@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Plus, Clock, Download, Upload, Trash2, Calendar, Pencil, RotateCcw, Sparkles, Bell, Volume2, Coffee, Target } from 'lucide-react';
+import { X, Plus, Clock, Download, Upload, Trash2, Calendar, Pencil, RotateCcw, Sparkles, Bell, Volume2, Coffee, Target, Minimize2 } from 'lucide-react';
 import { Priority, PRIORITY_STYLES, Habit } from '../types';
 import {
   addGoal,
@@ -21,6 +21,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import type { TranslationKey } from '../locales';
 import { FocusSettings, getFocusSettings, saveFocusSettings } from '../services/focusSettings';
 import { ProfileSettings, getProfileSettings, saveProfileSettings } from '../services/profileSettings';
+import { DesktopSettings, getDesktopSettings, saveDesktopSettings } from '../services/desktopSettings';
+import { saveJSONFile } from '../services/platformFiles';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PrioritySelector from './PrioritySelector';
@@ -79,26 +81,6 @@ const formatBackupTimestamp = (date: Date) => {
   return `${formatDateLocal(date)}_${hours}${minutes}${seconds}`;
 };
 
-const downloadJSONFile = (json: string, filename: string) => {
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  let isAttached = false;
-
-  try {
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    isAttached = true;
-    a.click();
-  } finally {
-    if (isAttached) {
-      document.body.removeChild(a);
-    }
-    URL.revokeObjectURL(url);
-  }
-};
-
 interface HabitConfigProps {
   isOpen: boolean;
   onClose: () => void;
@@ -118,13 +100,17 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [focusSettings, setFocusSettings] = useState<FocusSettings>(() => getFocusSettings());
   const [profileSettings, setProfileSettings] = useState<ProfileSettings>(() => getProfileSettings());
+  const [desktopSettings, setDesktopSettings] = useState<DesktopSettings>(() => getDesktopSettings());
 
   const [existingHabits, setExistingHabits] = useState<Habit[]>([]);
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
   const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
   const [recoveryPoints, setRecoveryPoints] = useState<RecoveryPoint[]>([]);
 
-  const [alertConfig, setAlertConfig] = useState({ isOpen: false, message: '' });
+  const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; message: string; tone?: 'alert' | 'success' }>({
+    isOpen: false,
+    message: '',
+  });
   const [confirmConfig, setConfirmConfig] = useState({ 
     isOpen: false, 
     message: '', 
@@ -145,6 +131,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       refreshList();
       setFocusSettings(getFocusSettings());
       setProfileSettings(getProfileSettings());
+      setDesktopSettings(getDesktopSettings());
     }
   }, [isOpen]);
 
@@ -252,6 +239,16 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     }
   };
 
+  const handleDesktopSettingsChange = (patch: Partial<DesktopSettings>) => {
+    try {
+      const nextSettings = saveDesktopSettings({ ...desktopSettings, ...patch });
+      setDesktopSettings(nextSettings);
+    } catch (error) {
+      console.error("CRITICAL: Failed to save desktop settings:", error);
+      setAlertConfig({ isOpen: true, message: t('storage_write_failed') });
+    }
+  };
+
   const handleDelete = (habitId: string) => {
     setConfirmConfig({
       isOpen: true,
@@ -268,9 +265,21 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     });
   };
 
-  const handleBackup = () => {
+  const handleBackup = async () => {
     const json = getAllDataJSON();
-    downloadJSONFile(json, `mylifeos_backup_${formatDateLocal(new Date())}.json`);
+    const filename = `mylifeos_backup_${formatDateLocal(new Date())}.json`;
+
+    try {
+      const savedPath = await saveJSONFile(json, filename);
+      if (savedPath) {
+        setAlertConfig({ isOpen: true, message: t('backup_saved_to', { path: savedPath }), tone: 'success' });
+      }
+    } catch (error) {
+      setAlertConfig({
+        isOpen: true,
+        message: `${t('import_error')} ${error instanceof Error ? error.message : ''}`.trim(),
+      });
+    }
   };
 
   const formatRecoveryPointTime = (point: RecoveryPoint) => {
@@ -343,7 +352,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
 
   const downloadPreRestoreBackup = () => {
     const filename = `mylifeos_pre_restore_${formatBackupTimestamp(new Date())}.json`;
-    downloadJSONFile(getAllDataJSON(), filename);
+    void saveJSONFile(getAllDataJSON(), filename);
     return filename;
   };
 
@@ -734,6 +743,30 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                 />
               </label>
 
+              {/* Desktop Section */}
+              <div className="border-t border-gray-100 pt-6">
+                <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  {t('desktop_section_title')}
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                    <span className="flex flex-col gap-1">
+                      <span className="flex items-center gap-3 text-sm font-medium text-gray-700">
+                        <Minimize2 size={16} className="text-gray-400" />
+                        {t('minimize_to_tray_setting')}
+                      </span>
+                      <span className="pl-7 text-xs text-gray-400">{t('minimize_to_tray_hint')}</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={desktopSettings.minimizeToTray}
+                      onChange={(event) => handleDesktopSettingsChange({ minimizeToTray: event.target.checked })}
+                      className="mt-0.5 h-4 w-4 accent-gray-900"
+                    />
+                  </label>
+                </div>
+              </div>
+
               <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                 <div className="mb-2 flex items-center gap-3 text-sm font-medium text-gray-700">
                   <Coffee size={16} className="text-gray-400" />
@@ -822,6 +855,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       <AlertModal
         isOpen={alertConfig.isOpen}
         message={alertConfig.message}
+        tone={alertConfig.tone}
         onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })}
       />
 

@@ -1,11 +1,12 @@
 console.log('--- ELECTRON PROCESS STARTING ---');
 
-import { app, BrowserWindow, ipcMain, Notification } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, Tray } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { AppDataStore } from './app-data-store';
 import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
 import { resolveWindowLoadTarget } from './electron-window-target';
+import { DEFAULT_WINDOW_BOUNDS, normalizeWindowState, WindowStateSnapshot } from './window-state';
 import type {
   MainTimer,
   PomodoroNotificationMessages,
@@ -20,6 +21,13 @@ try {
 } catch (e) {}
 
 const RECOVERY_POINTS_KEY = 'mylifeos_recovery_points';
+const DESKTOP_SETTINGS_KEY = 'mylifeos_desktop_settings';
+const LANGUAGE_KEY = 'mylifeos_lang';
+
+const TRAY_LABELS = {
+  zh: { show: '显示窗口', quit: '退出 MyLifeOS' },
+  en: { show: 'Show window', quit: 'Quit MyLifeOS' },
+};
 
 let mainWindow: BrowserWindow | null = null;
 const activeTimers = new Map<string, MainTimer>();
@@ -27,8 +35,12 @@ const pendingRecoveries: PomodoroRecoveryData[] = [];
 let timerStateFilePath = '';
 let appDataFilePath = '';
 let recoveryPointsFilePath = '';
+let windowStateFilePath = '';
 let appDataStore: AppDataStore | null = null;
 let recoveryPointsStore: AppDataStore | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
+let windowStateSaveTimer: NodeJS.Timeout | null = null;
 
 function ensureDirectoryForFile(filePath: string): void {
   const dir = path.dirname(filePath);
@@ -103,6 +115,188 @@ function getStorageStoreForKey(key: string): AppDataStore {
 function flushPendingStorageWrites(): void {
   appDataStore?.flush();
   recoveryPointsStore?.flush();
+}
+function ensureWindowStatePath(): string {
+  if (!windowStateFilePath) {
+    windowStateFilePath = path.join(app.getPath('userData'), 'window-state.json');
+  }
+
+  return windowStateFilePath;
+}
+
+function readWindowState(): WindowStateSnapshot {
+  try {
+    const filePath = ensureWindowStatePath();
+    if (!fs.existsSync(filePath)) return {};
+
+    const raw = fs.readFileSync(filePath, 'utf8');
+    if (!raw.trim()) return {};
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as WindowStateSnapshot)
+      : {};
+  } catch (error) {
+    console.warn('[MyLifeOS] Failed to read window state:', error);
+    return {};
+  }
+}
+
+function writeWindowState(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  try {
+    const isMaximized = mainWindow.isMaximized();
+    // Persist the restored bounds while maximized so unmaximizing keeps size.
+    const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+    const filePath = ensureWindowStatePath();
+    ensureDirectoryForFile(filePath);
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify({ ...bounds, isMaximized }, null, 2),
+      'utf8',
+    );
+  } catch (error) {
+    console.warn('[MyLifeOS] Failed to write window state:', error);
+  }
+}
+
+function scheduleWindowStateSave(): void {
+  if (windowStateSaveTimer) {
+    clearTimeout(windowStateSaveTimer);
+  }
+
+  windowStateSaveTimer = setTimeout(() => {
+    windowStateSaveTimer = null;
+    writeWindowState();
+  }, 400);
+}
+
+function flushWindowState(): void {
+  if (windowStateSaveTimer) {
+    clearTimeout(windowStateSaveTimer);
+    windowStateSaveTimer = null;
+  }
+
+  writeWindowState();
+}
+
+function isMinimizeToTrayEnabled(): boolean {
+  const raw = getAppDataStore().get(DESKTOP_SETTINGS_KEY);
+  if (!raw) return true;
+
+  try {
+    const parsed = JSON.parse(raw) as { minimizeToTray?: unknown };
+    return typeof parsed.minimizeToTray === 'boolean' ? parsed.minimizeToTray : true;
+  } catch (_error) {
+    return true;
+  }
+}
+
+function getTrayLabels() {
+  const language = getAppDataStore().get(LANGUAGE_KEY);
+  return language === 'en' ? TRAY_LABELS.en : TRAY_LABELS.zh;
+}
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function quitApp(): void {
+  isQuitting = true;
+  flushWindowState();
+  flushPendingStorageWrites();
+  app.quit();
+}
+
+function createTray(): void {
+  if (tray) return;
+
+  try {
+    tray = new Tray(path.join(__dirname, '../assets/icon.ico'));
+    tray.setToolTip('MyLifeOS');
+  } catch (error) {
+    console.warn('[MyLifeOS] Failed to create tray icon:', error);
+    tray = null;
+    return;
+  }
+
+  refreshTrayMenu();
+
+  tray.on('click', () => {
+    showMainWindow();
+  });
+}
+
+function refreshTrayMenu(): void {
+  if (!tray) return;
+
+  const labels = getTrayLabels();
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: labels.show, click: () => showMainWindow() },
+      { type: 'separator' },
+      { label: labels.quit, click: () => quitApp() },
+    ]),
+  );
+}
+
+function destroyTray(): void {
+  if (!tray) return;
+
+  tray.destroy();
+  tray = null;
+}
+
+function registerDialogIpc(): void {
+  ipcMain.handle(
+    'dialog-save-backup',
+    async (_event, { filename, content }: { filename?: unknown; content?: unknown }) => {
+      if (typeof content !== 'string') {
+        return { ok: false, error: 'Missing backup content' };
+      }
+
+      const suggestedName = typeof filename === 'string' && filename.trim() ? filename.trim() : 'mylifeos_backup.json';
+
+      try {
+        const parentWindow = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+        const result = parentWindow
+          ? await dialog.showSaveDialog(parentWindow, {
+            title: 'MyLifeOS',
+            defaultPath: suggestedName,
+            filters: [{ name: 'JSON', extensions: ['json'] }],
+          })
+          : await dialog.showSaveDialog({
+            title: 'MyLifeOS',
+            defaultPath: suggestedName,
+            filters: [{ name: 'JSON', extensions: ['json'] }],
+          });
+
+        if (result.canceled || !result.filePath) {
+          return { ok: true, canceled: true };
+        }
+
+        fs.writeFileSync(result.filePath, content, 'utf8');
+        return { ok: true, canceled: false, path: result.filePath };
+      } catch (error) {
+        console.error('[MyLifeOS] Failed to save backup file:', error);
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Failed to save backup file',
+        };
+      }
+    },
+  );
 }
 
 function persistActiveTimers(): void {
@@ -469,9 +663,15 @@ function registerStorageIpc(): void {
 function createWindow(): void {
   console.log('[MyLifeOS] Creating window...');
 
+  const savedState = normalizeWindowState(readWindowState());
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: savedState.bounds.width,
+    height: savedState.bounds.height,
+    ...(savedState.bounds.x !== undefined ? { x: savedState.bounds.x } : {}),
+    ...(savedState.bounds.y !== undefined ? { y: savedState.bounds.y } : {}),
+    minWidth: 400,
+    minHeight: 300,
     title: 'MyLifeOS',
     backgroundColor: '#F7F7F5',
     icon: path.join(__dirname, '../assets/icon.ico'),
@@ -485,6 +685,10 @@ function createWindow(): void {
   });
 
   mainWindow.setMenuBarVisibility(false);
+
+  if (savedState.isMaximized) {
+    mainWindow.maximize();
+  }
 
   const loadTarget = resolveWindowLoadTarget({
     appRoot: path.join(__dirname, '..'),
@@ -527,6 +731,21 @@ function createWindow(): void {
     }
   } catch (e) {}
 
+  mainWindow.on('resize', scheduleWindowStateSave);
+  mainWindow.on('move', scheduleWindowStateSave);
+  mainWindow.on('maximize', scheduleWindowStateSave);
+  mainWindow.on('unmaximize', scheduleWindowStateSave);
+
+  mainWindow.on('close', (event) => {
+    // Closing hides the window into the tray unless the user disabled it or
+    // quit from the tray menu / app.quit().
+    if (!isQuitting && isMinimizeToTrayEnabled()) {
+      event.preventDefault();
+      flushWindowState();
+      mainWindow?.hide();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -538,14 +757,7 @@ if (!gotSingleInstanceLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (!mainWindow) return;
-
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-
-    mainWindow.show();
-    mainWindow.focus();
+    showMainWindow();
   });
 
   app.whenReady().then(() => {
@@ -556,14 +768,21 @@ if (!gotSingleInstanceLock) {
     restorePersistedTimers();
     registerPomodoroIpc();
     registerStorageIpc();
+    registerDialogIpc();
+    createTray();
     createWindow();
   });
 
   app.on('before-quit', () => {
+    isQuitting = true;
+    flushWindowState();
     flushPendingStorageWrites();
+    destroyTray();
   });
 
   app.on('window-all-closed', () => {
+    // With "minimize to tray" on, closing hides the window, so this only fires
+    // when the user actually quits.
     if (process.platform !== 'darwin') {
       app.quit();
     }

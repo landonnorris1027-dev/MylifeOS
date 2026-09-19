@@ -7,6 +7,7 @@ export const KEYS = {
   PROFILE_SETTINGS: 'mylifeos_profile_settings',
   PLANNER_SETTINGS: 'mylifeos_planner_settings',
   RECOVERY_POINTS: 'mylifeos_recovery_points',
+  DESKTOP_SETTINGS: 'mylifeos_desktop_settings',
 } as const;
 
 export const DATA_SCHEMA_VERSION = 4;
