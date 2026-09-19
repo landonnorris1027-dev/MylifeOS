@@ -1,5 +1,6 @@
 import { DailyData, Goal, Habit } from '../../types';
 import { ImportDataResult, exportBackupJSON, importBackupJSON } from './backupService';
+import { formatDateLocal } from './dateUtils';
 import { DATA_SCHEMA_VERSION, KEYS, getStorageItem, safeParse, setStorageItem } from './localStorageStore';
 
 export type RecoveryPointReason = 'auto-daily' | 'pre-import' | 'pre-recovery-restore';
@@ -14,13 +15,6 @@ export interface RecoveryPoint {
 }
 
 const MAX_RECOVERY_POINTS = 7;
-
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -73,12 +67,14 @@ export const createRecoveryPoint = (
   if (!hasBackupContent(habits, goals, dailyLogs)) return null;
 
   const now = new Date();
-  const today = formatLocalDate(now);
+  const today = formatDateLocal(now);
   const existingPoints = getRecoveryPoints();
 
   if (!options.force && reason === 'auto-daily') {
+    // createdAt is a UTC ISO string; compare against the local calendar day
+    // instead of slicing the UTC date to avoid timezone mismatches.
     const hasTodayAutomaticPoint = existingPoints.some((point) => (
-      point.reason === 'auto-daily' && point.createdAt.slice(0, 10) === today
+      point.reason === 'auto-daily' && formatDateLocal(new Date(point.createdAt)) === today
     ));
     if (hasTodayAutomaticPoint) return null;
   }

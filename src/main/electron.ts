@@ -3,6 +3,7 @@ console.log('--- ELECTRON PROCESS STARTING ---');
 import { app, BrowserWindow, ipcMain, Notification } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { AppDataStore } from './app-data-store';
 import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
 import { resolveWindowLoadTarget } from './electron-window-target';
 import type {
@@ -18,13 +19,16 @@ try {
   app.commandLine.appendSwitch('disable-gpu');
 } catch (e) {}
 
-type AppDataStore = Record<string, string>;
+const RECOVERY_POINTS_KEY = 'mylifeos_recovery_points';
 
 let mainWindow: BrowserWindow | null = null;
 const activeTimers = new Map<string, MainTimer>();
 const pendingRecoveries: PomodoroRecoveryData[] = [];
 let timerStateFilePath = '';
 let appDataFilePath = '';
+let recoveryPointsFilePath = '';
+let appDataStore: AppDataStore | null = null;
+let recoveryPointsStore: AppDataStore | null = null;
 
 function ensureDirectoryForFile(filePath: string): void {
   const dir = path.dirname(filePath);
@@ -49,32 +53,56 @@ function ensureAppDataPath(): string {
   return appDataFilePath;
 }
 
-function readAppDataStore(): AppDataStore {
-  try {
-    const filePath = ensureAppDataPath();
-    ensureDirectoryForFile(filePath);
-
-    if (!fs.existsSync(filePath)) {
-      return {};
-    }
-
-    const raw = fs.readFileSync(filePath, 'utf8');
-    if (!raw.trim()) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch (error) {
-    console.error('[MyLifeOS] Failed to read app data store:', error);
-    return {};
+function ensureRecoveryPointsPath(): string {
+  if (!recoveryPointsFilePath) {
+    recoveryPointsFilePath = path.join(app.getPath('userData'), 'recovery-points.json');
   }
+
+  return recoveryPointsFilePath;
 }
 
-function writeAppDataStore(store: AppDataStore): void {
-  const filePath = ensureAppDataPath();
-  ensureDirectoryForFile(filePath);
-  fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf8');
+function getAppDataStore(): AppDataStore {
+  if (!appDataStore) {
+    appDataStore = new AppDataStore({ filePath: ensureAppDataPath() });
+  }
+
+  return appDataStore;
+}
+
+function getRecoveryPointsStore(): AppDataStore {
+  if (!recoveryPointsStore) {
+    recoveryPointsStore = new AppDataStore({ filePath: ensureRecoveryPointsPath() });
+    migrateLegacyRecoveryPoints();
+  }
+
+  return recoveryPointsStore;
+}
+
+/**
+ * Moves legacy recovery points out of the hot app-data.json file into the
+ * dedicated recovery-points.json store, shrinking the hot storage path.
+ */
+function migrateLegacyRecoveryPoints(): void {
+  const store = getAppDataStore();
+  const legacy = store.get(RECOVERY_POINTS_KEY);
+  if (legacy === null || !recoveryPointsStore) return;
+
+  if (recoveryPointsStore.get(RECOVERY_POINTS_KEY) === null) {
+    recoveryPointsStore.set(RECOVERY_POINTS_KEY, legacy);
+    recoveryPointsStore.flush();
+  }
+
+  store.set(RECOVERY_POINTS_KEY, null);
+  store.flush();
+}
+
+function getStorageStoreForKey(key: string): AppDataStore {
+  return key === RECOVERY_POINTS_KEY ? getRecoveryPointsStore() : getAppDataStore();
+}
+
+function flushPendingStorageWrites(): void {
+  appDataStore?.flush();
+  recoveryPointsStore?.flush();
 }
 
 function persistActiveTimers(): void {
@@ -421,9 +449,7 @@ function registerStorageIpc(): void {
       return;
     }
 
-    const store = readAppDataStore();
-    const value = Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
-    event.returnValue = typeof value === 'string' ? value : null;
+    event.returnValue = getStorageStoreForKey(key).get(key);
   });
 
   ipcMain.on('storage-set-sync', (event, { key, value }: { key: unknown; value: unknown }) => {
@@ -432,22 +458,11 @@ function registerStorageIpc(): void {
       return;
     }
 
-    const store = readAppDataStore();
-    if (value === null || value === undefined) {
-      delete store[key];
-    } else {
-      store[key] = String(value);
-    }
-    try {
-      writeAppDataStore(store);
-      event.returnValue = { ok: true };
-    } catch (error) {
-      console.error('[MyLifeOS] Failed to write app data store:', error);
-      event.returnValue = {
-        ok: false,
-        error: error instanceof Error ? error.message : 'Failed to write app data store',
-      };
-    }
+    // Writes land in the in-memory cache immediately and are flushed to disk
+    // in a debounced batch (and synchronously on before-quit). If a flush
+    // fails, the cache rolls back to the on-disk state.
+    getStorageStoreForKey(key).set(key, value === null || value === undefined ? null : String(value));
+    event.returnValue = { ok: true };
   });
 }
 
@@ -536,10 +551,16 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     ensureTimerStatePath();
     ensureAppDataPath();
+    getAppDataStore();
+    getRecoveryPointsStore();
     restorePersistedTimers();
     registerPomodoroIpc();
     registerStorageIpc();
     createWindow();
+  });
+
+  app.on('before-quit', () => {
+    flushPendingStorageWrites();
   });
 
   app.on('window-all-closed', () => {
