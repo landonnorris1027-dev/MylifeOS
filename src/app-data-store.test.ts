@@ -26,7 +26,7 @@ const createFakeFs = (initialFiles: Record<string, string> = {}): FakeFs => {
     files,
     existsSync: jest.fn((target: unknown) => {
       const targetPath = String(target);
-      return files.has(targetPath) || !targetPath.endsWith('.json');
+      return files.has(targetPath) || targetPath === path.dirname(FILE_PATH);
     }),
     mkdirSync: jest.fn(),
     readFileSync: jest.fn((target: unknown) => {
@@ -95,6 +95,81 @@ const createStore = (fakeFs: FakeFs, scheduler: FakeScheduler) =>
   });
 
 describe('AppDataStore', () => {
+  it('retains the whole failed snapshot for retry and blocks conflicting edits', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: 'old', b: 'old' }) });
+    const store = createStore(fakeFs, createFakeScheduler());
+    store.set('a', 'new'); store.set('b', 'new');
+    expect(store.getStatus().state).toBe('saving');
+    fakeFs.writeFileSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+    expect(store.flush().ok).toBe(false);
+    expect(store.snapshot()).toEqual({ a: 'old', b: 'old' });
+    expect(store.snapshot(true)).toEqual({ a: 'new', b: 'new' });
+    expect(store.getStatus()).toMatchObject({ state: 'error', hasPending: true });
+    expect(() => store.set('a', 'conflict')).toThrow();
+    expect(store.flush().ok).toBe(true);
+    expect(store.getStatus()).toMatchObject({ state: 'saved', hasPending: false });
+    expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: 'new', b: 'new' });
+  });
+
+  it('commits a multi-key snapshot in one replacement and reports no success on failure', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: 'old', b: 'old' }) });
+    const store = createStore(fakeFs, createFakeScheduler());
+    fakeFs.writeFileSync.mockImplementationOnce(() => { throw new Error('denied'); });
+    expect(store.commit({ a: 'new', b: 'new' }).ok).toBe(false);
+    expect(store.snapshot()).toEqual({ a: 'old', b: 'old' });
+    expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: 'old', b: 'old' });
+    expect(store.flush().ok).toBe(true);
+    expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: 'new', b: 'new' });
+  });
+
+  it('archives both corrupt copies before explicit restoration', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: '{broken', [`${FILE_PATH}.bak`]: 'null' });
+    const store = createStore(fakeFs, createFakeScheduler());
+    expect(store.commit({ a: 'restored' }).ok).toBe(false);
+    expect(store.commit({ a: 'restored' }, true).ok).toBe(true);
+    const archives = Array.from(fakeFs.files.entries()).filter(([key]) => key.includes('.corrupt-'));
+    expect(archives.map(([, value]) => value).sort()).toEqual(['{broken', 'null'].sort());
+    expect(store.get('a')).toBe('restored');
+    expect(store.getStatus().state).toBe('saved');
+  });
+
+  it('does not touch damaged files when archiving fails', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: '{broken' });
+    const store = createStore(fakeFs, createFakeScheduler());
+    fakeFs.copyFileSync.mockImplementationOnce(() => { throw new Error('archive denied'); });
+    expect(store.commit({ a: 'restored' }, true).ok).toBe(false);
+    expect(fakeFs.files.get(FILE_PATH)).toBe('{broken');
+    expect(store.getStatus().state).toBe('recovery');
+  });
+
+  it('uses a valid backup when nested business JSON is corrupted', () => {
+    const backup = { mylifeos_habits: '[]', mylifeos_daily_logs: '{}' };
+    const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ mylifeos_habits: '{broken' }), [`${FILE_PATH}.bak`]: JSON.stringify(backup) });
+    const store = createStore(fakeFs, createFakeScheduler());
+    expect(store.snapshot()).toEqual(backup);
+  });
+
+  it.each(['[{}]', '[{"id":"h","name":"Habit","priority":"P1","dailyQuota":1e309,"defaultDurationMinutes":25,"effectiveType":"permanent"}]'])(
+    'rejects malformed habit data even when the outer JSON parses: %s', raw => {
+      const backup = { mylifeos_habits: '[]' };
+      const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ mylifeos_habits: raw }), [`${FILE_PATH}.bak`]: JSON.stringify(backup) });
+      const store = createStore(fakeFs, createFakeScheduler());
+      expect(store.snapshot()).toEqual(backup);
+      expect(() => store.set('mylifeos_habits', raw)).toThrow();
+    },
+  );
+
+  it('preserves the previous backup when copying its replacement is interrupted', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: 'current' }), [`${FILE_PATH}.bak`]: JSON.stringify({ a: 'previous' }) });
+    const store = createStore(fakeFs, createFakeScheduler());
+    fakeFs.copyFileSync.mockImplementationOnce((_source, destination) => {
+      fakeFs.files.set(String(destination), '{partial'); throw new Error('disk full');
+    });
+    store.set('a', 'new');
+    expect(store.flush().ok).toBe(false);
+    expect(JSON.parse(fakeFs.files.get(`${FILE_PATH}.bak`)!)).toEqual({ a: 'previous' });
+    expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: 'current' });
+  });
   it('atomically replaces an existing file and keeps its previous complete version', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mylifeos-durable-store-'));
     const filePath = path.join(tempDir, 'app-data.json');
@@ -252,7 +327,7 @@ describe('AppDataStore', () => {
     expect(store.get('a')).toBe('old');
   });
 
-  it('recovers from a corrupted file by starting empty', () => {
+  it('blocks writes when both durable copies are unreadable', () => {
     const fakeFs = createFakeFs({ [FILE_PATH]: '{ not json' });
     const logger = { error: jest.fn() };
     const scheduler = createFakeScheduler();
@@ -268,9 +343,10 @@ describe('AppDataStore', () => {
     expect(store.get('anything')).toBeNull();
     expect(logger.error).toHaveBeenCalled();
 
-    store.set('a', '1');
+    expect(() => store.set('a', '1')).toThrow();
     scheduler.runPending();
-    expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: '1' });
+    expect(store.getStatus().state).toBe('recovery');
+    expect(fakeFs.files.get(FILE_PATH)).toBe('{ not json');
   });
 
   it('loads the last complete backup when the primary file is corrupted', () => {
@@ -302,6 +378,26 @@ describe('AppDataStore', () => {
     const scheduler = createFakeScheduler();
     const store = createStore(fakeFs, scheduler);
 
+    store.set('a', 'repaired');
+    fakeFs.renameSync.mockImplementationOnce(() => {
+      throw new Error('process interrupted before replace');
+    });
+
+    expect(store.flush()).toEqual({ ok: false, error: 'process interrupted before replace' });
+    expect(fakeFs.files.get(`${FILE_PATH}.bak`)).toBe(durableBackup);
+    expect(store.get('a')).toBe('durable-backup');
+  });
+
+  it('preserves and loads a valid backup when the primary has the wrong JSON shape', () => {
+    const durableBackup = JSON.stringify({ a: 'durable-backup' });
+    const fakeFs = createFakeFs({
+      [FILE_PATH]: 'null',
+      [`${FILE_PATH}.bak`]: durableBackup,
+    });
+    const scheduler = createFakeScheduler();
+    const store = createStore(fakeFs, scheduler);
+
+    expect(store.get('a')).toBe('durable-backup');
     store.set('a', 'repaired');
     fakeFs.renameSync.mockImplementationOnce(() => {
       throw new Error('process interrupted before replace');

@@ -27,6 +27,7 @@ import {
 } from '../services/scheduling';
 import { getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
 import { DailyData, Task, isPriority } from '../types';
+import { isStorageReadOnly } from '../services/storage/localStorageStore';
 
 export type ViewMode = 'planner' | 'profile';
 
@@ -305,7 +306,7 @@ export const useAppController = () => {
 
   const loadData = useCallback((date: string) => {
     try {
-      const data = initializeDay(date);
+      const data = isStorageReadOnly() ? getDailyData(date) || { date, tasks: [] } : initializeDay(date);
       dispatch({ type: 'LOAD_DAY_DATA', dailyData: data });
     } catch (error) {
       reportStorageError(error);
@@ -314,6 +315,14 @@ export const useAppController = () => {
 
   useEffect(() => {
     loadData(state.selectedDate);
+  }, [loadData, state.selectedDate]);
+  useEffect(() => {
+    const refresh = () => {
+      loadData(state.selectedDate);
+      dispatch({ type: 'SET_TIMELINE_MODE', timelineMode: getPlannerSettings().timelineMode });
+    };
+    window.addEventListener('mylifeos-storage-restored', refresh);
+    return () => window.removeEventListener('mylifeos-storage-restored', refresh);
   }, [loadData, state.selectedDate]);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 const en = {
+  import_summary_extended: '{goals} goals, {tasks} tasks, {settings} setting groups; {filteredGoals} invalid goals filtered.',
   app_title: 'MyLifeOS',
   app_subtitle: 'Daily focus planning system',
   switch_language: 'Switch language',

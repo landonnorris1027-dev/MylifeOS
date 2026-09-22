@@ -6,6 +6,10 @@ const validInvokeChannels = new Set<string>([
   'pomodoro-get-pending-recoveries',
   'pomodoro-resolve-recovery',
   'dialog-save-backup',
+  'storage-status',
+  'storage-retry',
+  'storage-pending-snapshot',
+  'storage-commit',
 ]);
 
 const validSendChannels = new Set<string>([
@@ -18,6 +22,7 @@ const validSendChannels = new Set<string>([
 const validOnChannels = new Set<string>([
   'pomodoro-update',
   'storage-write-error',
+  'storage-status',
 ]);
 
 contextBridge.exposeInMainWorld('electronAPI', {

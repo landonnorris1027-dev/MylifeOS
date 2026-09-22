@@ -4,9 +4,11 @@ import type {
   PomodoroRecoveryResolution,
   PomodoroTimerData,
   PomodoroUpdateData,
+  StorageWriteFailure,
 } from './services/electronIPC';
 
 export {};
+import type { StorageStatus, StorageTransaction, StorageResult } from './main/storage-contract';
 
 interface TimerIdPayload {
   timerId: string;
@@ -25,10 +27,6 @@ interface StorageSetResult {
   error?: string;
 }
 
-interface StorageWriteFailure {
-  error?: string;
-}
-
 interface SaveBackupPayload {
   filename: string;
   content: string;
@@ -42,6 +40,11 @@ interface SaveBackupResult {
 }
 
 interface ElectronAPI {
+  invoke(channel: 'storage-status'): Promise<StorageStatus>;
+  invoke(channel: 'storage-retry'): Promise<StorageResult & StorageStatus>;
+  invoke(channel: 'storage-pending-snapshot'): Promise<Record<string, string>>;
+  invoke(channel: 'storage-commit', payload: StorageTransaction): Promise<StorageResult>;
+  on(channel: 'storage-status', callback: (data: StorageStatus) => void): () => void;
   invoke(channel: 'pomodoro-start', payload: PomodoroTimerData): Promise<PomodoroUpdateData>;
   invoke(channel: 'pomodoro-get-active-timers'): Promise<PomodoroUpdateData[]>;
   invoke(channel: 'pomodoro-get-pending-recoveries'): Promise<PomodoroRecoveryData[]>;

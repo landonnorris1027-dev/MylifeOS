@@ -15,6 +15,7 @@ const downloads = path.join(work, 'downloads');
 const errors = [];
 const children = new Set();
 let current;
+let injectingStorageFailure = false;
 const log = message => console.log(`[regression] ${message}`);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const cleanup = () => {
@@ -46,7 +47,10 @@ async function launch() {
       pending.delete(message.id);
     }
     if (message.method === 'Runtime.exceptionThrown') errors.push(JSON.stringify(message.params));
-    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') errors.push(JSON.stringify(message.params.args));
+    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
+      const detail = JSON.stringify(message.params.args);
+      if (!(injectingStorageFailure && detail.includes('Storage write failed'))) errors.push(detail);
+    }
   });
   const send = (method, params = {}) => new Promise((resolve, reject) => {
     const next = ++id;
@@ -66,7 +70,7 @@ async function launch() {
   await send('Runtime.enable');
   const session = { child, client, send, evaluate };
   current = session;
-  await until(async () => evaluate("document.readyState === 'complete' && !!document.querySelector('#root button')"));
+  await until(async () => evaluate("document.readyState === 'complete' && !!document.querySelector('#root button, #root input[type=file]')"));
   return session;
 }
 
@@ -229,6 +233,108 @@ async function main() {
   assert.equal((await invoke('pomodoro-get-pending-recoveries')).length, 0);
   assert.equal((await readLogs())[day].tasks.find(t => t.id === task.id).status, 'completed');
   log('PASS offline expiry recovery and task completion through UI');
+
+  const appDataPath = path.join(profile, 'app-data.json');
+  await current.evaluate("window.electronAPI.sendSync('storage-set-sync', {key:'durability_probe', value:'baseline'})");
+  await delay(500);
+  let lastDurableValue = JSON.parse(fs.readFileSync(appDataPath, 'utf8')).durability_probe;
+  assert.equal(lastDurableValue, 'baseline');
+
+  for (const killDelayMs of [0, 250, 300, 350]) {
+    const candidate = `candidate-${killDelayMs}`;
+    await current.evaluate(`window.electronAPI.sendSync('storage-set-sync', {
+      key: 'durability_probe',
+      value: ${JSON.stringify(candidate)}
+    })`);
+    await delay(killDelayMs);
+    await stop();
+
+    const primary = JSON.parse(fs.readFileSync(appDataPath, 'utf8'));
+    assert.ok(
+      primary.durability_probe === lastDurableValue || primary.durability_probe === candidate,
+      `Crash at ${killDelayMs} ms produced neither the old nor complete new state`,
+    );
+    const backupFile = `${appDataPath}.bak`;
+    if (fs.existsSync(backupFile)) JSON.parse(fs.readFileSync(backupFile, 'utf8'));
+    lastDurableValue = primary.durability_probe;
+
+    await launch();
+    const restoredValue = await current.evaluate(
+      "window.electronAPI.sendSync('storage-get-sync', {key:'durability_probe'})",
+    );
+    assert.equal(restoredValue, lastDurableValue);
+  }
+  log('PASS forced termination around the 300 ms write boundary preserves complete JSON');
+
+  // A directory at the temporary-file path causes a real Windows write denial,
+  // without changing permissions or touching anything outside this disposable profile.
+  await until(async () => (await invoke('storage-status')).state === 'saved');
+  await invoke('pomodoro-start', { timerId: 'p0-break-guard', duration: 2, isFocusMode: false, notificationsEnabled: false });
+  const blockedTemporaryFile = path.join(profile, 'app-data.json.tmp');
+  fs.mkdirSync(blockedTemporaryFile);
+  injectingStorageFailure = true;
+  await current.evaluate("window.electronAPI.sendSync('storage-set-sync', {key:'p0_pending_probe', value:'retry-me'})");
+  await until(async () => (await invoke('storage-status')).state === 'error');
+  await delay(2200);
+  const guardedTimer = (await invoke('pomodoro-get-active-timers')).find(timer => timer.timerId === 'p0-break-guard');
+  assert.ok(guardedTimer && !guardedTimer.isActive && guardedTimer.remaining > 0, 'Break must pause without losing completion during save failure');
+  assert.equal(await current.evaluate("window.electronAPI.sendSync('storage-get-sync', {key:'p0_pending_probe'})"), null);
+  assert.equal((await invoke('storage-pending-snapshot')).p0_pending_probe, 'retry-me');
+  await until(() => current.evaluate("document.body.textContent.includes('Pending changes are retained')"));
+  if (process.env.MYLIFEOS_P0_SCREENSHOT_OUT) {
+    const screenshot = await current.send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(process.env.MYLIFEOS_P0_SCREENSHOT_OUT, Buffer.from(screenshot.data, 'base64'));
+  }
+  // The checked target is one empty directory created immediately above.
+  assert.equal(path.dirname(blockedTemporaryFile), path.resolve(profile));
+  fs.rmdirSync(blockedTemporaryFile);
+  await clickText('Retry saving');
+  await until(async () => (await invoke('storage-status')).state === 'saved');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).p0_pending_probe, 'retry-me');
+  injectingStorageFailure = false;
+  assert.equal((await invoke('pomodoro-get-active-timers')).find(timer => timer.timerId === 'p0-break-guard').isActive, false);
+  await current.evaluate("window.electronAPI.send('pomodoro-stop', {timerId:'p0-break-guard'})");
+  await until(async () => !(await invoke('pomodoro-get-active-timers')).some(timer => timer.timerId === 'p0-break-guard'));
+  log('PASS real write failure, durable UI rollback, pending snapshot and retry');
+
+  const recoverySnapshot = await invoke('storage-pending-snapshot');
+  const atomicEntries = {
+    mylifeos_goals: recoverySnapshot.mylifeos_goals || '[]',
+    mylifeos_habits: recoverySnapshot.mylifeos_habits || '[]',
+    mylifeos_daily_logs: recoverySnapshot.mylifeos_daily_logs || '{}',
+    mylifeos_lang: 'en',
+    mylifeos_focus_settings: JSON.stringify({ soundEnabled: false, notificationsEnabled: false, breakDurationMinutes: 15 }),
+  };
+  assert.equal((await invoke('storage-commit', { entries: atomicEntries })).ok, true);
+  const committed = JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8'));
+  Object.entries(atomicEntries).forEach(([key, value]) => assert.equal(committed[key], value));
+  log('PASS transaction acknowledgement follows complete on-disk snapshot');
+
+  const restoreFixture = {
+    schemaVersion: 5, timestamp: new Date().toISOString(),
+    goals: JSON.parse(atomicEntries.mylifeos_goals), habits: JSON.parse(atomicEntries.mylifeos_habits), dailyLogs: JSON.parse(atomicEntries.mylifeos_daily_logs),
+    settings: { language: 'en', focus: JSON.parse(atomicEntries.mylifeos_focus_settings), planner: { timelineMode: 'daytime' }, profile: { weeklyTargetMinutes: 600 }, desktop: { minimizeToTray: true } },
+  };
+  const restorePath = path.join(downloads, 'p0-recovery.json');
+  fs.writeFileSync(restorePath, JSON.stringify(restoreFixture));
+  await stop();
+  fs.writeFileSync(path.join(profile, 'app-data.json'), '{broken-primary');
+  fs.writeFileSync(path.join(profile, 'app-data.json.bak'), '{broken-backup');
+  await launch();
+  assert.equal((await invoke('storage-status')).state, 'recovery');
+  assert.equal((await current.evaluate("window.electronAPI.sendSync('storage-set-sync', {key:'mylifeos_lang', value:'en'})")).ok, false);
+  assert.equal(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8'), '{broken-primary');
+  const recoveryDom = await current.send('DOM.getDocument');
+  const recoveryInput = await current.send('DOM.querySelector', { nodeId: recoveryDom.root.nodeId, selector: 'input[type=file]' });
+  await current.send('DOM.setFileInputFiles', { nodeId: recoveryInput.nodeId, files: [restorePath] });
+  await until(() => current.evaluate("document.body.textContent.includes('确认恢复') || document.body.textContent.includes('Confirm recovery')"));
+  await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => ['确认恢复','Confirm recovery'].includes(b.textContent.trim())).click()");
+  await until(async () => (await invoke('storage-status')).state === 'saved');
+  assert.ok(fs.readdirSync(profile).some(name => name.startsWith('app-data.json.corrupt-')));
+  assert.ok(fs.readdirSync(profile).some(name => name.startsWith('app-data.json.bak.corrupt-')));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_focus_settings, atomicEntries.mylifeos_focus_settings);
+  log('PASS corruption blocks empty overwrite; UI restore archives originals and restores settings');
+
   assert.deepEqual(errors, [], 'No renderer errors across the regression run');
   if (process.env.MYLIFEOS_REGRESSION_SCREENSHOT_OUT) {
     await clickText('Profile');

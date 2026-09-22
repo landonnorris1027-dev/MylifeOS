@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, Tray } from 'e
 import fs from 'fs';
 import path from 'path';
 import { AppDataStore, AppDataStoreFlushResult } from './app-data-store';
+import type { StorageStatus, StorageTransaction } from './storage-contract';
 import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
 import { resolveWindowLoadTarget } from './electron-window-target';
 import { migrateRecoveryPoints } from './recovery-points-migration';
@@ -42,6 +43,8 @@ let appDataStore: AppDataStore | null = null;
 let recoveryPointsStore: AppDataStore | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+let discardOnQuit = false;
+let quitPromptOpen = false;
 let windowStateSaveTimer: NodeJS.Timeout | null = null;
 
 function ensureDirectoryForFile(filePath: string): void {
@@ -80,6 +83,7 @@ function getAppDataStore(): AppDataStore {
     appDataStore = new AppDataStore({
       filePath: ensureAppDataPath(),
       onFlushError: broadcastStorageWriteFailure,
+      onStatusChange: broadcastStorageStatus,
     });
   }
 
@@ -92,8 +96,18 @@ function getRecoveryPointsStore(): AppDataStore {
   const candidateStore = new AppDataStore({
     filePath: ensureRecoveryPointsPath(),
     onFlushError: broadcastStorageWriteFailure,
+    onStatusChange: broadcastStorageStatus,
   });
-  const result = migrateRecoveryPoints(getAppDataStore(), candidateStore, RECOVERY_POINTS_KEY);
+  if (getAppDataStore().getStatus().state === 'recovery' || candidateStore.getStatus().state === 'recovery') {
+    recoveryPointsStore = candidateStore;
+    return candidateStore;
+  }
+  let result;
+  try { result = migrateRecoveryPoints(getAppDataStore(), candidateStore, RECOVERY_POINTS_KEY); }
+  catch (error) {
+    console.error('[MyLifeOS] Recovery migration deferred:', error);
+    return getAppDataStore();
+  }
   if (!result.ok) {
     console.error('[MyLifeOS] Failed to migrate recovery points:', result.error ?? 'Unknown write failure');
     return result.activeStore as AppDataStore;
@@ -116,9 +130,25 @@ function broadcastStorageWriteFailure(result: AppDataStoreFlushResult): void {
   });
 }
 
-function flushPendingStorageWrites(): void {
-  appDataStore?.flush();
-  recoveryPointsStore?.flush();
+function getStorageStatus(): StorageStatus {
+  const statuses = [appDataStore, recoveryPointsStore].filter((store): store is AppDataStore => !!store).map(store => store.getStatus());
+  const worst = statuses.find(s => s.state === 'recovery') || statuses.find(s => s.state === 'error')
+    || statuses.find(s => s.state === 'saving') || { state: 'saved' as const, hasPending: false };
+  return { ...worst, hasPending: statuses.some(s => s.hasPending) };
+}
+
+function broadcastStorageStatus(): void {
+  const status = getStorageStatus();
+  if (status.state === 'error' || status.state === 'recovery') pauseTimersForStorageFailure();
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) window.webContents.send('storage-status', status);
+  });
+}
+
+function flushPendingStorageWrites(): boolean {
+  const results = [appDataStore, recoveryPointsStore].filter((store): store is AppDataStore => !!store)
+    .map(store => store.getStatus().hasPending ? store.flush().ok : true);
+  return results.every(Boolean);
 }
 function ensureWindowStatePath(): string {
   if (!windowStateFilePath) {
@@ -216,9 +246,6 @@ function showMainWindow(): void {
 }
 
 function quitApp(): void {
-  isQuitting = true;
-  flushWindowState();
-  flushPendingStorageWrites();
   app.quit();
 }
 
@@ -461,6 +488,20 @@ function clearTimerInterval(timer: MainTimer): void {
   }
 }
 
+function pauseTimersForStorageFailure(): void {
+  let changed = false;
+  activeTimers.forEach(timer => {
+    if (!timer.isActive) return;
+    timer.remaining = Math.max(1, timer.endTime - Date.now());
+    timer.isActive = false;
+    timer.updatedAt = Date.now();
+    clearTimerInterval(timer);
+    broadcastTimerUpdate(timer);
+    changed = true;
+  });
+  if (changed) persistActiveTimers();
+}
+
 
 function showTimerNotification(timer: MainTimer): void {
   if (timer.notificationsEnabled === false) return;
@@ -519,6 +560,8 @@ function startTicker(timer: MainTimer): void {
 }
 
 function upsertTimer(timerData: PomodoroTimerData): MainTimer {
+  const storageState = getStorageStatus().state;
+  if (storageState === 'error' || storageState === 'recovery') throw new Error('Restore storage before starting a timer');
   const previous = activeTimers.get(timerData.timerId);
   if (previous) {
     clearTimerInterval(previous);
@@ -606,6 +649,7 @@ function registerPomodoroIpc(): void {
   );
 
   ipcMain.on('pomodoro-toggle', (_event, { timerId }: { timerId: string }) => {
+    if (['error', 'recovery'].includes(getStorageStatus().state)) return;
     const timer = activeTimers.get(timerId);
     if (!timer) return;
 
@@ -640,6 +684,26 @@ function registerPomodoroIpc(): void {
 
 
 function registerStorageIpc(): void {
+  ipcMain.handle('storage-status', () => getStorageStatus());
+  ipcMain.handle('storage-retry', () => ({ ok: flushPendingStorageWrites(), ...getStorageStatus() }));
+  ipcMain.handle('storage-pending-snapshot', () => getAppDataStore().snapshot(true));
+  ipcMain.handle('storage-commit', (_event, payload: StorageTransaction) => {
+    if (activeTimers.size > 0) return { ok: false, error: 'Stop the current timer before restoring a backup.' };
+    const allowed = new Set(['mylifeos_goals', 'mylifeos_habits', 'mylifeos_daily_logs', LANGUAGE_KEY,
+      'mylifeos_focus_settings', 'mylifeos_profile_settings', 'mylifeos_planner_settings', DESKTOP_SETTINGS_KEY]);
+    if (!payload || !payload.entries || typeof payload.entries !== 'object' || Array.isArray(payload.entries)
+      || Object.entries(payload.entries).some(([key, value]) => !allowed.has(key) || typeof value !== 'string')
+      || !['mylifeos_goals', 'mylifeos_habits', 'mylifeos_daily_logs'].every(key => key in payload.entries)) {
+      return { ok: false, error: 'Invalid storage transaction' };
+    }
+    if (payload.recover === true && recoveryPointsStore?.getStatus().state === 'recovery') {
+      const recoveryRepair = recoveryPointsStore.commit({ [RECOVERY_POINTS_KEY]: '[]' }, true);
+      if (!recoveryRepair.ok) return recoveryRepair;
+    }
+    const result = getAppDataStore().commit(payload.entries, payload.recover === true);
+    if (result.ok) refreshTrayMenu();
+    return result;
+  });
   ipcMain.on('storage-get-sync', (event, { key }: { key: unknown }) => {
     if (typeof key !== 'string') {
       event.returnValue = null;
@@ -658,8 +722,14 @@ function registerStorageIpc(): void {
     // Writes land in the in-memory cache immediately and are flushed to disk
     // in a debounced batch (and synchronously on before-quit). If a flush
     // fails, the cache rolls back to the on-disk state.
-    getStorageStoreForKey(key).set(key, value === null || value === undefined ? null : String(value));
-    event.returnValue = { ok: true };
+    try {
+      const store = getStorageStoreForKey(key);
+      store.set(key, value === null || value === undefined ? null : String(value));
+      // Recovery points protect an imminent destructive action; acknowledge only after flush.
+      event.returnValue = key === RECOVERY_POINTS_KEY ? store.flush() : { ok: true };
+    } catch (error) {
+      event.returnValue = { ok: false, error: error instanceof Error ? error.message : 'Storage unavailable' };
+    }
   });
 }
 
@@ -769,6 +839,7 @@ if (!gotSingleInstanceLock) {
     getAppDataStore();
     getRecoveryPointsStore();
     restorePersistedTimers();
+    if (['error', 'recovery'].includes(getStorageStatus().state)) pauseTimersForStorageFailure();
     registerPomodoroIpc();
     registerStorageIpc();
     registerDialogIpc();
@@ -776,10 +847,29 @@ if (!gotSingleInstanceLock) {
     createWindow();
   });
 
-  app.on('before-quit', () => {
+  app.on('before-quit', (event) => {
+    if (!discardOnQuit && !flushPendingStorageWrites()) {
+      event.preventDefault();
+      isQuitting = false;
+      if (quitPromptOpen) return;
+      quitPromptOpen = true;
+      showMainWindow();
+      const zh = getAppDataStore().get(LANGUAGE_KEY) !== 'en';
+      void dialog.showMessageBox(mainWindow!, {
+        type: 'warning',
+        message: zh ? '有修改尚未保存。' : 'Some changes have not been saved.',
+        detail: zh ? '可重试保存，或返回应用导出待保存数据。放弃并退出会丢失这些修改。' : 'Retry saving or return to export pending changes. Discarding loses these changes.',
+        buttons: zh ? ['返回应用', '重试保存', '放弃并退出'] : ['Return to app', 'Retry saving', 'Discard and quit'],
+        defaultId: 0, cancelId: 0,
+      }).then(({ response }) => {
+        quitPromptOpen = false;
+        if (response === 2) { discardOnQuit = true; app.quit(); }
+        else if (response === 1) app.quit();
+      }).catch(() => { quitPromptOpen = false; });
+      return;
+    }
     isQuitting = true;
     flushWindowState();
-    flushPendingStorageWrites();
     destroyTray();
   });
 

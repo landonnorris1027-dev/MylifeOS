@@ -8,6 +8,7 @@ import { electronIPC } from '../services/electronIPC';
 import type { PomodoroRecoveryData } from '../services/electronIPC';
 import type { TimerSessionSnapshot } from '../components/PomodoroTimer';
 import type { DailyData, Task } from '../types';
+import { setStorageReadOnly } from '../services/storage/localStorageStore';
 
 jest.mock('../services/electronIPC', () => ({
   electronIPC: {
@@ -145,6 +146,25 @@ describe('useAppController scheduling guards', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it('shows persisted tasks without reconciling habits while storage is read-only', async () => {
+    addHabit('Unreconciled Habit', 'P1', 1, 25);
+    const day = '2026-04-22';
+    const task = { id: 'manual', name: 'Durable manual task', priority: 'P1', status: 'inbox', date: day, durationMinutes: 25 };
+    const durable = JSON.stringify({ [day]: { date: day, tasks: [task] } });
+    localStorage.setItem(DAILY_LOGS_KEY, durable);
+    setStorageReadOnly(true);
+    try {
+      await act(async () => {
+        root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+        await drainMicrotasks();
+      });
+      await act(async () => { controller?.actions.selectDate(day); });
+      expect(controller?.state.dailyData?.tasks).toEqual([task]);
+      expect(localStorage.getItem(DAILY_LOGS_KEY)).toBe(durable);
+      expect(controller?.state.alertConfig.isOpen).toBe(false);
+    } finally { setStorageReadOnly(false); }
   });
 
   it('shows an alert when a debounced desktop write fails', async () => {

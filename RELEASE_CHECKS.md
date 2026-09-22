@@ -88,6 +88,13 @@ renderer network independence, not a machine-wide firewall block.
 
 ## Manual desktop data-safety checks
 
+### P0 save reliability (0.1.2)
+
+- `npm run verify:p0-native`: isolated real Electron main process and filesystem; verifies save success/cancel/failure and quit return/retry/discard. Only native dialog choices are stubbed; this is not a visual Windows-dialog acceptance test. The harness terminates only its own processes.
+- `npm run test:packaged`: now also blocks the temporary-write path in its disposable profile, checks error status, durable reads, retained pending snapshot, paused break timer, and retry. It checks transaction acknowledgment against disk, then corrupts both copies and restores schema v5 through the recovery UI, asserting preserved original archives and restored settings.
+- Unit coverage includes browser quota failure, multi-key transaction failure/retry, malformed nested business data, interrupted backup replacement, corrupt-file archive failure, settings round-trip and old-format compatibility, pre-restore cancellation, read-only day loading and blocked custom task controls.
+- Continue the OS disk-full and native-dialog visual checks below in a disposable account. No claim of power-loss durability or live-profile installation follows from fault injection alone.
+
 Run the following checks in a disposable Windows account, virtual machine, or an
 isolated `--user-data-dir`. Never create disk-full or forced-crash conditions against
 the live `%APPDATA%\MyLifeOS` profile. Copy the test profile before each case and record

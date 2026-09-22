@@ -20,6 +20,8 @@ export interface DurableJsonReadResult {
   recoveredFromBackup: boolean;
 }
 
+export type DurableJsonValidator = (value: unknown) => boolean;
+
 const removeIfPresent = (filePath: string, fileSystem: DurableFileSystem): void => {
   try {
     if (fileSystem.existsSync(filePath)) {
@@ -40,12 +42,15 @@ const syncFile = (filePath: string, fileSystem: DurableFileSystem): void => {
   }
 };
 
-const containsCompleteJson = (filePath: string, fileSystem: DurableFileSystem): boolean => {
+const containsCompleteJson = (
+  filePath: string,
+  fileSystem: DurableFileSystem,
+  isValidValue: DurableJsonValidator,
+): boolean => {
   try {
     const raw = fileSystem.readFileSync(filePath, 'utf8');
     if (!raw.trim()) return false;
-    JSON.parse(raw);
-    return true;
+    return isValidValue(JSON.parse(raw));
   } catch {
     return false;
   }
@@ -59,10 +64,12 @@ export const writeTextAtomically = (
   filePath: string,
   content: string,
   fileSystem: DurableFileSystem = fs,
+  isValidPreviousValue: DurableJsonValidator = () => true,
 ): void => {
   const directory = path.dirname(filePath);
   const temporaryPath = `${filePath}.tmp`;
   const backupPath = `${filePath}.bak`;
+  const backupTemporaryPath = `${backupPath}.tmp`;
 
   if (!fileSystem.existsSync(directory)) {
     fileSystem.mkdirSync(directory, { recursive: true });
@@ -73,14 +80,20 @@ export const writeTextAtomically = (
   try {
     fileSystem.writeFileSync(temporaryPath, content, 'utf8');
     syncFile(temporaryPath, fileSystem);
-    if (fileSystem.existsSync(filePath) && containsCompleteJson(filePath, fileSystem)) {
-      fileSystem.copyFileSync(filePath, backupPath);
-      syncFile(backupPath, fileSystem);
+    if (
+      fileSystem.existsSync(filePath)
+      && containsCompleteJson(filePath, fileSystem, isValidPreviousValue)
+    ) {
+      fileSystem.copyFileSync(filePath, backupTemporaryPath);
+      syncFile(backupTemporaryPath, fileSystem);
+      fileSystem.renameSync(backupTemporaryPath, backupPath);
     }
     fileSystem.renameSync(temporaryPath, filePath);
-    syncFile(filePath, fileSystem);
+    // The candidate has already been flushed. Rename is the commit point:
+    // no fallible operation may report a failed transaction after replacement.
   } catch (error) {
     removeIfPresent(temporaryPath, fileSystem);
+    removeIfPresent(backupTemporaryPath, fileSystem);
     throw error;
   }
 };
@@ -88,6 +101,7 @@ export const writeTextAtomically = (
 export const readJsonWithBackup = (
   filePath: string,
   fileSystem: DurableFileSystem = fs,
+  isValidValue: DurableJsonValidator = () => true,
 ): DurableJsonReadResult | null => {
   const candidates = [filePath, `${filePath}.bak`];
 
@@ -98,8 +112,10 @@ export const readJsonWithBackup = (
     try {
       const raw = fileSystem.readFileSync(candidate, 'utf8');
       if (!raw.trim()) continue;
+      const value = JSON.parse(raw);
+      if (!isValidValue(value)) continue;
       return {
-        value: JSON.parse(raw),
+        value,
         recoveredFromBackup: index === 1,
       };
     } catch {

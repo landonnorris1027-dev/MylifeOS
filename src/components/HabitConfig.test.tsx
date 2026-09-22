@@ -10,6 +10,10 @@ const successfulImport: storage.ImportDataResult = {
   ok: true,
   message: '',
   importedHabitCount: 1,
+  importedGoalCount: 0,
+  importedTaskCount: 1,
+  importedSettingCount: 0,
+  filteredGoalCount: 0,
   importedDayCount: 1,
   filteredHabitCount: 0,
   filteredTaskCount: 0,
@@ -31,7 +35,7 @@ describe('HabitConfig restore safety', () => {
 
     jest.spyOn(storage, 'previewImportDataJSON').mockReturnValue(successfulImport);
     jest.spyOn(storage, 'getAllDataJSON').mockReturnValue('{"current":true}');
-    jest.spyOn(storage, 'importDataJSON').mockReturnValue(successfulImport);
+    jest.spyOn(storage, 'importDataJSON').mockResolvedValue(successfulImport);
     jest.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (this: FileReader) {
       Object.defineProperty(this, 'result', { configurable: true, value: '{"schemaVersion":2}' });
       this.onload?.({ target: this } as ProgressEvent<FileReader>);

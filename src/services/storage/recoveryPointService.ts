@@ -1,5 +1,5 @@
 import { DailyData, Goal, Habit } from '../../types';
-import { ImportDataResult, exportBackupJSON, importBackupJSON } from './backupService';
+import { ImportDataResult, exportBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
 import { formatDateLocal } from './dateUtils';
 import { DATA_SCHEMA_VERSION, KEYS, getStorageItem, safeParse, setStorageItem } from './localStorageStore';
 
@@ -64,7 +64,7 @@ export const createRecoveryPoint = (
   options: { force?: boolean } = {},
 ): RecoveryPoint | null => {
   const { habits, goals, dailyLogs } = readCurrentBackupData();
-  if (!hasBackupContent(habits, goals, dailyLogs)) return null;
+  if (!options.force && !hasBackupContent(habits, goals, dailyLogs)) return null;
 
   const now = new Date();
   const today = formatDateLocal(now);
@@ -92,6 +92,7 @@ export const createRecoveryPoint = (
   try {
     writeRecoveryPoints([point, ...existingPoints]);
   } catch (error) {
+    if (options.force) throw error;
     console.warn('MyLifeOS: Failed to create recovery point.', error);
     return null;
   }
@@ -103,13 +104,17 @@ export const createAutomaticRecoveryPoint = () => {
   return createRecoveryPoint('auto-daily');
 };
 
-export const restoreRecoveryPoint = (id: string): ImportDataResult => {
+export const restoreRecoveryPoint = async (id: string): Promise<ImportDataResult> => {
   const point = getRecoveryPoints().find((item) => item.id === id);
   if (!point) {
     return {
       ok: false,
       message: 'Recovery point not found',
       importedHabitCount: 0,
+      importedGoalCount: 0,
+      importedTaskCount: 0,
+      importedSettingCount: 0,
+      filteredGoalCount: 0,
       importedDayCount: 0,
       filteredHabitCount: 0,
       filteredTaskCount: 0,
@@ -118,6 +123,9 @@ export const restoreRecoveryPoint = (id: string): ImportDataResult => {
     };
   }
 
-  createRecoveryPoint('pre-recovery-restore', { force: true });
+  const preview = previewImportBackupJSON(point.backupJson);
+  if (!preview.ok) return preview;
+  try { createRecoveryPoint('pre-recovery-restore', { force: true }); }
+  catch (error) { return { ...preview, ok: false, message: error instanceof Error ? error.message : 'Recovery point creation failed' }; }
   return importBackupJSON(point.backupJson);
 };

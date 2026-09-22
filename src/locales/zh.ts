@@ -1,4 +1,5 @@
 const zh = {
+  import_summary_extended: '目标 {goals} 个，任务 {tasks} 条，设置 {settings} 组；过滤无效目标 {filteredGoals} 个。',
   app_title: 'MyLifeOS',
   app_subtitle: '每日专注规划系统',
   switch_language: '切换语言',

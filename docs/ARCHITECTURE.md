@@ -95,6 +95,21 @@ also reported to the renderer instead of failing silently. A forced process
 termination can still discard edits made during the 300 ms debounce window,
 but it cannot leave the last durable JSON partially overwritten.
 
+In 0.1.2, failed application-data flushes retain a candidate snapshot for retry or
+export, while reads return the last durable state. `storage-status` reports
+saving/saved/error/recovery; the renderer freezes editing, reads days without
+reconciliation, and main-process timers pause while storage is blocked. A failed
+quit flush keeps the app running unless the user explicitly discards changes.
+If neither copy is readable, writes are blocked until explicit recovery archives
+the original bytes. Business values are validated inside the outer string map.
+
+Backup schema v5 includes the five user preference groups in addition to business
+data. `storage-commit` atomically commits the complete imported business snapshot
+and acknowledges only after replacement. Recovery points are flushed before
+destructive operations. Old backups preserve preferences; unknown future versions
+are rejected. Browser-only imports use one atomic localStorage snapshot entry;
+desktop read errors never silently switch to the browser store.
+
 ## Data model
 
 Core renderer types are defined in [`src/types.ts`](../src/types.ts):

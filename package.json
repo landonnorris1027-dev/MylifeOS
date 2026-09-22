@@ -1,6 +1,6 @@
 {
   "name": "mylifeos",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -43,6 +43,7 @@
     "test:packaged": "node ./scripts/regression-packaged.js",
     "verify:packaged": "npm run smoke:packaged && npm run test:packaged",
     "verify:native": "node ./scripts/verify-native.js",
+    "verify:p0-native": "npm run build:main && node ./scripts/verify-p0-native.js",
     "prod": "npm run build:main && node ./scripts/start-electron.js",
     "electron:dev": "npm run build:main && concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
     "electron:build": "npm run verify:release && npm run clean:build && electron-builder --win --x64 --publish never && npm run verify:packaged"

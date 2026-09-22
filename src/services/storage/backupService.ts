@@ -1,9 +1,6 @@
 import { DailyData, Goal, Habit, Priority, Task, TaskStatus } from '../../types';
-import { DATA_SCHEMA_VERSION } from './localStorageStore';
-import { reconcileCurrentAndFutureLogs } from './taskPlanner';
-import { saveAllDailyLogs } from './dailyLogRepository';
-import { saveGoalsRecord } from './goalRepository';
-import { saveHabitsRecord } from './habitRepository';
+import { DATA_SCHEMA_VERSION, KEYS, commitStorageSnapshot } from './localStorageStore';
+import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSettings } from './backupSettings';
 
 interface BackupPayloadV2 {
   schemaVersion: number;
@@ -11,6 +8,7 @@ interface BackupPayloadV2 {
   goals?: Goal[];
   habits: Habit[];
   dailyLogs: Record<string, DailyData>;
+  settings?: BackupSettings;
 }
 
 interface LegacyBackupPayloadV1 {
@@ -28,6 +26,10 @@ export interface ImportDataResult {
   filteredTaskCount: number;
   migratedFromVersion: number | null;
   schemaVersion: number;
+  importedGoalCount: number;
+  importedTaskCount: number;
+  importedSettingCount: number;
+  filteredGoalCount: number;
 }
 
 type ImportResultBase = Omit<ImportDataResult, 'ok' | 'message'>;
@@ -94,7 +96,7 @@ const sanitizeHabit = (value: unknown, seenHabitIds: Set<string>, validGoalIds: 
     seenHabitIds.has(value.id) ||
     !isNonEmptyString(value.name) ||
     !isValidPriority(value.priority) ||
-    !isPositiveInteger(value.dailyQuota) ||
+    !isPositiveInteger(value.dailyQuota) || value.dailyQuota > 1440 ||
     !isPositiveInteger(value.defaultDurationMinutes) ||
     (value.effectiveType !== 'permanent' && value.effectiveType !== 'range')
   ) {
@@ -252,9 +254,17 @@ const normalizeBackupPayload = (
   }
 
   const schemaVersion = typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1;
+  if (!Number.isInteger(schemaVersion) || schemaVersion < 1 || (raw.schemaVersion !== undefined && typeof raw.schemaVersion !== 'number')) {
+    throw new Error('Invalid backup schema version');
+  }
   if (schemaVersion > DATA_SCHEMA_VERSION) {
     throw new Error(`Unsupported backup schema version: ${schemaVersion}`);
   }
+  if (!Array.isArray(raw.habits) || !isRecord(raw.dailyLogs) || (raw.goals !== undefined && !Array.isArray(raw.goals))) {
+    throw new Error('Backup must contain habits and dailyLogs');
+  }
+  const settings = raw.settings === undefined ? undefined : validateBackupSettings(raw.settings);
+  if (schemaVersion >= 5 && (!settings || Object.keys(settings).length !== 5)) throw new Error('Incomplete backup settings');
 
   const rawGoals = Array.isArray(raw.goals) ? raw.goals : [];
   const seenGoalIds = new Set<string>();
@@ -279,6 +289,7 @@ const normalizeBackupPayload = (
       goals,
       habits,
       dailyLogs,
+      settings,
     },
     migratedFromVersion: schemaVersion < DATA_SCHEMA_VERSION ? schemaVersion : null,
     filteredGoalCount: rawGoals.length - goals.length,
@@ -294,6 +305,10 @@ const buildImportResultBase = (
 
   return {
     importedHabitCount: data.habits.length,
+    importedGoalCount: data.goals?.length || 0,
+    importedTaskCount: Object.values(data.dailyLogs).reduce((sum, day) => sum + day.tasks.length, 0),
+    importedSettingCount: Object.keys(data.settings || {}).length,
+    filteredGoalCount: normalized.filteredGoalCount,
     importedDayCount: Object.keys(data.dailyLogs).length,
     filteredHabitCount: normalized.filteredHabitCount,
     filteredTaskCount: normalized.filteredTaskCount,
@@ -318,6 +333,10 @@ const buildImportFailureResult = (e: unknown): ImportDataResult => ({
   ok: false,
   message: e instanceof Error ? e.message : 'Import failed',
   importedHabitCount: 0,
+  importedGoalCount: 0,
+  importedTaskCount: 0,
+  importedSettingCount: 0,
+  filteredGoalCount: 0,
   importedDayCount: 0,
   filteredHabitCount: 0,
   filteredTaskCount: 0,
@@ -325,7 +344,7 @@ const buildImportFailureResult = (e: unknown): ImportDataResult => ({
   schemaVersion: DATA_SCHEMA_VERSION,
 });
 
-export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
+export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = [], settings = readBackupSettings()) => {
   return JSON.stringify(
     {
       schemaVersion: DATA_SCHEMA_VERSION,
@@ -333,22 +352,26 @@ export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, Dail
       goals,
       habits,
       dailyLogs,
+      settings,
     },
     null,
     2,
   );
 };
 
-export const importBackupJSON = (jsonStr: string): ImportDataResult => {
+export const importBackupJSON = async (jsonStr: string, recover = false): Promise<ImportDataResult> => {
   try {
     const parsed = JSON.parse(jsonStr) as BackupPayloadV2 | LegacyBackupPayloadV1;
     const normalized = normalizeBackupPayload(parsed);
     const data = normalized.payload;
 
-    saveGoalsRecord(data.goals || []);
-    saveHabitsRecord(data.habits);
-    saveAllDailyLogs(data.dailyLogs);
-    reconcileCurrentAndFutureLogs(data.habits);
+    // Preserve the verified snapshot exactly; normal day initialization reconciles habits later.
+    await commitStorageSnapshot({
+      [KEYS.GOALS]: JSON.stringify(data.goals || []),
+      [KEYS.HABITS]: JSON.stringify(data.habits),
+      [KEYS.DAILY_LOGS]: JSON.stringify(data.dailyLogs),
+      ...settingsToEntries(data.settings || {}),
+    }, recover);
 
     const resultBase = buildImportResultBase(normalized);
 

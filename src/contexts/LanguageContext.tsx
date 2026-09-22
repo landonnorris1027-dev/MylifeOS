@@ -40,6 +40,11 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
+  useEffect(() => {
+    const refresh = () => setLanguageState(detectInitialLanguage());
+    window.addEventListener('mylifeos-storage-restored', refresh);
+    return () => window.removeEventListener('mylifeos-storage-restored', refresh);
+  }, []);
 
   const setLanguage = useCallback((lang: Language) => {
     setStorageItem(KEYS.LANGUAGE, lang);

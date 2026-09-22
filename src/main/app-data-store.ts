@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { DurableFileSystem, writeTextAtomically } from './durable-file';
+import { randomUUID } from 'crypto';
+import type { StorageStatus } from './storage-contract';
+import { DurableFileSystem, readJsonWithBackup, writeTextAtomically } from './durable-file';
 
 type FileSystemLike = DurableFileSystem;
 
@@ -10,6 +12,7 @@ export interface AppDataStoreOptions {
   fileSystem?: FileSystemLike;
   logger?: Pick<Console, 'error'>;
   onFlushError?: (result: AppDataStoreFlushResult) => void;
+  onStatusChange?: () => void;
   scheduleFlush?: (callback: () => void, delayMs: number) => unknown;
   cancelScheduledFlush?: (handle: unknown) => void;
 }
@@ -20,6 +23,41 @@ export interface AppDataStoreFlushResult {
 }
 
 const DEFAULT_FLUSH_DELAY_MS = 300;
+
+export const isAppDataRecord = (value: unknown): value is Record<string, string> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.values(value).some(entry => typeof entry !== 'string')) return false;
+  const record = value as Record<string, string>;
+  const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  const text = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+  const positive = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v > 0;
+  const priority = (v: unknown) => v === 'P1' || v === 'P2' || v === 'P3';
+  try {
+    for (const key of ['mylifeos_goals', 'mylifeos_habits', 'mylifeos_recovery_points']) {
+      if (record[key] === undefined) continue;
+      const entries: unknown = JSON.parse(record[key]);
+      if (!Array.isArray(entries) || entries.some(entry => !object(entry))) return false;
+      if (key === 'mylifeos_goals' && entries.some(entry => !text(entry.id) || !text(entry.name))) return false;
+      if (key === 'mylifeos_habits' && entries.some(entry => !text(entry.id) || !text(entry.name) || !priority(entry.priority)
+        || !positive(entry.dailyQuota) || entry.dailyQuota > 1440 || !positive(entry.defaultDurationMinutes)
+        || !['permanent', 'range'].includes(entry.effectiveType))) return false;
+      if (key === 'mylifeos_recovery_points' && entries.some(entry => !text(entry.id) || !text(entry.createdAt)
+        || !text(entry.backupJson) || !['auto-daily', 'pre-import', 'pre-recovery-restore'].includes(entry.reason))) return false;
+    }
+    if (record.mylifeos_daily_logs !== undefined) {
+      const logs: unknown = JSON.parse(record.mylifeos_daily_logs);
+      if (!object(logs) || Object.values(logs).some(day => !object(day) || !Array.isArray(day.tasks)
+        || typeof day.date !== 'string' || day.tasks.some(task => !object(task) || typeof task.name !== 'string'
+          || !text(task.id) || !positive(task.durationMinutes) || !priority(task.priority)
+          || !['inbox', 'scheduled', 'completed', 'deleted'].includes(String(task.status))
+          || typeof task.date !== 'string' || (task.actualFocusMinutes !== undefined && (typeof task.actualFocusMinutes !== 'number' || !Number.isFinite(task.actualFocusMinutes) || task.actualFocusMinutes < 0))))) return false;
+    }
+    for (const key of ['mylifeos_focus_settings', 'mylifeos_profile_settings', 'mylifeos_planner_settings', 'mylifeos_desktop_settings']) {
+      if (record[key] !== undefined && !object(JSON.parse(record[key]))) return false;
+    }
+    return true;
+  } catch { return false; }
+};
 
 /**
  * In-memory app data store with debounced writes.
@@ -41,6 +79,10 @@ export class AppDataStore {
   private cache = new Map<string, string>();
   private pendingFlushHandle: unknown = null;
   private dirty = false;
+  private failedSnapshot: Map<string, string> | null = null;
+  private recoveryRequired = false;
+  private lastError: string | undefined;
+  private readonly onStatusChange?: () => void;
 
   constructor(options: AppDataStoreOptions) {
     this.filePath = options.filePath;
@@ -48,6 +90,7 @@ export class AppDataStore {
     this.fs = options.fileSystem ?? fs;
     this.logger = options.logger ?? console;
     this.onFlushError = options.onFlushError;
+    this.onStatusChange = options.onStatusChange;
     this.scheduleFlush = options.scheduleFlush ?? ((callback, delayMs) => setTimeout(callback, delayMs));
     this.cancelScheduledFlush = options.cancelScheduledFlush ?? ((handle) => clearTimeout(handle as NodeJS.Timeout));
 
@@ -64,32 +107,26 @@ export class AppDataStore {
   private loadFromDisk(): void {
     try {
       this.ensureDirectoryForFile();
-      if (this.loadFileIntoCache(this.filePath)) return;
-      this.loadFileIntoCache(`${this.filePath}.bak`);
-    } catch (error) {
-      this.logger.error('[MyLifeOS] Failed to read app data store:', error);
-    }
-  }
-
-  private loadFileIntoCache(filePath: string): boolean {
-    if (!this.fs.existsSync(filePath)) return false;
-
-    try {
-      const raw = this.fs.readFileSync(filePath, 'utf8');
-      if (!raw.trim()) return false;
-
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
-
-      Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => {
-        if (typeof value === 'string') {
-          this.cache.set(key, value);
+      const result = readJsonWithBackup(this.filePath, this.fs, isAppDataRecord);
+      if (!result) {
+        if (this.fs.existsSync(this.filePath) || this.fs.existsSync(`${this.filePath}.bak`)) {
+          this.recoveryRequired = true;
+          this.lastError = 'Data and backup are unreadable. Restore a verified backup to continue.';
+          this.logger.error('[MyLifeOS] App data store and backup are unreadable.');
         }
+        return;
+      }
+      if (result.recoveredFromBackup) {
+        this.logger.error('[MyLifeOS] Recovered app data store from the last complete backup.');
+      }
+      if (!isAppDataRecord(result.value)) return;
+      Object.entries(result.value).forEach(([key, value]) => {
+        this.cache.set(key, value);
       });
-      return true;
     } catch (error) {
-      this.logger.error(`[MyLifeOS] Failed to read data store file ${filePath}:`, error);
-      return false;
+      this.recoveryRequired = true;
+      this.lastError = error instanceof Error ? error.message : 'Cannot read data';
+      this.logger.error('[MyLifeOS] Failed to read app data store:', error);
     }
   }
 
@@ -98,6 +135,10 @@ export class AppDataStore {
   }
 
   set(key: string, value: string | null | undefined): { ok: true } {
+    if (this.recoveryRequired || this.failedSnapshot) {
+      throw new Error(this.lastError || 'Retry or restore before editing data');
+    }
+    if (value != null && !isAppDataRecord({ [key]: String(value) })) throw new Error('Invalid storage value');
     if (value === null || value === undefined) {
       this.cache.delete(key);
     } else {
@@ -110,6 +151,7 @@ export class AppDataStore {
 
   private markDirtyAndSchedule(): void {
     this.dirty = true;
+    this.onStatusChange?.();
 
     if (this.pendingFlushHandle !== null) {
       this.cancelScheduledFlush(this.pendingFlushHandle);
@@ -131,22 +173,39 @@ export class AppDataStore {
       this.pendingFlushHandle = null;
     }
 
+    if (this.recoveryRequired && !this.failedSnapshot) return { ok: false, error: this.lastError };
+    if (this.failedSnapshot) {
+      this.recoveryRequired = false;
+      this.cache = new Map(this.failedSnapshot);
+      this.dirty = true;
+    }
     if (!this.dirty) {
       return { ok: true };
     }
 
     try {
       this.ensureDirectoryForFile();
-      writeTextAtomically(this.filePath, JSON.stringify(Object.fromEntries(this.cache), null, 2), this.fs);
+      writeTextAtomically(
+        this.filePath,
+        JSON.stringify(Object.fromEntries(this.cache), null, 2),
+        this.fs,
+        isAppDataRecord,
+      );
       this.dirty = false;
+      this.failedSnapshot = null;
+      this.lastError = undefined;
+      this.onStatusChange?.();
       return { ok: true };
     } catch (error) {
       this.logger.error('[MyLifeOS] Failed to write app data store:', error);
+      this.failedSnapshot = new Map(this.cache);
       this.rollbackToDiskState();
       const result = {
         ok: false,
         error: error instanceof Error ? error.message : 'Failed to write app data store',
       } as const;
+      this.lastError = result.error;
+      this.onStatusChange?.();
       try {
         this.onFlushError?.(result);
       } catch (callbackError) {
@@ -164,5 +223,43 @@ export class AppDataStore {
 
   get size(): number {
     return this.cache.size;
+  }
+
+  getStatus(): StorageStatus {
+    return {
+      state: this.failedSnapshot ? 'error' : this.recoveryRequired ? 'recovery' : this.dirty ? 'saving' : 'saved',
+      error: this.lastError,
+      hasPending: this.dirty || this.failedSnapshot !== null,
+    };
+  }
+
+  snapshot(includePending = false): Record<string, string> {
+    return Object.fromEntries(includePending && this.failedSnapshot ? this.failedSnapshot : this.cache);
+  }
+
+  /** Commit all business keys in one durable replacement, never one key at a time. */
+  commit(entries: Record<string, string>, recover = false): AppDataStoreFlushResult {
+    if (!isAppDataRecord(entries)) return { ok: false, error: 'Invalid snapshot content' };
+    if (this.failedSnapshot) return { ok: false, error: 'Retry pending changes before importing' };
+    if (this.recoveryRequired && !recover) return { ok: false, error: this.lastError };
+    try {
+      if (this.recoveryRequired) {
+        // Preserve the original bytes before allowing an explicit recovery.
+        const suffix = `.corrupt-${randomUUID()}`;
+        for (const source of [this.filePath, `${this.filePath}.bak`]) {
+          if (!this.fs.existsSync(source)) continue;
+          const archive = `${source}${suffix}`;
+          this.fs.copyFileSync(source, archive);
+          const descriptor = this.fs.openSync(archive, 'r+');
+          try { this.fs.fsyncSync(descriptor); } finally { this.fs.closeSync(descriptor); }
+        }
+        this.recoveryRequired = false;
+      }
+      Object.entries(entries).forEach(([key, value]) => this.cache.set(key, value));
+      this.dirty = true;
+      return this.flush();
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'Recovery archive failed' };
+    }
   }
 }

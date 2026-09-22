@@ -317,7 +317,7 @@ describe('storage service', () => {
 
     const exported = JSON.parse(getAllDataJSON());
 
-    expect(exported.schemaVersion).toBe(4);
+    expect(exported.schemaVersion).toBe(5);
     expect(Array.isArray(exported.habits)).toBe(true);
     expect(Array.isArray(exported.goals)).toBe(true);
     expect(typeof exported.dailyLogs).toBe('object');
@@ -340,7 +340,7 @@ describe('storage service', () => {
     expect(getProfileStats().priorityMinutes.P1).toBe(10);
   });
 
-  it('creates daily recovery points and restores them', () => {
+  it('creates daily recovery points and restores them', async () => {
     addHabit('Current Habit', 'P1', 1, 25);
     initializeDay('2026-04-22');
 
@@ -352,7 +352,7 @@ describe('storage service', () => {
     addHabit('Later Habit', 'P2', 1, 30);
     expect(getHabits()).toHaveLength(2);
 
-    const result = restoreDataRecoveryPoint(point.id);
+    const result = await restoreDataRecoveryPoint(point.id);
 
     expect(result.ok).toBe(true);
     expect(getHabits()).toHaveLength(1);
@@ -360,7 +360,7 @@ describe('storage service', () => {
     expect(getDataRecoveryPoints().some((item) => item.reason === 'pre-recovery-restore')).toBe(true);
   });
 
-  it('imports legacy backups without schemaVersion by migrating them forward', () => {
+  it('imports legacy backups without schemaVersion by migrating them forward', async () => {
     const legacyPayload = JSON.stringify({
       timestamp: '2026-04-22T01:00:00.000Z',
       habits: [
@@ -389,7 +389,7 @@ describe('storage service', () => {
       },
     });
 
-    const result = importDataJSON(legacyPayload);
+    const result = await importDataJSON(legacyPayload);
 
     expect(result.ok).toBe(true);
     expect(result.migratedFromVersion).toBe(1);
@@ -397,10 +397,10 @@ describe('storage service', () => {
     expect(getDailyData('2026-04-22')?.tasks).toHaveLength(1);
 
     const reExported = JSON.parse(getAllDataJSON());
-    expect(reExported.schemaVersion).toBe(4);
+    expect(reExported.schemaVersion).toBe(5);
   });
 
-  it('imports manual tasks without habit associations', () => {
+  it('imports manual tasks without habit associations', async () => {
     const payload = JSON.stringify({
       schemaVersion: 4,
       timestamp: '2026-04-22T01:00:00.000Z',
@@ -424,7 +424,7 @@ describe('storage service', () => {
       },
     });
 
-    const result = importDataJSON(payload);
+    const result = await importDataJSON(payload);
     const importedTask = getDailyData('2026-04-22')?.tasks[0];
 
     expect(result.ok).toBe(true);
@@ -437,7 +437,7 @@ describe('storage service', () => {
     expect(importedTask?.habitId).toBeUndefined();
   });
 
-  it('backs up and restores goals, notes, and reviews', () => {
+  it('backs up and restores goals, notes, and reviews', async () => {
     const goal = addGoal('Writing');
     const habit = addHabit('Draft Essay', 'P2', 1, 30, 'permanent', undefined, undefined, goal?.id);
     const day = initializeDay('2026-04-22');
@@ -456,7 +456,7 @@ describe('storage service', () => {
 
     const exported = getAllDataJSON();
     localStorage.clear();
-    const result = importDataJSON(exported);
+    const result = await importDataJSON(exported);
 
     expect(result.ok).toBe(true);
     expect(getGoals()).toEqual([{ id: goal?.id, name: 'Writing' }]);
@@ -534,7 +534,7 @@ describe('storage service', () => {
     expect(getHabits()).toHaveLength(1);
   });
 
-  it('rejects backups from a newer unsupported schema version', () => {
+  it('rejects backups from a newer unsupported schema version', async () => {
     const futurePayload = JSON.stringify({
       schemaVersion: 999,
       timestamp: '2026-04-22T01:00:00.000Z',
@@ -542,7 +542,7 @@ describe('storage service', () => {
       dailyLogs: {},
     });
 
-    const result = importDataJSON(futurePayload);
+    const result = await importDataJSON(futurePayload);
 
     expect(result.ok).toBe(false);
     expect(result.message).toContain('Unsupported backup schema version');
@@ -554,7 +554,7 @@ describe('storage service', () => {
   });
 
 
-  it('filters invalid import records with bad values, duplicate ids, and broken associations', () => {
+  it('filters invalid import records with bad values, duplicate ids, and broken associations', async () => {
     const payload = JSON.stringify({
       habits: [
         {
@@ -615,7 +615,7 @@ describe('storage service', () => {
       },
     });
 
-    const result = importDataJSON(payload);
+    const result = await importDataJSON(payload);
 
     expect(result.ok).toBe(true);
     expect(result.filteredHabitCount).toBe(3);
@@ -627,7 +627,7 @@ describe('storage service', () => {
     expect(getDailyData('not-a-date')).toBeNull();
     expect(getDailyData('2026-04-23')).toBeNull();
   });
-  it('reports filtered invalid records during import', () => {
+  it('reports filtered invalid records during import', async () => {
     const payload = JSON.stringify({
       habits: [
         {
@@ -654,7 +654,7 @@ describe('storage service', () => {
       },
     });
 
-    const result = importDataJSON(payload);
+    const result = await importDataJSON(payload);
 
     expect(result.ok).toBe(true);
     expect(result.filteredHabitCount).toBe(1);

@@ -50,8 +50,11 @@ export const getAllDataJSON = () => {
   return exportBackupJSON(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
 };
 
-export const importDataJSON = (jsonStr: string): ImportDataResult => {
-  createRecoveryPoint('pre-import', { force: true });
+export const importDataJSON = async (jsonStr: string): Promise<ImportDataResult> => {
+  const preview = previewImportBackupJSON(jsonStr);
+  if (!preview.ok) return preview;
+  try { createRecoveryPoint('pre-import', { force: true }); }
+  catch (error) { return { ...preview, ok: false, message: error instanceof Error ? error.message : 'Pre-import recovery point failed' }; }
   return importBackupJSON(jsonStr);
 };
 
@@ -172,7 +175,7 @@ export const getDataRecoveryPoints = (): RecoveryPoint[] => {
   return getRecoveryPoints();
 };
 
-export const restoreDataRecoveryPoint = (id: string): ImportDataResult => {
+export const restoreDataRecoveryPoint = (id: string): Promise<ImportDataResult> => {
   return restoreRecoveryPoint(id);
 };
 

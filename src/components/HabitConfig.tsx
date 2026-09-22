@@ -125,6 +125,11 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     setGoalOptions(getGoals());
     setRecoveryPoints(getDataRecoveryPoints());
   };
+  const refreshSettings = () => {
+    setFocusSettings(getFocusSettings());
+    setProfileSettings(getProfileSettings());
+    setDesktopSettings(getDesktopSettings());
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -305,13 +310,24 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
         habits: point.habitCount,
         days: point.dayCount,
       }),
-      onConfirm: () => {
-        const result = restoreDataRecoveryPoint(point.id);
+      onConfirm: async () => {
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        try {
+          if (!await downloadPreRestoreBackup()) {
+            setAlertConfig({ isOpen: true, message: t('pre_restore_backup_failed') });
+            return;
+          }
+        } catch {
+          setAlertConfig({ isOpen: true, message: t('pre_restore_backup_failed') });
+          return;
+        }
+        const result = await restoreDataRecoveryPoint(point.id);
         setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
         if (result.ok) {
           setAlertConfig({ isOpen: true, message: t('recovery_point_restore_success') });
           refreshList();
+          refreshSettings();
           onAdded();
           return;
         }
@@ -328,6 +344,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
   const buildImportDetailParts = (result: ImportDataResult) => {
     const detailParts = [
       t('import_summary_counts', { habits: result.importedHabitCount, days: result.importedDayCount }),
+      t('import_summary_extended', { goals: result.importedGoalCount, tasks: result.importedTaskCount, settings: result.importedSettingCount, filteredGoals: result.filteredGoalCount }),
     ];
 
     if (result.migratedFromVersion !== null) {
@@ -390,7 +407,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
             return;
           }
 
-          const result = importDataJSON(content);
+          const result = await importDataJSON(content);
           if (result.ok) {
             const detailParts = buildImportDetailParts(result);
             setAlertConfig({
@@ -398,6 +415,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               message: `${t('import_success')} ${t('pre_restore_backup_created', { filename: backupPath })} ${detailParts.join(' ')}`.trim(),
             });
             refreshList();
+            refreshSettings();
             onAdded();
           } else {
             setAlertConfig({ isOpen: true, message: `${t('import_error')} ${result.message}`.trim() });

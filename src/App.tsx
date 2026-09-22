@@ -1,4 +1,5 @@
 import React from 'react';
+import { isStorageReadOnly } from './services/storage/localStorageStore';
 import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User } from 'lucide-react';
 import { Priority, PRIORITY_STYLES } from './types';
 import type { TranslationKey } from './locales';
@@ -106,6 +107,7 @@ export default function App() {
   // useModalBehavior.
   React.useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
+      if (isStorageReadOnly()) return;
       if (event.altKey) return;
 
       if (event.ctrlKey || event.metaKey) {
