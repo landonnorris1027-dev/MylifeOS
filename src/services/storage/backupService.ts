@@ -131,14 +131,13 @@ const sanitizeHabit = (value: unknown, seenHabitIds: Set<string>, validGoalIds: 
 const sanitizeTask = (
   value: unknown,
   fallbackDate: string,
-  validHabitIds: Set<string>,
   validGoalIds: Set<string>,
   seenTaskIds: Set<string>,
 ): Task | null => {
   if (!isRecord(value)) return null;
 
   const taskDate = typeof value.date === 'string' ? value.date : fallbackDate;
-  const rawHabitId = typeof value.habitId === 'string' ? value.habitId : undefined;
+  const rawHabitId = isNonEmptyString(value.habitId) ? value.habitId.trim() : undefined;
   const origin = isValidOrigin(value.origin) ? value.origin : (rawHabitId ? 'habit' : 'manual');
 
   if (
@@ -155,12 +154,9 @@ const sanitizeTask = (
   ) {
     return null;
   }
-  if (origin === 'habit' && (!rawHabitId || !validHabitIds.has(rawHabitId))) {
-    return null;
-  }
-  if (rawHabitId && !validHabitIds.has(rawHabitId)) {
-    return null;
-  }
+  // A backup may omit a habit rule that its tasks still reference. The task is
+  // independently valid, so preserve the relationship and its history fields.
+  if (origin === 'habit' && !rawHabitId) return null;
 
   seenTaskIds.add(value.id);
   const goalId = typeof value.goalId === 'string' && validGoalIds.has(value.goalId) ? value.goalId : undefined;
@@ -191,7 +187,6 @@ const countRawTasks = (value: unknown): number => {
 const sanitizeDailyData = (
   value: unknown,
   dateKey: string,
-  validHabitIds: Set<string>,
   validGoalIds: Set<string>,
   seenTaskIds: Set<string>,
 ): { day: DailyData | null; filteredTaskCount: number } => {
@@ -206,7 +201,7 @@ const sanitizeDailyData = (
   }
 
   const tasks = value.tasks
-    .map((task) => sanitizeTask(task, date, validHabitIds, validGoalIds, seenTaskIds))
+    .map((task) => sanitizeTask(task, date, validGoalIds, seenTaskIds))
     .filter((task): task is Task => task !== null);
 
   return {
@@ -217,7 +212,6 @@ const sanitizeDailyData = (
 
 const sanitizeDailyLogs = (
   value: unknown,
-  validHabitIds: Set<string>,
   validGoalIds: Set<string>,
 ): { dailyLogs: Record<string, DailyData>; filteredTaskCount: number } => {
   if (!isRecord(value)) {
@@ -227,7 +221,7 @@ const sanitizeDailyLogs = (
   const seenTaskIds = new Set<string>();
   return Object.entries(value).reduce<{ dailyLogs: Record<string, DailyData>; filteredTaskCount: number }>(
     (acc, [dateKey, dayValue]) => {
-      const sanitized = sanitizeDailyData(dayValue, dateKey, validHabitIds, validGoalIds, seenTaskIds);
+      const sanitized = sanitizeDailyData(dayValue, dateKey, validGoalIds, seenTaskIds);
       if (sanitized.day) {
         acc.dailyLogs[dateKey] = sanitized.day;
       } else if (sanitized.filteredTaskCount === 0) {
@@ -278,8 +272,7 @@ const normalizeBackupPayload = (
   const habits = rawHabits
     .map((habit) => sanitizeHabit(habit, seenHabitIds, goalIds))
     .filter((habit): habit is Habit => habit !== null);
-  const habitIds = new Set(habits.map((habit) => habit.id));
-  const { dailyLogs, filteredTaskCount } = sanitizeDailyLogs(raw.dailyLogs, habitIds, goalIds);
+  const { dailyLogs, filteredTaskCount } = sanitizeDailyLogs(raw.dailyLogs, goalIds);
   const timestamp = typeof raw.timestamp === 'string' ? raw.timestamp : new Date().toISOString();
 
   return {

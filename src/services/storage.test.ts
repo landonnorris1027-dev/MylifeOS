@@ -12,6 +12,7 @@ import {
   getHabits,
   getProfileStats,
   getTodayStr,
+  getYearlyStats,
   importDataJSON,
   initializeDay,
   parseDateLocal,
@@ -173,6 +174,45 @@ describe('storage service', () => {
     expect(remainingTasks).toHaveLength(1);
     expect(remainingTasks[0].status).toBe('scheduled');
     expect(remainingTasks[0].habitId).toBe(habit.id);
+  });
+
+  it('preserves completed history and focus statistics through delete, export, and restore', async () => {
+    const habit = addHabit('Read', 'P2', 1, 25);
+    const date = '2026-04-21';
+    saveDailyData({
+      date,
+      tasks: [{
+        id: 'completed-before-delete',
+        habitId: habit.id,
+        origin: 'habit',
+        name: habit.name,
+        priority: habit.priority,
+        status: 'completed',
+        date,
+        durationMinutes: 25,
+        actualFocusMinutes: 18,
+      }],
+    });
+    deleteHabit(habit.id);
+
+    const backup = getAllDataJSON();
+    expect(JSON.parse(backup).habits).toEqual([]);
+    expect(JSON.parse(backup).dailyLogs[date].tasks).toHaveLength(1);
+    localStorage.clear();
+
+    const result = await importDataJSON(backup);
+    const restoredTask = getDailyData(date)?.tasks[0];
+
+    expect(result).toMatchObject({ ok: true, importedTaskCount: 1, filteredTaskCount: 0 });
+    expect(restoredTask).toMatchObject({
+      id: 'completed-before-delete',
+      habitId: habit.id,
+      origin: 'habit',
+      status: 'completed',
+      actualFocusMinutes: 18,
+    });
+    expect(getYearlyStats()[date]).toBe(18);
+    expect(getProfileStats()).toMatchObject({ totalFocusMinutes: 18, completedTasks: 1 });
   });
 
   it('reduces future tasks to the new quota while keeping scheduled tasks first', () => {
@@ -554,7 +594,7 @@ describe('storage service', () => {
   });
 
 
-  it('filters invalid import records with bad values, duplicate ids, and broken associations', async () => {
+  it('filters invalid import records but preserves tasks linked to deleted habits', async () => {
     const payload = JSON.stringify({
       habits: [
         {
@@ -600,7 +640,7 @@ describe('storage service', () => {
             createTask({ id: 'task-negative-duration', habitId: 'habit-valid', durationMinutes: -5 }),
             createTask({ id: 'task-invalid-date', habitId: 'habit-valid', date: '2026-02-30' }),
             createTask({ id: 'task-invalid-time', habitId: 'habit-valid', status: 'scheduled', startTime: '24:00' }),
-            createTask({ id: 'task-orphan', habitId: 'missing-habit' }),
+            createTask({ id: 'task-orphan', habitId: 'missing-habit', status: 'completed', actualFocusMinutes: 20 }),
             createTask({ id: 'task-valid', habitId: 'habit-valid' }),
           ],
         },
@@ -619,11 +659,13 @@ describe('storage service', () => {
 
     expect(result.ok).toBe(true);
     expect(result.filteredHabitCount).toBe(3);
-    expect(result.filteredTaskCount).toBe(7);
+    expect(result.filteredTaskCount).toBe(6);
     expect(result.importedDayCount).toBe(1);
     expect(getHabits()).toHaveLength(1);
-    expect(getDailyData('2026-04-22')?.tasks).toHaveLength(1);
-    expect(getDailyData('2026-04-22')?.tasks[0].id).toBe('task-valid');
+    expect(getDailyData('2026-04-22')?.tasks).toHaveLength(2);
+    expect(getDailyData('2026-04-22')?.tasks.map((task) => task.id)).toEqual(['task-valid', 'task-orphan']);
+    expect(getDailyData('2026-04-22')?.tasks[1].habitId).toBe('missing-habit');
+    expect(getDailyData('2026-04-22')?.tasks[1].actualFocusMinutes).toBe(20);
     expect(getDailyData('not-a-date')).toBeNull();
     expect(getDailyData('2026-04-23')).toBeNull();
   });
