@@ -477,7 +477,11 @@ function broadcastTimerUpdate(timer: MainTimer, extra: Record<string, unknown> =
 
   BrowserWindow.getAllWindows().forEach((window) => {
     if (!window.isDestroyed()) {
-      window.webContents.send('pomodoro-update', payload);
+      try {
+        window.webContents.send('pomodoro-update', payload);
+      } catch (error) {
+        console.warn('[MyLifeOS] Failed to broadcast timer update:', error);
+      }
     }
   });
 }
@@ -677,9 +681,9 @@ function registerPomodoroIpc(): void {
     clearTimerInterval(timer);
     timer.isActive = false;
     timer.updatedAt = Date.now();
-    broadcastTimerUpdate(timer, { stopped: true });
     activeTimers.delete(timerId);
     persistActiveTimers();
+    broadcastTimerUpdate(timer, { stopped: true });
   });
 }
 

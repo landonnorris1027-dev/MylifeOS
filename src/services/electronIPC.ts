@@ -79,8 +79,13 @@ class ElectronIPCHandler {
     if (this.isElectron) {
       try {
         return await window.electronAPI!.invoke('pomodoro-start', timerData);
-      } catch (e) {
-        console.warn('IPC start failed, falling back to browser timer:', e);
+      } catch (error) {
+        try {
+          window.electronAPI!.send('pomodoro-stop', { timerId: timerData.timerId });
+        } catch (cleanupError) {
+          console.warn('Failed to clean up a timer after desktop start failed:', cleanupError);
+        }
+        throw error;
       }
     }
 

@@ -114,6 +114,7 @@ const zh = {
   break_duration_option: '{minutes} 分钟',
   focus_mode: '专注模式',
   break_mode: '休息时间',
+  timer_start_failed: '计时器启动失败，请重试。',
   stay_focused: '保持专注，不要分心。',
   enjoy_break: '休息一下，你已经完成了一段专注。',
   mark_early: '提前完成',

@@ -36,6 +36,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const [baseTimerId, setBaseTimerId] = useState('');
   const [hasStarted, setHasStarted] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [timerError, setTimerError] = useState<string | null>(null);
   const [focusSettings, setFocusSettings] = useState<FocusSettings>(DEFAULT_FOCUS_SETTINGS);
 
   const localIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -108,6 +109,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       ? task.durationMinutes * 60
       : null;
     setIsStarting(false);
+    setTimerError(null);
     setFocusSettings(getFocusSettings());
 
     if (localIntervalRef.current) {
@@ -184,14 +186,19 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       if (update.timerId !== focusTimerId && update.timerId !== breakTimerId) return;
 
       const nextMode = update.timerId === breakTimerId ? 'break' : 'focus';
+      if (update.stopped) {
+        setMode(nextMode);
+        setTimeLeft(Math.max(0, Math.ceil(update.remaining / 1000)));
+        setIsActive(false);
+        setHasStarted(false);
+        onSessionStateChange(null);
+        return;
+      }
+
       setMode(nextMode);
       setTimeLeft(Math.max(0, Math.ceil(update.remaining / 1000)));
       setIsActive(Boolean(update.isActive));
       setHasStarted(true);
-
-      if (update.stopped) {
-        setIsActive(false);
-      }
 
       if (update.isFinished && finishHandledRef.current !== update.timerId) {
         finishHandledRef.current = update.timerId;
@@ -262,6 +269,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
 
     startInFlightRef.current = true;
     setIsStarting(true);
+    setTimerError(null);
     finishHandledRef.current = null;
 
     try {
@@ -269,9 +277,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
         const payload = buildTimerPayload(nextMode);
         if (!payload) return;
 
+        const started = await electronIPC.startPomodoro(payload);
         setMode(nextMode);
         setHasStarted(true);
-        const started = await electronIPC.startPomodoro(payload);
         setTimeLeft(Math.max(0, Math.ceil(started.remaining / 1000)));
         setIsActive(Boolean(started.isActive));
         return;
@@ -279,6 +287,14 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
 
       const durationSeconds = nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds;
       startLocalTimer(durationSeconds, nextMode);
+    } catch (error) {
+      console.error('Failed to start pomodoro timer', error);
+      setMode(nextMode);
+      setTimeLeft(nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds);
+      setIsActive(false);
+      setHasStarted(false);
+      setTimerError(t('timer_start_failed'));
+      onSessionStateChange(null);
     } finally {
       startInFlightRef.current = false;
       setIsStarting(false);
@@ -472,6 +488,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
           )}
         </div>
       </div>
+
+      {timerError ? (
+        <p role="alert" className="mt-4 text-red-600 text-sm font-medium">
+          {timerError}
+        </p>
+      ) : null}
 
       <p className="mt-8 text-gray-400 text-sm font-medium">
         {t(isBreak ? 'enjoy_break' : 'stay_focused')}

@@ -114,6 +114,7 @@ const en = {
   break_duration_option: '{minutes}m',
   focus_mode: 'Focus Mode',
   break_mode: 'Break Time',
+  timer_start_failed: 'The timer could not start. Please retry.',
   stay_focused: 'Stay focused. Do not switch tabs.',
   enjoy_break: 'Take a breath. You earned it.',
   mark_early: 'Mark Done Early',
