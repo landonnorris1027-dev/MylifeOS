@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './tailwind.css';
+import './index.css';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { AppProvider } from './contexts/AppContext';
-import { migrateFromLocalStorage, migrateDailyLogsFormat } from './services/storage';
+import ErrorBoundary from './components/ErrorBoundary';
+import StorageBoundary from './components/StorageBoundary';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -12,21 +12,17 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-
-const bootstrap = async () => {
-  // Execute local storage migration before the app reads persisted data.
-  await migrateFromLocalStorage();
-  await migrateDailyLogsFormat();
-
-  root.render(
-    <React.StrictMode>
-      <LanguageProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </LanguageProvider>
-    </React.StrictMode>
-  );
-};
-
-void bootstrap();
+root.render(
+  <React.StrictMode>
+    <LanguageProvider>
+      <ErrorBoundary
+        title="Application failed to start"
+        message="The app hit an unexpected error while rendering. Try reloading this view."
+        resetLabel="Reload app"
+        className="min-h-screen bg-[#F7F7F5] p-6 flex items-center justify-center"
+      >
+        <StorageBoundary><App /></StorageBoundary>
+      </ErrorBoundary>
+    </LanguageProvider>
+  </React.StrictMode>
+);

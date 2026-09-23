@@ -1,3 +1,5 @@
+/// <reference types="react-scripts" />
+/// <reference types="jest" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
 

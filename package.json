@@ -1,11 +1,13 @@
 {
   "name": "mylifeos",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
-  "main": "main.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "main": "dist-main/electron.js",
   "homepage": "./",
   "dependencies": {
-    "electron-store": "^8.1.0",
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -13,51 +15,49 @@
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^16.18.61",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
+    "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^27.1.0",
-    "electron-builder": "^24.9.1",
-    "tailwindcss": "^3.4.17",
+    "electron": "44.4.2",
+    "electron-builder": "26.16.1",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.19",
     "typescript": "^4.9.5",
     "wait-on": "^7.2.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "prod": "node ./scripts/start-electron.js",
-    "electron:dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && node ./scripts/start-electron.js\"",
-    "electron:build": "npm run build && electron-builder -w -c.extraMetadata.main=main.js",
-    "test": "react-scripts test --watchAll=false"
+    "typecheck": "tsc --noEmit",
+    "test": "react-scripts test --watchAll=false --passWithNoTests",
+    "build:main": "tsc -p tsconfig.main.json",
+    "check:electron": "tsc --noEmit -p tsconfig.main.json",
+    "verify:quality": "npm run typecheck && npm run test && npm run build && npm run build:main",
+    "verify:release": "npm run verify:quality && npm run check:electron",
+    "clean:build": "node ./scripts/clean-build.js",
+    "smoke:packaged": "node ./scripts/smoke-packaged.js",
+    "test:packaged": "node ./scripts/regression-packaged.js",
+    "verify:packaged": "npm run smoke:packaged && npm run test:packaged",
+    "verify:native": "node ./scripts/verify-native.js",
+    "verify:p0-native": "npm run build:main && node ./scripts/verify-p0-native.js",
+    "prod": "npm run build:main && node ./scripts/start-electron.js",
+    "electron:dev": "npm run build:main && concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
+    "electron:build": "npm run verify:release && npm run clean:build && electron-builder --win --x64 --publish never && npm run verify:packaged"
   },
   "build": {
+    "extends": null,
     "appId": "com.mylifeos.app",
     "productName": "MyLifeOS",
     "asar": true,
     "npmRebuild": false,
     "files": [
       "build/**/*",
-      "main.js",
-      "preload.js",
-      "node_modules/electron-store/**/*",
-      "node_modules/conf/**/*",
-      "node_modules/atomically/**/*",
-      "node_modules/dot-prop/**/*",
-      "node_modules/env-paths/**/*",
-      "node_modules/json-schema-typed/**/*",
-      "node_modules/ajv/**/*",
-      "node_modules/ajv-formats/**/*",
-      "node_modules/fast-deep-equal/**/*",
-      "node_modules/json-schema-traverse/**/*",
-      "node_modules/require-from-string/**/*",
-      "node_modules/uri-js/**/*",
-      "node_modules/punycode/**/*",
-      "node_modules/debounce-fn/**/*",
-      "node_modules/mimic-fn/**/*",
-      "node_modules/semver/**/*",
-      "node_modules/type-fest/**/*"
+      "dist-main/**/*",
+      "assets/icon.ico"
     ],
     "directories": {
       "buildResources": "assets",
@@ -66,7 +66,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -75,16 +76,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    },
-    "extraResources": [
-      {
-        "from": "build/",
-        "to": "build",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ]
+    }
   },
   "browserslist": {
     "production": [

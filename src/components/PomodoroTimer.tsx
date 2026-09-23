@@ -1,40 +1,65 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Play, Pause, CheckCircle, Coffee, SkipForward } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { electronIPC } from '../services/electronIPC';
-import { logger } from '../services/logger';
-import { DEFAULT_BREAK_SECONDS, DEFAULT_FOCUS_MINUTES } from '../constants';
+import { electronIPC, PomodoroTimerData } from '../services/electronIPC';
+import { DEFAULT_FOCUS_SETTINGS, FocusSettings, getFocusSettings } from '../services/focusSettings';
+import { useModalBehavior } from '../hooks/useModalBehavior';
+
+export interface TimerSessionSnapshot {
+  timerId: string;
+  taskId: string;
+  taskHabitId?: string;
+  taskName: string;
+  taskPriority: Task['priority'];
+  taskDate: string;
+  taskStartTime?: string;
+  taskDurationMinutes: number;
+  mode: 'focus' | 'break';
+  remainingSeconds: number;
+  isActive: boolean;
+}
 
 interface PomodoroTimerProps {
   task: Task | null;
-  restoredState?: {
-    timerId: string;
-    remainingSeconds: number;
-    mode: 'focus' | 'break';
-    isActive?: boolean;
-  } | null;
+  restoredState?: TimerSessionSnapshot | null;
   onClose: () => void;
-  onComplete: (task: Task) => void;
+  onComplete: (task: Task, actualFocusMinutes?: number) => void;
+  onSessionStateChange: (snapshot: TimerSessionSnapshot | null) => void;
 }
 
-const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onClose, onComplete }) => {
+const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onClose, onComplete, onSessionStateChange }) => {
   const { t } = useLanguage();
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [mode, setMode] = useState<'focus' | 'break'>('focus');
-  const [timerId, setTimerId] = useState<string>('');
+  const [baseTimerId, setBaseTimerId] = useState('');
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [timerError, setTimerError] = useState<string | null>(null);
+  const [focusSettings, setFocusSettings] = useState<FocusSettings>(DEFAULT_FOCUS_SETTINGS);
 
-  const isMounted = useRef(true);
-  const startedTimersRef = useRef<Set<string>>(new Set());
-  const finishBreakTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const localTickRef = useRef<(() => void) | null>(null);
+  const endTimeRef = useRef(0);
+  const currentTimerIdRef = useRef('');
+  const finishHandledRef = useRef<string | null>(null);
+  const startInFlightRef = useRef(false);
+  const completedFocusSecondsRef = useRef<number | null>(null);
+  const isElectron = electronIPC.getIsElectron();
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
 
-  const getCurrentTimerKey = () => (mode === 'focus' ? timerId : `${timerId}_break`);
+  const activeTimerId = useMemo(() => {
+    if (!baseTimerId) return '';
+    return mode === 'focus' ? baseTimerId : `${baseTimerId}_break`;
+  }, [mode, baseTimerId]);
+  const breakDurationSeconds = focusSettings.breakDurationMinutes * 60;
 
-  // Sound Effect Helper (Web Audio API)
   const playSound = (type: 'complete' | 'break') => {
+    if (!focusSettings.soundEnabled) return;
+
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return;
 
       const ctx = new AudioContext();
@@ -50,192 +75,316 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.1);
-
         gain.gain.setValueAtTime(0.3, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-
         osc.start(now);
         osc.stop(now + 0.8);
-
-        setTimeout(() => {
-          ctx.close();
-        }, 1000);
       } else {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(440, now);
-
         gain.gain.setValueAtTime(0.3, now);
         gain.gain.setValueAtTime(0, now + 0.1);
         gain.gain.setValueAtTime(0.3, now + 0.2);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-
         osc.start(now);
         osc.stop(now + 0.6);
-
-        setTimeout(() => {
-          ctx.close();
-        }, 1000);
       }
+
+      setTimeout(() => {
+        ctx.close();
+      }, 1000);
     } catch (e) {
-      logger.error('Audio play failed', e);
+      console.error('Audio play failed', e);
     }
   };
 
-
-
-  const syncStartOrResume = (timerKey: string, seconds: number, isFocusMode: boolean) => {
-    if (!timerKey || seconds <= 0) return;
-
-    if (!startedTimersRef.current.has(timerKey)) {
-      startedTimersRef.current.add(timerKey);
-      electronIPC.startPomodoro({
-        timerId: timerKey,
-        duration: seconds,
-        isFocusMode
-      });
-    } else {
-      electronIPC.togglePomodoro(timerKey);
-    }
-  };
-
-  // Auto-start initialization
   useEffect(() => {
-    isMounted.current = true;
+    if (!task) return;
 
-    if (finishBreakTimeoutRef.current) {
-      clearTimeout(finishBreakTimeoutRef.current);
-      finishBreakTimeoutRef.current = null;
+    finishHandledRef.current = null;
+    startInFlightRef.current = false;
+    completedFocusSecondsRef.current = restoredState?.taskId === task.id
+      && restoredState.mode === 'break'
+      && (restoredState.remainingSeconds > 0 || restoredState.isActive)
+      ? task.durationMinutes * 60
+      : null;
+    setIsStarting(false);
+    setTimerError(null);
+    setFocusSettings(getFocusSettings());
+
+    if (localIntervalRef.current) {
+      clearInterval(localIntervalRef.current);
+      localIntervalRef.current = null;
+    }
+    localTickRef.current = null;
+
+    if (restoredState?.taskId === task.id && (restoredState.remainingSeconds > 0 || restoredState.isActive)) {
+      setBaseTimerId(restoredState.timerId);
+      currentTimerIdRef.current = restoredState.timerId;
+      setMode(restoredState.mode);
+      setTimeLeft(restoredState.remainingSeconds);
+      setIsActive(restoredState.isActive);
+      setHasStarted(true);
+      return;
     }
 
-    if (task) {
-      startedTimersRef.current.clear();
-
-      if (restoredState && restoredState.remainingSeconds > 0) {
-        setTimerId(restoredState.timerId);
-        setMode(restoredState.mode);
-        setTimeLeft(restoredState.remainingSeconds);
-
-        const restoredKey = restoredState.mode === 'focus'
-          ? restoredState.timerId
-          : `${restoredState.timerId}_break`;
-        startedTimersRef.current.add(restoredKey);
-        setIsActive(restoredState.isActive ?? true);
-      } else {
-        const newTimerId = `timer_${task.id}_${Date.now()}`;
-        setTimerId(newTimerId);
-        setMode('focus');
-        setTimeLeft(task.durationMinutes * 60);
-        setIsActive(false);
-      }
-    }
+    const newTimerId = `timer_${task.id}_${Date.now()}`;
+    setBaseTimerId(newTimerId);
+    currentTimerIdRef.current = newTimerId;
+    setMode('focus');
+    setTimeLeft(task.durationMinutes * 60);
+    setIsActive(false);
+    setHasStarted(false);
 
     return () => {
-      isMounted.current = false;
-      if (finishBreakTimeoutRef.current) {
-        clearTimeout(finishBreakTimeoutRef.current);
-        finishBreakTimeoutRef.current = null;
+      if (localIntervalRef.current) {
+        clearInterval(localIntervalRef.current);
+        localIntervalRef.current = null;
       }
+      localTickRef.current = null;
     };
-  }, [task, restoredState]);
+  }, [task?.id]);
 
-  // IPC Event Subscription
   useEffect(() => {
-    if (!task || !timerId) return;
+    const syncLocalTimer = () => {
+      localTickRef.current?.();
+    };
 
-    const currentTimerKey = mode === 'focus' ? timerId : `${timerId}_break`;
+    document.addEventListener('visibilitychange', syncLocalTimer);
+    window.addEventListener('focus', syncLocalTimer);
 
-    const unsubscribe = electronIPC.onPomodoroUpdate((data) => {
-      if (data.timerId !== currentTimerKey) return;
+    return () => {
+      document.removeEventListener('visibilitychange', syncLocalTimer);
+      window.removeEventListener('focus', syncLocalTimer);
+    };
+  }, []);
 
-      if (!isMounted.current) return;
+  useEffect(() => {
+    if (!task || !hasStarted || !currentTimerIdRef.current) return;
 
-      if (data.stopped) {
-         setIsActive(false);
-         return;
+    onSessionStateChange({
+      timerId: currentTimerIdRef.current,
+      taskId: task.id,
+      taskHabitId: task.habitId,
+      taskName: task.name,
+      taskPriority: task.priority,
+      taskDate: task.date,
+      taskStartTime: task.startTime,
+      taskDurationMinutes: task.durationMinutes,
+      mode,
+      remainingSeconds: timeLeft,
+      isActive,
+    });
+  }, [task, hasStarted, mode, timeLeft, isActive, onSessionStateChange]);
+
+  useEffect(() => {
+    if (!task) return;
+
+    return electronIPC.onPomodoroUpdate((update) => {
+      const focusTimerId = currentTimerIdRef.current;
+      const breakTimerId = `${currentTimerIdRef.current}_break`;
+      if (update.timerId !== focusTimerId && update.timerId !== breakTimerId) return;
+
+      const nextMode = update.timerId === breakTimerId ? 'break' : 'focus';
+      if (update.stopped) {
+        setMode(nextMode);
+        setTimeLeft(Math.max(0, Math.ceil(update.remaining / 1000)));
+        setIsActive(false);
+        setHasStarted(false);
+        onSessionStateChange(null);
+        return;
       }
 
-      setTimeLeft(Math.ceil(data.remaining / 1000));
-      
-      if (data.isActive !== undefined) {
-         setIsActive(data.isActive);
-      }
+      setMode(nextMode);
+      setTimeLeft(Math.max(0, Math.ceil(update.remaining / 1000)));
+      setIsActive(Boolean(update.isActive));
+      setHasStarted(true);
 
-      if (data.isFinished) {
-         handleTimerFinish();
+      if (update.isFinished && finishHandledRef.current !== update.timerId) {
+        finishHandledRef.current = update.timerId;
+        if (nextMode === 'focus') {
+          completedFocusSecondsRef.current = Math.max(0, Math.round((update.elapsed || 0) / 1000));
+        }
+        void handleTimerFinish(nextMode);
       }
     });
+  }, [task]);
 
-    return () => {
-      unsubscribe();
+  const buildTimerPayload = (nextMode: 'focus' | 'break'): PomodoroTimerData | null => {
+    if (!task) return null;
+
+    return {
+      timerId: nextMode === 'focus' ? currentTimerIdRef.current : `${currentTimerIdRef.current}_break`,
+      duration: nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds,
+      isFocusMode: nextMode === 'focus',
+      notificationsEnabled: focusSettings.notificationsEnabled,
+      breakDurationSeconds,
+      taskId: task.id,
+      taskHabitId: task.habitId,
+      taskName: task.name,
+      taskDate: task.date,
+      taskPriority: task.priority,
+      taskDurationMinutes: task.durationMinutes,
+      notificationMessages: {
+        focusCompleteTitle: t('notification_focus_complete_title'),
+        focusCompleteBody: t('notification_focus_complete_body', { task: task.name }),
+        breakFinishedTitle: t('notification_break_finished_title'),
+        breakFinishedBody: t('notification_break_finished_body'),
+      },
     };
-  }, [task, timerId, mode]);
+  };
 
-  const handleTimerFinish = () => {
-    setIsActive(false);
-    playSound(mode === 'focus' ? 'complete' : 'break');
+  const startLocalTimer = (durationSeconds: number, nextMode: 'focus' | 'break') => {
+    if (localIntervalRef.current) clearInterval(localIntervalRef.current);
 
-    if (mode === 'focus') {
-      if (timerId) {
-        electronIPC.stopPomodoro(timerId);
-        startedTimersRef.current.delete(timerId);
+    endTimeRef.current = Date.now() + durationSeconds * 1000;
+    setMode(nextMode);
+    setTimeLeft(durationSeconds);
+    setIsActive(true);
+    setHasStarted(true);
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        if (localIntervalRef.current) {
+          clearInterval(localIntervalRef.current);
+          localIntervalRef.current = null;
+        }
+        localTickRef.current = null;
+        if (nextMode === 'focus') {
+          completedFocusSecondsRef.current = durationSeconds;
+        }
+        void handleTimerFinish(nextMode);
+      }
+    };
+
+    localTickRef.current = tick;
+    localIntervalRef.current = setInterval(tick, 250);
+  };
+
+  const startTimer = async (nextMode: 'focus' | 'break') => {
+    if (!task || startInFlightRef.current) return;
+
+    startInFlightRef.current = true;
+    setIsStarting(true);
+    setTimerError(null);
+    finishHandledRef.current = null;
+
+    try {
+      if (isElectron) {
+        const payload = buildTimerPayload(nextMode);
+        if (!payload) return;
+
+        const started = await electronIPC.startPomodoro(payload);
+        setMode(nextMode);
+        setHasStarted(true);
+        setTimeLeft(Math.max(0, Math.ceil(started.remaining / 1000)));
+        setIsActive(Boolean(started.isActive));
+        return;
       }
 
-      setMode('break');
-      setTimeLeft(DEFAULT_BREAK_SECONDS);
-      
-      // Auto start break via IPC
-      if (timerId) {
-        const breakTimerId = `${timerId}_break`;
-        startedTimersRef.current.add(breakTimerId);
-        setIsActive(true);
-        electronIPC.startPomodoro({
-          timerId: breakTimerId,
-          duration: DEFAULT_BREAK_SECONDS,
-          isFocusMode: false
-        });
-      }
-    } else {
-      finishBreakTimeoutRef.current = setTimeout(() => {
-        finishBreakTimeoutRef.current = null;
-        finishBreak();
-      }, 500);
+      const durationSeconds = nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds;
+      startLocalTimer(durationSeconds, nextMode);
+    } catch (error) {
+      console.error('Failed to start pomodoro timer', error);
+      setMode(nextMode);
+      setTimeLeft(nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds);
+      setIsActive(false);
+      setHasStarted(false);
+      setTimerError(t('timer_start_failed'));
+      onSessionStateChange(null);
+    } finally {
+      startInFlightRef.current = false;
+      setIsStarting(false);
     }
+  };
+
+  const handleTimerFinish = async (finishedMode: 'focus' | 'break') => {
+    setIsActive(false);
+    playSound(finishedMode === 'focus' ? 'complete' : 'break');
+
+    if (finishedMode === 'focus') {
+      if (task && completedFocusSecondsRef.current === null) {
+        completedFocusSecondsRef.current = task.durationMinutes * 60;
+      }
+      await startTimer('break');
+      return;
+    }
+
+    setTimeout(() => {
+      finishBreak();
+    }, 500);
   };
 
   const finishBreak = () => {
-    if (task) onComplete(task);
+    if (localIntervalRef.current) {
+      clearInterval(localIntervalRef.current);
+      localIntervalRef.current = null;
+    }
 
-    if (timerId) {
-      electronIPC.stopPomodoro(timerId);
-      electronIPC.stopPomodoro(`${timerId}_break`);
-      startedTimersRef.current.delete(timerId);
-      startedTimersRef.current.delete(`${timerId}_break`);
+    if (currentTimerIdRef.current) {
+      electronIPC.stopPomodoro(currentTimerIdRef.current);
+      electronIPC.stopPomodoro(`${currentTimerIdRef.current}_break`);
+    }
+
+    onSessionStateChange(null);
+
+    if (task) {
+      const actualFocusSeconds = completedFocusSecondsRef.current ?? task.durationMinutes * 60;
+      const actualFocusMinutes = Math.max(1, Math.round(actualFocusSeconds / 60));
+      onComplete(task, actualFocusMinutes);
     }
   };
 
-  // Pause/resume
-  const toggleTimer = () => {
-    const currentTimerId = getCurrentTimerKey();
+  const toggleTimer = async () => {
+    if (!task || isStarting || startInFlightRef.current) return;
+
+    if (isElectron) {
+      if (!hasStarted) {
+        await startTimer(mode);
+        return;
+      }
+
+      electronIPC.togglePomodoro(activeTimerId);
+      return;
+    }
 
     if (isActive) {
-      if (currentTimerId && startedTimersRef.current.has(currentTimerId)) {
-        electronIPC.togglePomodoro(currentTimerId);
+      if (localIntervalRef.current) {
+        clearInterval(localIntervalRef.current);
+        localIntervalRef.current = null;
       }
-    } else {
-      syncStartOrResume(currentTimerId, timeLeft, mode === 'focus');
+      setIsActive(false);
+      return;
     }
+
+    const durationSeconds = timeLeft || (mode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds);
+    startLocalTimer(durationSeconds, mode);
   };
 
-  const markEarlyComplete = () => {
-    if (mode === 'focus') {
-      handleTimerFinish();
+  const markEarlyComplete = async () => {
+    if (mode !== 'focus') return;
+
+    if (isElectron) {
+      electronIPC.stopPomodoro(currentTimerIdRef.current);
+    } else if (localIntervalRef.current) {
+      clearInterval(localIntervalRef.current);
+      localIntervalRef.current = null;
     }
+
+    if (task) {
+      completedFocusSecondsRef.current = Math.max(0, task.durationMinutes * 60 - timeLeft);
+    }
+    setIsActive(false);
+    playSound('complete');
+    finishBreak();
   };
 
   const skipBreak = () => {
-    if (mode === 'break') {
-      finishBreak();
-    }
+    if (mode !== 'break') return;
+    finishBreak();
   };
 
   if (!task) return null;
@@ -243,8 +392,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const styles = PRIORITY_STYLES[task.priority];
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-
-  const totalTime = mode === 'focus' ? task.durationMinutes * 60 : DEFAULT_BREAK_SECONDS;
+  const totalTime = mode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds;
   const progress = 100 - (timeLeft / totalTime) * 100;
 
   const isBreak = mode === 'break';
@@ -254,8 +402,16 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const accentColor = isBreak ? 'text-emerald-600' : styles.text;
 
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center">
-      <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+    <div
+      {...dialogProps}
+      ref={containerRef}
+      className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center"
+    >
+      <button
+        onClick={onClose}
+        aria-label={t('cancel')}
+        className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+      >
         <X size={24} className="text-gray-600" />
       </button>
 
@@ -302,10 +458,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
         <div className="flex justify-center gap-4">
           <button
             onClick={toggleTimer}
+            disabled={isStarting}
             className={`
               w-16 h-16 rounded-full flex items-center justify-center
               bg-white shadow-lg border border-gray-100
               ${textColor} hover:scale-105 transition-transform
+              ${isStarting ? 'opacity-70 cursor-wait hover:scale-100' : ''}
             `}
           >
             {isActive ? <Pause fill="currentColor" /> : <Play fill="currentColor" className="ml-1" />}
@@ -330,6 +488,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
           )}
         </div>
       </div>
+
+      {timerError ? (
+        <p role="alert" className="mt-4 text-red-600 text-sm font-medium">
+          {timerError}
+        </p>
+      ) : null}
 
       <p className="mt-8 text-gray-400 text-sm font-medium">
         {t(isBreak ? 'enjoy_break' : 'stay_focused')}
