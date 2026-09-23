@@ -91,9 +91,10 @@ renderer network independence, not a machine-wide firewall block.
 ### P0 save reliability (0.1.2)
 
 - `npm run verify:p0-native`: isolated real Electron main process and filesystem; verifies save success/cancel/failure and quit return/retry/discard. Only native dialog choices are stubbed; this is not a visual Windows-dialog acceptance test. The harness terminates only its own processes.
+- 2026-09-23 visual Windows save-dialog acceptance passed with an isolated profile: exported a schema v5 JSON backup, confirmed the application-reported path, then reopened the dialog and canceled with Escape. This does not cover importing or restoring the exported file.
 - `npm run test:packaged`: now also blocks the temporary-write path in its disposable profile, checks error status, durable reads, retained pending snapshot, paused break timer, and retry. It checks transaction acknowledgment against disk, then corrupts both copies and restores schema v5 through the recovery UI, asserting preserved original archives and restored settings.
 - Unit coverage includes browser quota failure, multi-key transaction failure/retry, malformed nested business data, interrupted backup replacement, corrupt-file archive failure, settings round-trip and old-format compatibility, pre-restore cancellation, read-only day loading and blocked custom task controls.
-- Continue the OS disk-full and native-dialog visual checks below in a disposable account. No claim of power-loss durability or live-profile installation follows from fault injection alone.
+- The OS disk-full check below remains pending in a disposable environment. The visible save-dialog check above is complete. No claim of power-loss durability or live-profile installation follows from fault injection alone.
 
 Run the following checks in a disposable Windows account, virtual machine, or an
 isolated `--user-data-dir`. Never create disk-full or forced-crash conditions against
@@ -114,7 +115,21 @@ the app version, profile path, file hashes, timings, and result.
 5. Fail the release if the import crashes, loses records, produces invalid JSON, or
    regresses materially from the last recorded baseline.
 
+2026-09-23 isolated acceptance: the schema-v5 fixture was 3,372,124 bytes with 10,000
+tasks across 5,844 dates from 2010-01-01 through 2025-12-31. The restore preview appeared
+in 108 ms. Import through the UI succeeded; after restart the app showed all 10,000 tasks
+and 5,844 dates, and the active JSON files parsed. A second disposable profile with
+corrupt primary and backup files recovered through the UI; its archived corrupt files
+matched their original hashes and storage reported `saved` with no pending snapshot.
+The measured end-to-end interval included manual navigation in the native Save As dialog,
+so it is not a valid application restore-time baseline. Repeat with a controlled dialog
+selection before treating the performance gate as complete.
+
 ### Disk-full or write-denied behavior
+
+2026-09-23: OS-level disk exhaustion and power-loss testing remain pending because this
+host has no available disposable VM or virtual-disk tooling. The host disk was not filled
+or write-denied to simulate these failures.
 
 1. Use a disposable profile on a constrained virtual disk, or deny writes only to a
    copied test profile. Preserve the original file hashes.
@@ -148,10 +163,16 @@ reporting, and real-filesystem atomic replacement on Windows. The packaged regre
 also terminates the process around the 300 ms write boundary and checks that persisted
 JSON remains complete; edits not yet flushed can still be lost on forced termination.
 On 2026-09-23 the visible Windows native save dialog was manually exercised with an
-isolated profile and produced a valid schema-v5 backup. Real OS-level disk exhaustion,
-physical/VM power-loss durability, and end-to-end recovery across every persisted JSON
-file remain release gates; fault injection and process termination are not substitutes
-for those checks.
+isolated profile and produced a valid schema-v5 backup. A 0.1.1-to-0.1.2 installer upgrade
+and legacy-config migration passed in a disposable directory. A 10,000-task restore and
+corrupt-profile recovery passed data-integrity checks; restore-time performance is still
+unmeasured because the recorded interval included manual native-dialog handling. The
+installed timer-completion path was exercised with notifications enabled. The Windows
+main process now sets the same AUMID as the NSIS shortcut, but a post-fix timer completion
+still produced no visible toast in the captured windows. Real OS-level disk exhaustion,
+physical/VM power-loss durability, per-file recovery coverage, a controlled restore-time
+baseline, and visible toast delivery remain release gates; fault injection and process
+termination are not substitutes for those checks.
 
 ## Packaging hygiene
 

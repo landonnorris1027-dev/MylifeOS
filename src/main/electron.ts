@@ -24,6 +24,10 @@ try {
   app.commandLine.appendSwitch('disable-gpu');
 } catch (e) {}
 
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.mylifeos.app');
+}
+
 const RECOVERY_POINTS_KEY = 'mylifeos_recovery_points';
 const DESKTOP_SETTINGS_KEY = 'mylifeos_desktop_settings';
 const LANGUAGE_KEY = 'mylifeos_lang';
