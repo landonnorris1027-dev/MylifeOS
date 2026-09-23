@@ -142,11 +142,16 @@ the app version, profile path, file hashes, timings, and result.
 5. Fail the release for startup failure, invalid JSON, a partially written object, or
    unrecoverable loss of the previous durable state.
 
-The application-data path now has automated fault-injection coverage for partial
-temporary writes, flush failures, fallback to the last complete `.bak`, delayed-write
-error reporting, and real-filesystem atomic replacement on Windows. These scenarios
-remain manual release gates for OS-level disk exhaustion, forced process termination,
-the native save dialog, and end-to-end recovery across every persisted JSON file.
+The application-data path has automated fault-injection coverage for partial temporary
+writes, flush failures, fallback to the last complete `.bak`, delayed-write error
+reporting, and real-filesystem atomic replacement on Windows. The packaged regression
+also terminates the process around the 300 ms write boundary and checks that persisted
+JSON remains complete; edits not yet flushed can still be lost on forced termination.
+On 2026-09-23 the visible Windows native save dialog was manually exercised with an
+isolated profile and produced a valid schema-v5 backup. Real OS-level disk exhaustion,
+physical/VM power-loss durability, and end-to-end recovery across every persisted JSON
+file remain release gates; fault injection and process termination are not substitutes
+for those checks.
 
 ## Packaging hygiene
 
