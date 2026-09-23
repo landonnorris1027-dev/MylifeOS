@@ -89,6 +89,12 @@ Desktop data is stored under Electron's `userData` directory, which is normally
 - `pomodoro-state.json`: active timer snapshots and pending recoveries
 - `window-state.json`: window bounds and maximized state
 
+On the first launch after upgrading from 0.1.1, the main process migrates the
+legacy `config.json` values and any `mylifeos_log_YYYY-MM-DD` entries into
+`app-data.json`. It writes the new snapshot atomically and keeps `config.json`
+unchanged as a recovery source. If the legacy data is malformed, startup stops
+with an error instead of opening an empty profile.
+
 All four files use the same crash-safe writer. Startup reads the `.bak` copy if
 the primary JSON is unreadable. A failed debounced application-data write is
 also reported to the renderer instead of failing silently. A forced process

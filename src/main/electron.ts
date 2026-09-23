@@ -8,6 +8,7 @@ import type { StorageStatus, StorageTransaction } from './storage-contract';
 import { normalizePersistedTimerForRestore, PersistedTimerSnapshot } from './electron-timer-restore';
 import { resolveWindowLoadTarget } from './electron-window-target';
 import { migrateRecoveryPoints } from './recovery-points-migration';
+import { migrateLegacyElectronStore } from './legacy-storage-migration';
 import { readJsonWithBackup, writeTextAtomically } from './durable-file';
 import { DEFAULT_WINDOW_BOUNDS, normalizeWindowState, WindowStateSnapshot } from './window-state';
 import type {
@@ -836,6 +837,24 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     ensureTimerStatePath();
     ensureAppDataPath();
+    try {
+      const migration = migrateLegacyElectronStore(
+        path.join(app.getPath('userData'), 'config.json'),
+        ensureAppDataPath(),
+      );
+      if (migration.migrated) {
+        console.info('[MyLifeOS] Migrated data from the previous config.json; the original file was preserved.');
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error('[MyLifeOS] Could not migrate the previous data store:', error);
+      dialog.showErrorBox(
+        'MyLifeOS could not migrate existing data',
+        `${detail}\n\nThe original config.json was left unchanged. Resolve this issue before launching the new version again.`,
+      );
+      app.quit();
+      return;
+    }
     getAppDataStore();
     getRecoveryPointsStore();
     restorePersistedTimers();
