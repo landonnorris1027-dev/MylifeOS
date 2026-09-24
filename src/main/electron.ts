@@ -10,6 +10,7 @@ import { resolveWindowLoadTarget } from './electron-window-target';
 import { migrateRecoveryPoints } from './recovery-points-migration';
 import { migrateLegacyElectronStore } from './legacy-storage-migration';
 import { readJsonWithBackup, writeTextAtomically } from './durable-file';
+import { isPersistedTimerState, isWindowStateSnapshot } from './persisted-state-validation';
 import { DEFAULT_WINDOW_BOUNDS, normalizeWindowState, WindowStateSnapshot } from './window-state';
 import type {
   MainTimer,
@@ -166,15 +167,12 @@ function ensureWindowStatePath(): string {
 function readWindowState(): WindowStateSnapshot {
   try {
     const filePath = ensureWindowStatePath();
-    const result = readJsonWithBackup(filePath);
+    const result = readJsonWithBackup(filePath, fs, isWindowStateSnapshot);
     if (!result) return {};
     if (result.recoveredFromBackup) {
       console.warn('[MyLifeOS] Recovered window state from backup.');
     }
-    const parsed = result.value;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as WindowStateSnapshot)
-      : {};
+    return result.value as WindowStateSnapshot;
   } catch (error) {
     console.warn('[MyLifeOS] Failed to read window state:', error);
     return {};
@@ -193,6 +191,8 @@ function writeWindowState(): void {
     writeTextAtomically(
       filePath,
       JSON.stringify({ ...bounds, isMaximized }, null, 2),
+      fs,
+      isWindowStateSnapshot,
     );
   } catch (error) {
     console.warn('[MyLifeOS] Failed to write window state:', error);
@@ -342,7 +342,7 @@ function persistActiveTimers(): void {
       activeTimers: Array.from(activeTimers.values()).map((timer) => toTimerPayload(timer)),
       pendingRecoveries,
     };
-    writeTextAtomically(filePath, JSON.stringify(payload, null, 2));
+    writeTextAtomically(filePath, JSON.stringify(payload, null, 2), fs, isPersistedTimerState);
   } catch (error) {
     console.error('[MyLifeOS] Failed to persist timers:', error);
   }
@@ -383,7 +383,7 @@ function restorePersistedTimers(): void {
   try {
     const filePath = ensureTimerStatePath();
     type PersistedTimerRecord = Partial<MainTimer> & PersistedTimerSnapshot;
-    const result = readJsonWithBackup(filePath);
+    const result = readJsonWithBackup(filePath, fs, isPersistedTimerState);
     if (!result) return;
     if (result.recoveredFromBackup) {
       console.warn('[MyLifeOS] Recovered pomodoro state from backup.');
