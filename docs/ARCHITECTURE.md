@@ -116,6 +116,12 @@ destructive operations. Old backups preserve preferences; unknown future version
 are rejected. Browser-only imports use one atomic localStorage snapshot entry;
 desktop read errors never silently switch to the browser store.
 
+In 0.1.3, backup schema v6 also preserves optional habit weekday rules. An absent
+rule means every day for legacy data. Older releases reject v6 backups instead of
+silently discarding the repeat schedule. Moving a manual task between dates edits
+both days in one `mylifeos_daily_logs` storage value; a failed replacement cannot
+commit only one side of the move.
+
 ## Data model
 
 Core renderer types are defined in [`src/types.ts`](../src/types.ts):

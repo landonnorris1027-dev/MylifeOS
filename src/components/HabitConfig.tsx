@@ -22,6 +22,7 @@ import type { TranslationKey } from '../locales';
 import { FocusSettings, getFocusSettings, saveFocusSettings } from '../services/focusSettings';
 import { ProfileSettings, getProfileSettings, saveProfileSettings } from '../services/profileSettings';
 import { DesktopSettings, getDesktopSettings, saveDesktopSettings } from '../services/desktopSettings';
+import { PlannerSettings, getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
 import { saveJSONFile } from '../services/platformFiles';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
@@ -85,9 +86,10 @@ interface HabitConfigProps {
   isOpen: boolean;
   onClose: () => void;
   onAdded: () => void;
+  section?: 'habits' | 'settings';
 }
 
-const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) => {
+const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, section = 'habits' }) => {
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('P1');
@@ -96,11 +98,14 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
   const [effectiveType, setEffectiveType] = useState<'permanent' | 'range'>('permanent');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [repeatMode, setRepeatMode] = useState<'daily' | 'workdays' | 'custom'>('daily');
+  const [customWeekdays, setCustomWeekdays] = useState<number[]>([]);
   const [goalName, setGoalName] = useState('');
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [focusSettings, setFocusSettings] = useState<FocusSettings>(() => getFocusSettings());
   const [profileSettings, setProfileSettings] = useState<ProfileSettings>(() => getProfileSettings());
   const [desktopSettings, setDesktopSettings] = useState<DesktopSettings>(() => getDesktopSettings());
+  const [plannerSettings, setPlannerSettings] = useState<PlannerSettings>(() => getPlannerSettings());
 
   const [existingHabits, setExistingHabits] = useState<Habit[]>([]);
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
@@ -129,6 +134,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     setFocusSettings(getFocusSettings());
     setProfileSettings(getProfileSettings());
     setDesktopSettings(getDesktopSettings());
+    setPlannerSettings(getPlannerSettings());
   };
 
   useEffect(() => {
@@ -137,6 +143,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       setFocusSettings(getFocusSettings());
       setProfileSettings(getProfileSettings());
       setDesktopSettings(getDesktopSettings());
+      setPlannerSettings(getPlannerSettings());
     }
   }, [isOpen]);
 
@@ -150,6 +157,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     setEffectiveType('permanent');
     setStartDate('');
     setEndDate('');
+    setRepeatMode('daily');
+    setCustomWeekdays([]);
     setGoalName('');
     setEditingHabitId(null);
   };
@@ -158,6 +167,12 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     e.preventDefault();
     const habitName = name.trim();
     if (!habitName) return;
+    if (repeatMode === 'custom' && customWeekdays.length === 0) {
+      setAlertConfig({ isOpen: true, message: t('repeat_choose_day') });
+      return;
+    }
+    const weekdays = repeatMode === 'daily' ? undefined : repeatMode === 'workdays'
+      ? [1, 2, 3, 4, 5] : [...customWeekdays].sort();
 
     try {
       const goal = goalName.trim() ? addGoal(goalName) : null;
@@ -174,6 +189,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
           effectiveType,
           startDate: effectiveType === 'range' ? startDate || undefined : undefined,
           endDate: effectiveType === 'range' ? endDate || undefined : undefined,
+          weekdays,
         });
       } else {
         addHabit(
@@ -184,7 +200,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
           effectiveType,
           effectiveType === 'range' ? startDate || undefined : undefined,
           effectiveType === 'range' ? endDate || undefined : undefined,
-          goalId
+          goalId,
+          weekdays,
         );
       }
 
@@ -206,6 +223,9 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
     setEffectiveType(habit.effectiveType);
     setStartDate(habit.startDate || '');
     setEndDate(habit.endDate || '');
+    const weekdays = habit.weekdays;
+    setRepeatMode(!weekdays ? 'daily' : weekdays.join(',') === '1,2,3,4,5' ? 'workdays' : 'custom');
+    setCustomWeekdays(weekdays || []);
     setGoalName(goalOptions.find((goal) => goal.id === habit.goalId)?.name || '');
   };
 
@@ -250,6 +270,16 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
       setDesktopSettings(nextSettings);
     } catch (error) {
       console.error("CRITICAL: Failed to save desktop settings:", error);
+      setAlertConfig({ isOpen: true, message: t('storage_write_failed') });
+    }
+  };
+
+  const handlePlannerSettingsChange = (patch: Partial<PlannerSettings>) => {
+    try {
+      setPlannerSettings(savePlannerSettings({ ...plannerSettings, ...patch }));
+      window.dispatchEvent(new Event('mylifeos-storage-restored'));
+    } catch (error) {
+      console.error('Failed to save planner settings', error);
       setAlertConfig({ isOpen: true, message: t('storage_write_failed') });
     }
   };
@@ -447,7 +477,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Plus size={18} className="text-gray-400" />
-            {t('config_habit_title')}
+            {t(section === 'habits' ? 'config_habit_title' : 'settings_title')}
           </h2>
           <button
             onClick={() => {
@@ -461,6 +491,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
         </div>
 
         <div className="p-6 space-y-8">
+          {section === 'habits' && <>
           {existingHabits.length === 0 && !editingHabitId && (
             <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
               <div className="mb-3 flex items-center gap-2 text-blue-900">
@@ -639,6 +670,32 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               )}
             </div>
 
+            <fieldset className="space-y-3">
+              <legend className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('repeat_days')}</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {(['daily', 'workdays', 'custom'] as const).map((mode) => (
+                  <button key={mode} type="button" onClick={() => setRepeatMode(mode)}
+                    aria-pressed={repeatMode === mode}
+                    className={`rounded-lg border px-2 py-2 text-xs font-medium ${repeatMode === mode ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>
+                    {t(mode === 'daily' ? 'repeat_daily' : mode === 'workdays' ? 'repeat_workdays' : 'repeat_custom')}
+                  </button>
+                ))}
+              </div>
+              {repeatMode === 'custom' && (
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 7 }, (_, day) => (
+                    <label key={day} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 p-1 text-xs">
+                      <span>{new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'short' })}</span>
+                      <input type="checkbox" checked={customWeekdays.includes(day)}
+                        onChange={() => setCustomWeekdays((days) => days.includes(day) ? days.filter((item) => item !== day) : [...days, day].sort())}
+                        aria-label={new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'long' })}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+            </fieldset>
+
             <button
               type="submit"
               className="w-full py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition-colors shadow-lg shadow-gray-200"
@@ -679,6 +736,9 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                               effective: habit.effectiveType === 'permanent' ? t('mode_permanent') : `${habit.startDate || '?'} ~ ${habit.endDate || '?'}`,
                             })}
                           </p>
+                          <p className="text-[10px] text-gray-500">
+                            {habit.weekdays ? habit.weekdays.map((day) => new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'short' })).join(' · ') : t('repeat_daily')}
+                          </p>
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 items-center gap-1">
@@ -715,10 +775,23 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
             </div>
           </div>
 
-          {/* Focus Preferences Section */}
+          </>}
+          {section === 'settings' && <>
+          <nav aria-label={t('settings_title')} className="grid grid-cols-5 gap-1 text-center text-[11px]">
+            {([
+              ['#settings-profile', 'profile_settings_title'],
+              ['#settings-focus', 'focus_preferences'],
+              ['#settings-planner', 'planner_settings_title'],
+              ['#settings-desktop', 'desktop_section_title'],
+              ['#settings-data', 'data_management'],
+            ] as const).map(([href, key]) => (
+              <a key={href} href={href} className="rounded-lg bg-gray-100 px-1 py-2 text-gray-700 hover:bg-gray-200 focus-visible:ring-2">{t(key)}</a>
+            ))}
+          </nav>
+          {/* Profile settings */}
           <div className="border-t border-gray-100 pt-6">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              {t('focus_preferences')}
+            <label id="settings-profile" className="block scroll-mt-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              {t('profile_settings_title')}
             </label>
             <div className="space-y-3">
               <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
@@ -739,6 +812,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
                 </div>
               </div>
 
+              <div id="settings-focus" className="scroll-mt-4 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('focus_preferences')}</div>
               <label className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                 <span className="flex items-center gap-3 text-sm font-medium text-gray-700">
                   <Volume2 size={16} className="text-gray-400" />
@@ -767,7 +841,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
 
               {/* Desktop Section */}
               <div className="border-t border-gray-100 pt-6">
-                <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <label id="settings-desktop" className="mb-3 block scroll-mt-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
                   {t('desktop_section_title')}
                 </label>
                 <div className="space-y-3">
@@ -811,7 +885,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
           </div>
 
           {/* Local Data Management Section */}
-          <div className="border-t border-gray-100 pt-6">
+          <div id="settings-data" className="scroll-mt-4 border-t border-gray-100 pt-6">
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               {t('data_management')}
             </label>
@@ -871,6 +945,20 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded }) =
               </div>
             )}
           </div>
+
+          <div className="border-t border-gray-100 pt-6">
+            <div id="settings-planner" className="mb-3 scroll-mt-4 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('planner_settings_title')}</div>
+            <div className="grid grid-cols-2 gap-2">
+              {(['daytime', 'fullDay'] as const).map((mode) => (
+                <button key={mode} type="button" onClick={() => handlePlannerSettingsChange({ timelineMode: mode })}
+                  aria-pressed={plannerSettings.timelineMode === mode}
+                  className={`rounded-lg border p-2 text-sm ${plannerSettings.timelineMode === mode ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+                  {t(mode === 'daytime' ? 'timeline_mode_daytime' : 'timeline_mode_full_day')}
+                </button>
+              ))}
+            </div>
+          </div>
+          </>}
         </div>
       </div>
 

@@ -16,6 +16,7 @@ export interface Habit {
   effectiveType: 'permanent' | 'range';
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+  weekdays?: number[]; // Sunday = 0; absent means every day for older habits
 }
 
 export interface Goal {

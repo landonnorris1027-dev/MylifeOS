@@ -52,7 +52,7 @@ describe('HabitConfig restore safety', () => {
     await act(async () => {
       root.render(
         <LanguageProvider>
-          <HabitConfig isOpen onClose={jest.fn()} onAdded={jest.fn()} />
+          <HabitConfig isOpen section="settings" onClose={jest.fn()} onAdded={jest.fn()} />
         </LanguageProvider>,
       );
     });

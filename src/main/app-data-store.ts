@@ -40,7 +40,10 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
       if (key === 'mylifeos_goals' && entries.some(entry => !text(entry.id) || !text(entry.name))) return false;
       if (key === 'mylifeos_habits' && entries.some(entry => !text(entry.id) || !text(entry.name) || !priority(entry.priority)
         || !positive(entry.dailyQuota) || entry.dailyQuota > 1440 || !positive(entry.defaultDurationMinutes)
-        || !['permanent', 'range'].includes(entry.effectiveType))) return false;
+        || !['permanent', 'range'].includes(entry.effectiveType)
+        || (entry.weekdays !== undefined && (!Array.isArray(entry.weekdays) || entry.weekdays.length === 0
+          || new Set(entry.weekdays).size !== entry.weekdays.length
+          || entry.weekdays.some((day: unknown) => !Number.isInteger(day) || (day as number) < 0 || (day as number) > 6))))) return false;
       if (key === 'mylifeos_recovery_points' && entries.some(entry => !text(entry.id) || !text(entry.createdAt)
         || !text(entry.backupJson) || !['auto-daily', 'pre-import', 'pre-recovery-restore'].includes(entry.reason))) return false;
     }

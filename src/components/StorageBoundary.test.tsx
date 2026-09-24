@@ -66,7 +66,7 @@ describe('desktop save state UI', () => {
     await act(async () => Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Export pending data')!.click());
     const json = JSON.parse((platformFiles.saveJSONFile as jest.Mock).mock.calls[0][0]);
     expect(json.goals[0].id).toBe('pending');
-    expect(json.schemaVersion).toBe(5);
+    expect(json.schemaVersion).toBe(6);
   });
 
   it('never mounts business UI over unreadable data', async () => {

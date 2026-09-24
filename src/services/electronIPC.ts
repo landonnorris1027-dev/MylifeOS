@@ -245,12 +245,15 @@ class ElectronIPCHandler {
     this.updateCallbacks.forEach((callback) => callback(data));
   }
 
-  async getActiveTimers(): Promise<PomodoroUpdateData[]> {
+  async getActiveTimers(failClosed = false): Promise<PomodoroUpdateData[]> {
     if (this.isElectron) {
       try {
         const mainProcessTimers = await window.electronAPI?.invoke('pomodoro-get-active-timers');
-        return Array.isArray(mainProcessTimers) ? mainProcessTimers : [];
+        if (Array.isArray(mainProcessTimers)) return mainProcessTimers;
+        if (failClosed) throw new Error('Invalid timer response from main process');
+        return [];
       } catch (e) {
+        if (failClosed) throw e;
         console.warn('Failed to get active timers from main process:', e);
       }
     }

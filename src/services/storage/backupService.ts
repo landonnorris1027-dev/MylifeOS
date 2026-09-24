@@ -98,7 +98,10 @@ const sanitizeHabit = (value: unknown, seenHabitIds: Set<string>, validGoalIds: 
     !isValidPriority(value.priority) ||
     !isPositiveInteger(value.dailyQuota) || value.dailyQuota > 1440 ||
     !isPositiveInteger(value.defaultDurationMinutes) ||
-    (value.effectiveType !== 'permanent' && value.effectiveType !== 'range')
+    (value.effectiveType !== 'permanent' && value.effectiveType !== 'range') ||
+    (value.weekdays !== undefined && (!Array.isArray(value.weekdays) || value.weekdays.length === 0
+      || new Set(value.weekdays).size !== value.weekdays.length
+      || value.weekdays.some((day: unknown) => !Number.isInteger(day) || (day as number) < 0 || (day as number) > 6)))
   ) {
     return null;
   }
@@ -125,6 +128,7 @@ const sanitizeHabit = (value: unknown, seenHabitIds: Set<string>, validGoalIds: 
     effectiveType: value.effectiveType,
     startDate,
     endDate,
+    weekdays: value.weekdays as number[] | undefined,
   };
 };
 

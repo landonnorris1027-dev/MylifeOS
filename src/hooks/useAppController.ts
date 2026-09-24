@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TimerSessionSnapshot } from '../components/PomodoroTimer';
 import { PomodoroRecoveryData, PomodoroUpdateData, electronIPC } from '../services/electronIPC';
@@ -13,6 +13,8 @@ import {
   initializeDay,
   parseDateLocal,
   reduceHabitQuota,
+  rescheduleManualTask,
+  restoreDeletedTask,
   updateTask,
 } from '../services/storage';
 import {
@@ -71,6 +73,8 @@ interface AppControllerState {
   timelineMode: TimelineMode;
   isHabitConfigOpen: boolean;
   isManualTaskOpen: boolean;
+  isTaskSearchOpen: boolean;
+  reschedulingTask: Task | null;
   timerPanel: TimerPanelState;
   recoveryPrompt: RecoveryPromptState;
   schedulingTask: Task | null;
@@ -86,6 +90,8 @@ type AppControllerAction =
   | { type: 'SET_TIMELINE_MODE'; timelineMode: TimelineMode }
   | { type: 'SET_HABIT_CONFIG_OPEN'; isOpen: boolean }
   | { type: 'SET_MANUAL_TASK_OPEN'; isOpen: boolean }
+  | { type: 'SET_TASK_SEARCH_OPEN'; isOpen: boolean }
+  | { type: 'SET_RESCHEDULING_TASK'; task: Task | null }
   | { type: 'OPEN_TIMER_FOR_TASK'; task: Task }
   | { type: 'SET_TIMER_SESSION'; restoredState: TimerSessionSnapshot | null }
   | { type: 'CLOSE_TIMER' }
@@ -107,6 +113,8 @@ const initialState: AppControllerState = {
   timelineMode: getPlannerSettings().timelineMode,
   isHabitConfigOpen: false,
   isManualTaskOpen: false,
+  isTaskSearchOpen: false,
+  reschedulingTask: null,
   timerPanel: {
     task: null,
     restoredState: null,
@@ -146,6 +154,10 @@ const appControllerReducer = (state: AppControllerState, action: AppControllerAc
       return { ...state, isHabitConfigOpen: action.isOpen };
     case 'SET_MANUAL_TASK_OPEN':
       return { ...state, isManualTaskOpen: action.isOpen };
+    case 'SET_TASK_SEARCH_OPEN':
+      return { ...state, isTaskSearchOpen: action.isOpen };
+    case 'SET_RESCHEDULING_TASK':
+      return { ...state, reschedulingTask: action.task };
     case 'OPEN_TIMER_FOR_TASK':
       return {
         ...state,
@@ -292,6 +304,12 @@ export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | nu
 export const useAppController = () => {
   const { t } = useLanguage();
   const [state, dispatch] = useReducer(appControllerReducer, initialState);
+  const [undoTask, setUndoTask] = useState<Task | null>(null);
+  const undoTimeout = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (undoTimeout.current !== null) window.clearTimeout(undoTimeout.current);
+  }, []);
 
   const reportStorageError = useCallback((error: unknown) => {
     console.error('Storage write failed', error);
@@ -425,6 +443,38 @@ export const useAppController = () => {
   const closeManualTask = useCallback(() => {
     dispatch({ type: 'SET_MANUAL_TASK_OPEN', isOpen: false });
   }, []);
+
+  const openTaskSearch = useCallback(() => dispatch({ type: 'SET_TASK_SEARCH_OPEN', isOpen: true }), []);
+  const closeTaskSearch = useCallback(() => dispatch({ type: 'SET_TASK_SEARCH_OPEN', isOpen: false }), []);
+  const jumpToTask = useCallback((task: Task) => {
+    dispatch({ type: 'SET_VIEW', view: 'planner' });
+    dispatch({ type: 'SET_SELECTED_DATE', date: task.date });
+    dispatch({ type: 'SET_TASK_SEARCH_OPEN', isOpen: false });
+  }, []);
+  const openReschedule = useCallback((task: Task) => {
+    if ((task.origin !== 'manual' && task.habitId) || !['inbox', 'scheduled'].includes(task.status)) return;
+    dispatch({ type: 'SET_RESCHEDULING_TASK', task });
+  }, []);
+  const closeReschedule = useCallback(() => dispatch({ type: 'SET_RESCHEDULING_TASK', task: null }), []);
+  const handleReschedule = useCallback(async (task: Task, date: string): Promise<boolean> => {
+    try {
+      const timers = await electronIPC.getActiveTimers(true);
+      if (timers.some((timer) => timer.taskId === task.id)
+        || state.timerPanel.task?.id === task.id
+        || state.timerPanel.restoredState?.taskId === task.id) {
+        dispatch({ type: 'OPEN_ALERT', message: t('reschedule_running') });
+        return false;
+      }
+      rescheduleManualTask(task.id, task.date, date);
+      dispatch({ type: 'SET_SELECTED_DATE', date });
+      loadData(date);
+      return true;
+    } catch (error) {
+      console.error('Task reschedule failed', error);
+      dispatch({ type: 'OPEN_ALERT', message: t('reschedule_failed') });
+      return false;
+    }
+  }, [loadData, state.timerPanel.task?.id, state.timerPanel.restoredState?.taskId, t]);
 
   const handleManualTaskCreate = useCallback((input: {
     name: string;
@@ -638,17 +688,42 @@ export const useAppController = () => {
     }
   }, [loadData, reportStorageError, state.selectedDate, t]);
 
-  const handleTaskDeleteToday = useCallback((taskId: string) => {
+  const handleTaskDeleteToday = useCallback(async (taskId: string) => {
     const task = state.dailyData?.tasks.find((item) => item.id === taskId);
     if (!task) return;
 
     try {
+      const timers = await electronIPC.getActiveTimers(true);
+      if (timers.some((timer) => timer.taskId === task.id)
+        || state.timerPanel.task?.id === task.id
+        || state.timerPanel.restoredState?.taskId === task.id) {
+        dispatch({ type: 'OPEN_ALERT', message: t('task_running_action') });
+        return;
+      }
       deleteTaskForToday(taskId, task.date);
       loadData(state.selectedDate);
+      if (undoTimeout.current !== null) window.clearTimeout(undoTimeout.current);
+      setUndoTask(task);
+      undoTimeout.current = window.setTimeout(() => {
+        setUndoTask(null);
+        undoTimeout.current = null;
+      }, 10000);
     } catch (error) {
       reportStorageError(error);
     }
-  }, [loadData, reportStorageError, state.dailyData?.tasks, state.selectedDate]);
+  }, [loadData, reportStorageError, state.dailyData?.tasks, state.selectedDate, state.timerPanel.task?.id, state.timerPanel.restoredState?.taskId, t]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (!undoTask) return;
+    try {
+      const result = restoreDeletedTask(undoTask);
+      if (undoTimeout.current !== null) window.clearTimeout(undoTimeout.current);
+      undoTimeout.current = null;
+      setUndoTask(null);
+      loadData(state.selectedDate);
+      dispatch({ type: 'OPEN_ALERT', message: t(result === 'inbox' ? 'undo_to_inbox' : 'undo_restored'), tone: 'success' });
+    } catch (error) { reportStorageError(error); }
+  }, [loadData, reportStorageError, state.selectedDate, t, undoTask]);
 
   const closeConfirm = useCallback(() => {
     dispatch({ type: 'CLOSE_CONFIRM' });
@@ -839,6 +914,9 @@ export const useAppController = () => {
       timelineMode: state.timelineMode,
       isHabitConfigOpen: state.isHabitConfigOpen,
       isManualTaskOpen: state.isManualTaskOpen,
+      isTaskSearchOpen: state.isTaskSearchOpen,
+      reschedulingTask: state.reschedulingTask,
+      undoTask,
       activeTask: state.timerPanel.task,
       restoredTimerState: state.timerPanel.restoredState,
       pendingRecovery: state.recoveryPrompt.pending,
@@ -861,6 +939,13 @@ export const useAppController = () => {
       closeHabitConfig,
       openManualTask,
       closeManualTask,
+      openTaskSearch,
+      closeTaskSearch,
+      jumpToTask,
+      openReschedule,
+      closeReschedule,
+      handleReschedule,
+      handleUndoDelete,
       handleManualTaskCreate,
       loadData,
       changeDate,

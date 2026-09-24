@@ -153,7 +153,57 @@ async function main() {
   assert.equal(logs[day].tasks.find(t => t.id === task.id).status, 'scheduled');
   log('PASS task creation and scheduling through UI + synchronous persistence');
 
+  const movedDateValue = new Date(tomorrow); movedDateValue.setDate(movedDateValue.getDate() + 1);
+  const movedDate = `${movedDateValue.getFullYear()}-${String(movedDateValue.getMonth()+1).padStart(2,'0')}-${String(movedDateValue.getDate()).padStart(2,'0')}`;
+  await clickText('Add one-time task');
+  const moveName = `P1 task move ${Date.now()}`;
+  await fill('input[placeholder="e.g. Submit form, call advisor"]', moveName);
+  await clickText('Create Task');
+  const moveTask = (await readLogs())[day].tasks.find(t => t.name === moveName);
+  assert.ok(moveTask);
+  await clickText('Today');
+  await clickText('Find tasks');
+  await fill('input[type=search]', moveName);
+  await clickText('Search');
+  await current.evaluate(`(() => { const b = Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.innerText.includes(${JSON.stringify(moveName)})); if (!b) throw Error('Search result missing'); b.click(); })()`);
+  await until(() => current.evaluate(`document.querySelector('input[type=date]')?.value === ${JSON.stringify(day)}`));
+  assert.equal(await current.evaluate(`!!Array.from(document.querySelectorAll('main > div')).find(e => e.innerText.includes(${JSON.stringify(moveName)}) && e.innerText.includes('Find tasks'))`), true,
+    'Search jump must leave the selected task visible above the planner');
+  log('PASS historical task search and date jump');
+
+  await current.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
+  await clickText('Timeline');
+  assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Timeline' && getComputedStyle(b).display !== 'none')?.getAttribute('aria-pressed')"), 'true');
+  await clickText('Inbox');
+  assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Inbox' && getComputedStyle(b).display !== 'none')?.getAttribute('aria-pressed')"), 'true');
+  await current.send('Emulation.clearDeviceMetricsOverride');
+  log('PASS narrow-window inbox and timeline navigation');
+
+  await current.evaluate(`(() => { const c = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(moveName)})); const b = c?.querySelector('button[aria-label="Move task to another day"]'); if (!b) throw Error('Move action missing'); b.click(); })()`);
+  await fill('[role=dialog][aria-label="Move task to another day"] input[type=date]', movedDate);
+  await clickText('Move task');
+  await until(async () => (await readLogs())[movedDate]?.tasks.some(t => t.id === moveTask.id));
+  logs = await readLogs();
+  assert.ok(!logs[day].tasks.some(t => t.id === moveTask.id));
+  assert.equal(logs[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox');
+  await current.evaluate(`(() => { const c = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(moveName)})); const b = c?.querySelector('button[aria-label="Delete for today only"]'); if (!b) throw Error('Delete action missing'); b.click(); })()`);
+  await until(async () => (await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id)?.status === 'deleted');
+  await clickText('Undo delete');
+  await until(async () => (await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id)?.status === 'inbox');
+  log('PASS cross-day move and 10-second delete undo through UI');
+
   await clickText('Config Habits');
+  await fill('input[placeholder="e.g. Deep Work, Read Book"]', `P1 weekday habit ${Date.now()}`);
+  await clickText('Weekdays');
+  await clickText('Create Habit Rule');
+  const habits = await current.evaluate("JSON.parse(window.electronAPI.sendSync('storage-get-sync', {key:'mylifeos_habits'}) || '[]')");
+  assert.deepEqual(habits[habits.length - 1].weekdays, [1, 2, 3, 4, 5]);
+  await current.evaluate("document.querySelector('[role=dialog] > div:first-child button').click()");
+  log('PASS weekday habit rule through UI');
+
+  await clickText('Settings');
+  assert.equal(await current.evaluate("!!document.querySelector('input[placeholder=\"e.g. Deep Work, Read Book\"]')"), false,
+    'Data settings must open without habit editing');
   // Native backup export opens an OS save dialog, which this headless CDP suite
   // cannot operate reliably. Export formatting and the native IPC channel have
   // dedicated tests; construct the same schema here to keep the packaged import
@@ -187,6 +237,8 @@ async function main() {
   await stop();
   await launch();
   assert.ok(JSON.stringify(await readLogs()).includes(task.id));
+  assert.ok(JSON.stringify(await readLogs()).includes(moveTask.id));
+  assert.deepEqual((await current.evaluate("JSON.parse(window.electronAPI.sendSync('storage-get-sync', {key:'mylifeos_habits'}) || '[]')")).at(-1).weekdays, [1, 2, 3, 4, 5]);
   await clickText('Profile');
   assert.ok(await current.evaluate("document.body.textContent.includes('Completed Tasks')"));
   log('PASS restart persistence and profile rendering');

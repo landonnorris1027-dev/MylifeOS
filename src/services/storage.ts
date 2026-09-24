@@ -1,7 +1,7 @@
 import { DailyData, Goal, Habit, Priority, Task } from '../types';
 import { exportBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
 import { formatDateLocal, generateId, getTodayStr, parseDateLocal } from './storage/dateUtils';
-import { getAllDailyLogs, getCompletedMinutesByDate, getDailyLogByDate, saveDailyLog } from './storage/dailyLogRepository';
+import { getAllDailyLogs, getCompletedMinutesByDate, getDailyLogByDate, saveAllDailyLogs, saveDailyLog } from './storage/dailyLogRepository';
 import { getGoalsRecord, saveGoalsRecord } from './storage/goalRepository';
 import { getHabitsRecord, saveHabitsRecord } from './storage/habitRepository';
 import {
@@ -12,6 +12,7 @@ import {
   restoreRecoveryPoint,
 } from './storage/recoveryPointService';
 import { reconcileCurrentAndFutureLogs, reconcileDayTasks } from './storage/taskPlanner';
+import { hasSchedulingConflict } from './scheduling';
 
 export { generateId, formatDateLocal, parseDateLocal, getTodayStr };
 export type { ImportDataResult };
@@ -45,6 +46,29 @@ export interface ManualTaskInput {
   goalId?: string;
   note?: string;
 }
+
+export interface TaskSearchFilters {
+  query?: string;
+  from?: string;
+  to?: string;
+  goalId?: string;
+  priority?: Priority;
+  status?: Task['status'];
+}
+
+export const searchTasks = (filters: TaskSearchFilters): Task[] => {
+  const query = filters.query?.trim().toLocaleLowerCase() || '';
+  return Object.values(getAllDailyLogs())
+    .flatMap((day) => day.tasks)
+    .filter((task) => task.status !== 'deleted'
+      && (!filters.from || task.date >= filters.from)
+      && (!filters.to || task.date <= filters.to)
+      && (!filters.goalId || task.goalId === filters.goalId)
+      && (!filters.priority || task.priority === filters.priority)
+      && (!filters.status || task.status === filters.status)
+      && (!query || [task.name, task.note, task.review].some((value) => value?.toLocaleLowerCase().includes(query))))
+    .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name));
+};
 
 export const getAllDataJSON = () => {
   return exportBackupJSON(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
@@ -106,6 +130,7 @@ export const addHabit = (
   startDate?: string,
   endDate?: string,
   goalId?: string,
+  weekdays?: number[],
 ) => {
   const habits = getHabitsRecord();
   const newHabit: Habit = {
@@ -118,6 +143,7 @@ export const addHabit = (
     effectiveType,
     startDate,
     endDate,
+    weekdays,
   };
   saveHabits([...habits, newHabit]);
   return newHabit;
@@ -343,6 +369,44 @@ export const deleteTaskForToday = (taskId: string, date: string) => {
   ));
   createAutomaticRecoveryPoint();
   saveDailyLog({ ...data, tasks: newTasks });
+};
+
+// Both dates live in one daily-logs storage value, so a failed write cannot
+// leave a removed source task without its destination copy.
+export const rescheduleManualTask = (taskId: string, sourceDate: string, targetDate: string): Task => {
+  const date = parseDateLocal(targetDate);
+  if (formatDateLocal(date) !== targetDate || sourceDate === targetDate) {
+    throw new Error('Choose a different valid date');
+  }
+  const logs = getAllDailyLogs();
+  const source = logs[sourceDate];
+  const task = source?.tasks.find((item) => item.id === taskId);
+  if (!task || (task.origin !== 'manual' && task.habitId) || !['inbox', 'scheduled'].includes(task.status)) {
+    throw new Error('Only unfinished manual tasks can be moved');
+  }
+  if (Object.values(logs).some((day) => day.date !== sourceDate && day.tasks.some((item) => item.id === taskId))) {
+    throw new Error('Task ID already exists on another date');
+  }
+  const moved: Task = { ...task, date: targetDate, status: 'inbox', startTime: undefined };
+  const target = logs[targetDate] || { date: targetDate, tasks: [] };
+  const next = {
+    ...logs,
+    [sourceDate]: { ...source, tasks: source.tasks.filter((item) => item.id !== taskId) },
+    [targetDate]: { ...target, tasks: [...target.tasks, moved] },
+  };
+  createAutomaticRecoveryPoint();
+  saveAllDailyLogs(next);
+  return moved;
+};
+
+export const restoreDeletedTask = (original: Task): 'restored' | 'inbox' => {
+  const day = getDailyLogByDate(original.date);
+  const current = day?.tasks.find((task) => task.id === original.id);
+  if (!day || current?.status !== 'deleted') throw new Error('Deleted task is no longer available');
+  const conflict = original.status === 'scheduled' && original.startTime
+    && hasSchedulingConflict(day.tasks.filter((task) => task.id !== original.id), original.startTime, original.durationMinutes);
+  updateTask(conflict ? { ...original, status: 'inbox', startTime: undefined } : original);
+  return conflict ? 'inbox' : 'restored';
 };
 
 export const reduceHabitQuota = (habitId: string) => {

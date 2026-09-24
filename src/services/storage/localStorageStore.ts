@@ -10,7 +10,9 @@ export const KEYS = {
   DESKTOP_SETTINGS: 'mylifeos_desktop_settings',
 } as const;
 
-export const DATA_SCHEMA_VERSION = 5;
+// v6 adds weekday rules. Older releases must reject, rather than silently
+// convert a weekday habit back into a daily habit on import.
+export const DATA_SCHEMA_VERSION = 6;
 const BROWSER_SNAPSHOT = 'mylifeos_business_snapshot';
 let desktopReadOnly = false;
 export const setStorageReadOnly = (value: boolean) => { desktopReadOnly = value; };

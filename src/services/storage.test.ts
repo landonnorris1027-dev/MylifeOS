@@ -357,7 +357,7 @@ describe('storage service', () => {
 
     const exported = JSON.parse(getAllDataJSON());
 
-    expect(exported.schemaVersion).toBe(5);
+    expect(exported.schemaVersion).toBe(6);
     expect(Array.isArray(exported.habits)).toBe(true);
     expect(Array.isArray(exported.goals)).toBe(true);
     expect(typeof exported.dailyLogs).toBe('object');
@@ -437,7 +437,7 @@ describe('storage service', () => {
     expect(getDailyData('2026-04-22')?.tasks).toHaveLength(1);
 
     const reExported = JSON.parse(getAllDataJSON());
-    expect(reExported.schemaVersion).toBe(5);
+    expect(reExported.schemaVersion).toBe(6);
   });
 
   it('imports manual tasks without habit associations', async () => {

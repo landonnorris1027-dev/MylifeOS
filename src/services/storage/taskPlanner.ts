@@ -1,11 +1,13 @@
 import { DailyData, Habit, Task } from '../../types';
-import { generateId, getTodayStr } from './dateUtils';
+import { generateId, getTodayStr, parseDateLocal } from './dateUtils';
 import { getAllDailyLogs, saveAllDailyLogs } from './dailyLogRepository';
 
 export const isHabitActiveOnDate = (habit: Habit, dateStr: string) => {
-  if (habit.effectiveType !== 'range') return true;
-  if (habit.startDate && dateStr < habit.startDate) return false;
-  if (habit.endDate && dateStr > habit.endDate) return false;
+  if (habit.effectiveType === 'range') {
+    if (habit.startDate && dateStr < habit.startDate) return false;
+    if (habit.endDate && dateStr > habit.endDate) return false;
+  }
+  if (habit.weekdays && !habit.weekdays.includes(parseDateLocal(dateStr).getDay())) return false;
   return true;
 };
 
@@ -26,6 +28,11 @@ const taskRank = (task: Task) => {
   if (task.status === 'completed') return 1;
   return 2;
 };
+
+// Only untouched, generated inbox copies can be removed when a habit rule shrinks.
+// A scheduled or completed copy, or one with user text, is already user data.
+const isGeneratedInboxTask = (task: Task) =>
+  task.status === 'inbox' && !task.note?.trim() && !task.review?.trim();
 
 export const reconcileDayTasks = (dayData: DailyData, habits: Habit[], todayStr: string): DailyData => {
   const isFutureDay = dayData.date > todayStr;
@@ -51,8 +58,7 @@ export const reconcileDayTasks = (dayData: DailyData, habits: Habit[], todayStr:
 
     if (!isActive) {
       const preserved = tasks.filter((task) => {
-        if (isFutureDay) return false;
-        if (isToday) return task.status !== 'inbox';
+        if (isFutureDay || isToday) return !isGeneratedInboxTask(task);
         return true;
       });
       nextTasks.push(...preserved);
@@ -72,8 +78,8 @@ export const reconcileDayTasks = (dayData: DailyData, habits: Habit[], todayStr:
       priority: habit.priority,
       durationMinutes: habit.defaultDurationMinutes,
     }));
-    const preservedOverflow = isToday
-      ? sorted.slice(habit.dailyQuota).filter((task) => task.status !== 'inbox').map((task) => ({
+    const preservedOverflow = isToday || isFutureDay
+      ? sorted.slice(habit.dailyQuota).filter((task) => !isGeneratedInboxTask(task)).map((task) => ({
           ...task,
           goalId: habit.goalId,
           name: habit.name,

@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Task, PRIORITY_STYLES } from '../types';
-import { FileText, Timer, CheckCircle2, X, Trash2, Undo2 } from 'lucide-react';
+import { FileText, Timer, CheckCircle2, X, Trash2, Undo2, CalendarDays } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTaskTimeLabel } from '../services/scheduling';
 
@@ -11,6 +11,7 @@ interface TaskCardProps {
   onDeletePermanent?: (taskId: string, habitId: string) => void;
   onUnschedule?: (task: Task) => void;
   onEditReview?: (task: Task) => void;
+  onReschedule?: (task: Task) => void;
   draggable?: boolean;
   onDragStart?: (task: Task, event: React.DragEvent<HTMLDivElement>) => void;
   mode?: 'pool' | 'schedule';
@@ -23,6 +24,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onDeletePermanent,
   onUnschedule,
   onEditReview,
+  onReschedule,
   draggable = false,
   onDragStart,
   mode = 'pool',
@@ -109,7 +111,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
 
           <div
-              className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+              className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
               onClick={stopEvent}
             >
               {onEditReview && (
@@ -127,19 +129,22 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   <FileText size={14} className="pointer-events-none" />
                 </button>
               )}
+              {onReschedule && (task.origin === 'manual' || !task.habitId) && task.status !== 'completed' && (
+                <button type="button" onClick={(event) => { stopEvent(event); onReschedule(task); }}
+                  className="relative z-50 rounded-md border border-gray-100 bg-white/80 p-1.5 text-gray-500 hover:text-blue-600"
+                  title={t('reschedule_title')} aria-label={t('reschedule_title')}>
+                  <CalendarDays size={14} />
+                </button>
+              )}
+              {onDeleteToday && (
+                <button type="button" onClick={handleDeleteToday}
+                  className="relative z-50 rounded-md border border-gray-100 bg-white/80 p-1.5 text-gray-500 hover:text-gray-800"
+                  title={t('delete_today')} aria-label={t('delete_today')}>
+                  <X size={14} />
+                </button>
+              )}
               {mode === 'pool' ? (
                 <>
-                  {onDeleteToday && (
-                    <button
-                      type="button"
-                      onClick={handleDeleteToday}
-                      className="p-1.5 bg-white/80 hover:bg-white shadow-sm rounded-md text-gray-500 hover:text-gray-800 transition-all border border-gray-100 relative z-50"
-                      title={t('delete_today')}
-                      aria-label={t('delete_today')}
-                    >
-                      <X size={14} className="pointer-events-none" />
-                    </button>
-                  )}
                   {onDeletePermanent && task.habitId && (
                     <button
                       type="button"

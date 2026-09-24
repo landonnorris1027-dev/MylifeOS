@@ -1,7 +1,7 @@
 import React from 'react';
 import { isStorageReadOnly } from './services/storage/localStorageStore';
-import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User } from 'lucide-react';
-import { Priority, PRIORITY_STYLES } from './types';
+import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search } from 'lucide-react';
+import { Priority, PRIORITY_STYLES, Task } from './types';
 import type { TranslationKey } from './locales';
 import { useLanguage } from './contexts/LanguageContext';
 
@@ -16,6 +16,8 @@ import AlertModal from './components/AlertModal';
 import ConfirmModal from './components/ConfirmModal';
 import RecoveryModal from './components/RecoveryModal';
 import TaskReviewModal from './components/TaskReviewModal';
+import TaskSearchModal from './components/TaskSearchModal';
+import RescheduleModal from './components/RescheduleModal';
 import { useAppController } from './hooks/useAppController';
 import ErrorBoundary from './components/ErrorBoundary';
 import { buildTimelineSlotsForMode } from './services/scheduling';
@@ -27,6 +29,10 @@ const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
 };
 
 export default function App() {
+  const [mobilePane, setMobilePane] = React.useState<'inbox' | 'timeline'>('inbox');
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
+  const [selectedSearchTask, setSelectedSearchTask] = React.useState<Task | null>(null);
+  const searchResultRef = React.useRef<HTMLDivElement>(null);
   const { t, language, setLanguage } = useLanguage();
   const { state, actions } = useAppController();
   const {
@@ -36,6 +42,9 @@ export default function App() {
     timelineMode,
     isHabitConfigOpen,
     isManualTaskOpen,
+    isTaskSearchOpen,
+    reschedulingTask,
+    undoTask,
     activeTask,
     restoredTimerState,
     pendingRecovery,
@@ -58,6 +67,13 @@ export default function App() {
     closeHabitConfig,
     openManualTask,
     closeManualTask,
+    openTaskSearch,
+    closeTaskSearch,
+    jumpToTask,
+    openReschedule,
+    closeReschedule,
+    handleReschedule,
+    handleUndoDelete,
     handleManualTaskCreate,
     setRestoredTimerState,
     loadData,
@@ -88,6 +104,11 @@ export default function App() {
 
   const formatHours = (minutes: number) => (minutes / 60).toFixed(1);
   const timelineSlots = React.useMemo(() => buildTimelineSlotsForMode(timelineMode), [timelineMode]);
+  React.useEffect(() => {
+    if (selectedSearchTask?.date !== selectedDate) return;
+    searchResultRef.current?.scrollIntoView({ block: 'start' });
+    searchResultRef.current?.focus();
+  }, [selectedDate, selectedSearchTask]);
 
   // Stable callbacks so memoized TaskCards don't re-render on every App render.
   const handleTaskCardClick = React.useCallback(
@@ -107,6 +128,12 @@ export default function App() {
   // useModalBehavior.
   React.useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        if (isHabitConfigOpen || isSettingsOpen || isTaskSearchOpen || isManualTaskOpen || activeTask || schedulingTask || reschedulingTask || reviewingTask || isRecoveryModalOpen) return;
+        event.preventDefault();
+        openTaskSearch();
+        return;
+      }
       if (isStorageReadOnly()) return;
       if (event.altKey) return;
 
@@ -136,7 +163,7 @@ export default function App() {
 
       // Only in the planner view, and never on top of another dialog.
       if (view !== 'planner') return;
-      if (isHabitConfigOpen || isManualTaskOpen || activeTask || schedulingTask || reviewingTask || isRecoveryModalOpen) {
+      if (isHabitConfigOpen || isSettingsOpen || isTaskSearchOpen || isManualTaskOpen || activeTask || schedulingTask || reschedulingTask || reviewingTask || isRecoveryModalOpen) {
         return;
       }
 
@@ -151,11 +178,15 @@ export default function App() {
     view,
     openManualTask,
     isHabitConfigOpen,
+    isSettingsOpen,
     isManualTaskOpen,
     activeTask,
     schedulingTask,
     reviewingTask,
     isRecoveryModalOpen,
+    isTaskSearchOpen,
+    reschedulingTask,
+    openTaskSearch,
   ]);
 
   return (
@@ -212,6 +243,10 @@ export default function App() {
           {view === 'profile' && <div className="flex-1" />}
 
           <div className="flex items-center gap-2">
+            <button onClick={openTaskSearch} aria-label={t('task_search_title')} title={t('task_search_title')}
+              className="flex h-10 items-center gap-2 rounded-lg px-2 text-sm text-gray-500 hover:bg-gray-100">
+              <Search size={16} /><span className="hidden sm:inline">{t('task_search_title')}</span>
+            </button>
             <button
               onClick={() => {
                 try {
@@ -249,6 +284,11 @@ export default function App() {
                 <span className="hidden sm:inline">{t('config_habits')}</span>
               </button>
             )}
+            <button onClick={() => setSettingsOpen(true)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
+              title={t('settings_title')} aria-label={t('settings_title')}>
+              <Settings2 size={16} /><span className="hidden sm:inline">{t('settings_title')}</span>
+            </button>
 
             <div
               className="hidden md:flex w-9 h-9 bg-orange-100 text-orange-600 rounded-full items-center justify-center border border-orange-200 cursor-pointer hover:bg-orange-200 transition-colors"
@@ -260,7 +300,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="md:hidden grid grid-cols-3 gap-2 w-full border-t border-gray-100 pt-3">
+          <div className="md:hidden grid grid-cols-4 gap-2 w-full border-t border-gray-100 pt-3">
             <button
               onClick={() => setView('planner')}
               className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${view === 'planner' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
@@ -285,11 +325,30 @@ export default function App() {
               <Settings2 size={15} />
               <span>{t('mobile_nav_habits')}</span>
             </button>
+            <button onClick={() => setSettingsOpen(true)}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 px-2 py-2 text-xs font-semibold text-gray-600"
+              aria-label={t('settings_title')}>
+              <Settings2 size={15} /><span>{t('settings_title')}</span>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6">
+        {selectedSearchTask?.date === selectedDate && (
+          <div ref={searchResultRef} tabIndex={-1} className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-blue-700">{t('task_search_title')}</p>
+                <p className="mt-1 font-semibold text-gray-900">{selectedSearchTask.name}</p>
+                <p className="text-xs text-gray-600">{selectedSearchTask.date} · {selectedSearchTask.startTime || t(`task_status_${selectedSearchTask.status}`)}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedSearchTask(null)} aria-label={t('close')} className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-blue-100">{t('close')}</button>
+            </div>
+            {selectedSearchTask.note && <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{selectedSearchTask.note}</p>}
+            {selectedSearchTask.review && <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{selectedSearchTask.review}</p>}
+          </div>
+        )}
         <ErrorBoundary
           title={t('page_section_unavailable_title')}
           message={t('page_section_unavailable_message')}
@@ -321,7 +380,13 @@ export default function App() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in duration-300">
-            <div className="md:col-span-4 lg:col-span-3 flex flex-col gap-6">
+            <div className="flex gap-2 md:hidden">
+              <button onClick={() => setMobilePane('inbox')} aria-pressed={mobilePane === 'inbox'}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm ${mobilePane === 'inbox' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}>{t('inbox')}</button>
+              <button onClick={() => setMobilePane('timeline')} aria-pressed={mobilePane === 'timeline'}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm ${mobilePane === 'timeline' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}>{t('timeline')}</button>
+            </div>
+            <div className={`${mobilePane === 'inbox' ? 'flex' : 'hidden'} flex-col gap-6 md:col-span-4 md:flex lg:col-span-3`}>
               <div className="bg-white rounded-2xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] min-h-[500px] border border-gray-100/50">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="font-semibold text-gray-700 flex items-center gap-2">
@@ -379,6 +444,7 @@ export default function App() {
                         onDeleteToday={handleTaskDeleteToday}
                         onDeletePermanent={handleTaskDeletePermanent}
                         onEditReview={openTaskReview}
+                        onReschedule={openReschedule}
                       />
                     ))
                   )}
@@ -401,7 +467,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="md:col-span-8 lg:col-span-9">
+            <div className={`${mobilePane === 'timeline' ? 'block' : 'hidden'} md:col-span-8 md:block lg:col-span-9`}>
               <div className="bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                   <h2 className="font-semibold text-gray-700 flex items-center gap-2">
@@ -504,6 +570,8 @@ export default function App() {
                                   onClick={handleTaskCardClick}
                                   onUnschedule={handleTaskUnschedule}
                                   onEditReview={openTaskReview}
+                                  onReschedule={openReschedule}
+                                  onDeleteToday={handleTaskDeleteToday}
                                 />
                               ))}
                             </div>
@@ -529,8 +597,9 @@ export default function App() {
         className="bg-transparent"
       >
         <HabitConfig
-          isOpen={isHabitConfigOpen}
-          onClose={closeHabitConfig}
+          isOpen={isHabitConfigOpen || isSettingsOpen}
+          section={isSettingsOpen ? 'settings' : 'habits'}
+          onClose={() => { closeHabitConfig(); setSettingsOpen(false); }}
           onAdded={() => {
             loadData(selectedDate);
           }}
@@ -555,6 +624,13 @@ export default function App() {
           onClose={closeTaskReview}
           onSave={handleTaskReviewSave}
         />
+
+        <TaskSearchModal isOpen={isTaskSearchOpen} onClose={closeTaskSearch} onSelect={(task) => {
+          setSelectedSearchTask(task);
+          setMobilePane(task.status === 'inbox' ? 'inbox' : 'timeline');
+          jumpToTask(task);
+        }} />
+        <RescheduleModal task={reschedulingTask} onClose={closeReschedule} onConfirm={handleReschedule} />
 
         <PomodoroTimer
           task={activeTask}
@@ -587,6 +663,12 @@ export default function App() {
           onCancel={closeConfirm}
         />
       </ErrorBoundary>
+      {undoTask && (
+        <div role="status" className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-lg">
+          <span>{undoTask.name}</span>
+          <button type="button" onClick={handleUndoDelete} className="font-semibold text-blue-200 underline focus-visible:ring-2">{t('undo_delete')}</button>
+        </div>
+      )}
     </div>
   );
 }
