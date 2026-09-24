@@ -123,11 +123,22 @@ corrupt primary and backup files recovered through the UI; its archived corrupt 
 matched their original hashes and storage reported `saved` with no pending snapshot.
 The measured end-to-end interval included manual navigation in the native Save As dialog,
 so it is not a valid application restore-time baseline. Repeat with a controlled dialog
-selection before treating the performance gate as complete.
+selection before treating the performance gate as complete. This was the earlier run;
+the controlled 2026-09-24 measurements below supersede its timing limitation.
+
+2026-09-24 controlled acceptance: a deterministic 1,961,123-byte schema-v5 backup
+with 10,000 tasks on 5,844 dates (2010-01-01 through 2025-12-31) was imported through
+the packaged UI in three fresh `%TEMP%` profiles. Preview times were 63/71/85 ms;
+restore times after the native pre-restore Save As dialog completed were 109/141/110 ms.
+The maximum of sampled CDP UI probes in each run was 54/78/57 ms; these samples do not
+prove continuous frame rate or rule out every OS “Not responding” event. Each run saved
+the current data first, restored all records, and retained them and early/middle/late
+date samples after restart. The median preview and restore times on this host were
+71 ms and 110 ms. See [the evidence record](docs/evidence/P0_2026-09-24.json).
 
 ### Disk-full or write-denied behavior
 
-2026-09-23: OS-level disk exhaustion and power-loss testing remain pending because this
+2026-09-24: OS-level disk exhaustion and power-loss testing remain pending because this
 host has no available disposable VM or virtual-disk tooling. The host disk was not filled
 or write-denied to simulate these failures.
 
@@ -164,15 +175,18 @@ also terminates the process around the 300 ms write boundary and checks that per
 JSON remains complete; edits not yet flushed can still be lost on forced termination.
 On 2026-09-23 the visible Windows native save dialog was manually exercised with an
 isolated profile and produced a valid schema-v5 backup. A 0.1.1-to-0.1.2 installer upgrade
-and legacy-config migration passed in a disposable directory. A 10,000-task restore and
-corrupt-profile recovery passed data-integrity checks; restore-time performance is still
-unmeasured because the recorded interval included manual native-dialog handling. The
-installed timer-completion path was exercised with notifications enabled. The Windows
-main process now sets the same AUMID as the NSIS shortcut, but a post-fix timer completion
-still produced no visible toast in the captured windows. Real OS-level disk exhaustion,
-physical/VM power-loss durability, per-file recovery coverage, a controlled restore-time
-baseline, and visible toast delivery remain release gates; fault injection and process
-termination are not substitutes for those checks.
+and legacy-config migration passed in a disposable directory. On 2026-09-24 a fresh
+installer built successfully, and an installed copy passed `npm run verify:packaged`
+before clean removal. All four persistent JSON files passed both invalid-primary/
+valid-backup and valid-primary/invalid-backup scenarios (8/8), including restart.
+Recovery-point restore and cross-profile file import passed through the packaged UI,
+with a native pre-restore backup saved in each case. Three controlled 10,000-task
+restores provide the timing baseline above. The installed timer-completion path was
+exercised with notifications enabled; Electron reported `Notification.isSupported()`
+and emitted `show`, but no independent Windows toast was observed. Real OS-level disk
+exhaustion, physical/VM power-loss durability, visible toast delivery, and trusted code
+signing remain release gates. Fault injection and process termination are not
+substitutes for the OS-level checks.
 
 ## Packaging hygiene
 

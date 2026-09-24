@@ -1,0 +1,1027 @@
+{
+  "date": "2026-09-24",
+  "appVersion": "0.1.2",
+  "sourceCommit": "01eb6c5",
+  "originMainAfterFetch": "c663798",
+  "installer": {
+    "path": "out/MyLifeOS Setup 0.1.2.exe",
+    "bytes": 139118159,
+    "sha256": "8F319ADBAA757E5FCADC58FBA2B8957C9A3E08C29EA60B62D5EEB9A2B70C5D76",
+    "asarSha256": "BCF5B1A543CEFB18F85321D33B3D5499CB343F95C1FB592A871A355F27D66B4F",
+    "signed": false
+  },
+  "build": {
+    "command": "npm run electron:build",
+    "exitCode": 0,
+    "testSuites": 18,
+    "testCases": 117,
+    "packagedSmokeAndRegression": "passed",
+    "installedCopyVerifyPackaged": "passed",
+    "isolatedInstallUninstall": "passed",
+    "localLogs": [
+      "tmp/p0-release-build-2026-09-24.log",
+      "tmp/p0-installed-verify-2026-09-24.log"
+    ]
+  },
+  "fileMatrix": {
+    "interpretation": "For each file, test invalid primary with valid backup, then valid primary with invalid backup; verify business state and restart.",
+    "passCount": 8,
+    "disposableRoot": "%TEMP%\\mylifeos-p0-file-matrix-25BST2",
+    "cases": [
+      {
+        "case": "app-data-backup",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\app-data-backup",
+        "basename": "app-data.json",
+        "expected": "Valid .bak wins over a semantically invalid primary; data survives restart",
+        "hashesBefore": {
+          "primary": "C13947D4E7CCE38549E9EF6F900E3CDD2180FB9D1D43DE4CC011B31A709F13E4",
+          "backup": "F5D0091E5222B6688FB119055A720BCF4A43B6475B8ACC8CFEF2627CD2312920"
+        },
+        "initial": {
+          "goals": 1,
+          "habits": 1,
+          "days": 1,
+          "tasks": 25,
+          "durableWrite": true
+        },
+        "afterRestart": {
+          "goals": 1,
+          "habits": 1,
+          "days": 1,
+          "tasks": 25,
+          "probe": "committed"
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "D5BCFFFFDCDD29F0F0BD38AAB2E4C2D8DF6FD14D6131969F736A91176431C15A",
+          "backup": "12B23C9A2DB01E12CA2E7CE5BA5965A9BCB6DA73FD942A71A6F8F271431320AE"
+        }
+      },
+      {
+        "case": "recovery-points-backup",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\recovery-points-backup",
+        "basename": "recovery-points.json",
+        "expected": "Valid .bak wins over a semantically invalid primary; data survives restart",
+        "hashesBefore": {
+          "primary": "8AA9184381DE774623E0A8750BA7ACE31E6523CF6483F73F968F37B1574BE6C2",
+          "backup": "31CF3D13B3BCA3EF5A14CAA755DEB701EDFF1EDF5A9B4A968FDEDEAC544882DD"
+        },
+        "initial": {
+          "recoveryPoints": 1,
+          "backupHabitCount": 1,
+          "backupDayCount": 1
+        },
+        "afterRestart": {
+          "recoveryPoints": 2,
+          "business": {
+            "goals": 1,
+            "habits": 1,
+            "days": 1,
+            "tasks": 25
+          }
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "397E6E8F72645ED56385E2CCCECFF6B460E1F467CB0B7A45903EC8B3D3D64221",
+          "backup": "31CF3D13B3BCA3EF5A14CAA755DEB701EDFF1EDF5A9B4A968FDEDEAC544882DD"
+        }
+      },
+      {
+        "case": "pomodoro-state-backup",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\pomodoro-state-backup",
+        "basename": "pomodoro-state.json",
+        "expected": "Valid .bak wins over a semantically invalid primary; data survives restart",
+        "hashesBefore": {
+          "primary": "9223290BA65BFC2AD847AA22F15F2CD891A3C173A80C4B05E7CDAF261E949DC4",
+          "backup": "72EBF8DF5A03515D8B842767CDADFC5E3C1736D4B38CB6640815490CAE9F35A1"
+        },
+        "initial": {
+          "timers": 1,
+          "timerId": "matrix-paused-timer",
+          "business": {
+            "goals": 1,
+            "habits": 1,
+            "days": 1,
+            "tasks": 25
+          }
+        },
+        "afterRestart": {
+          "timers": 1,
+          "timerId": "matrix-paused-timer"
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "2721290C48A763199E5F3D080D894F0156D93436CDB03A34994ED2AD0F27F124",
+          "backup": "A74AC648AEE9556F3E164080529A58B28191CB6930E857B6FF9FAB2339F1B3FC"
+        }
+      },
+      {
+        "case": "window-state-backup",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\window-state-backup",
+        "basename": "window-state.json",
+        "expected": "Valid .bak wins over a semantically invalid primary; data survives restart",
+        "hashesBefore": {
+          "primary": "081C01CCBC73BA614B7D9781C78ED3B52721776A290E27F18C304AE97A18793B",
+          "backup": "2A8589CFFFA7F03FF67DEE6E4A08C6465174561546A4818D4D72D7FEFEC7333C"
+        },
+        "initial": {
+          "bounds": {
+            "width": 722,
+            "height": 544,
+            "x": 80,
+            "y": 75
+          },
+          "business": {
+            "goals": 1,
+            "habits": 1,
+            "days": 1,
+            "tasks": 25
+          }
+        },
+        "afterRestart": {
+          "bounds": {
+            "width": 722,
+            "height": 544,
+            "x": 80,
+            "y": 75
+          }
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "081C01CCBC73BA614B7D9781C78ED3B52721776A290E27F18C304AE97A18793B",
+          "backup": "2A8589CFFFA7F03FF67DEE6E4A08C6465174561546A4818D4D72D7FEFEC7333C"
+        }
+      },
+      {
+        "case": "app-data-primary",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\app-data-primary",
+        "basename": "app-data.json",
+        "expected": "Valid primary ignores damaged .bak; normal write replaces the damaged backup and survives restart",
+        "hashesBefore": {
+          "primary": "F5D0091E5222B6688FB119055A720BCF4A43B6475B8ACC8CFEF2627CD2312920",
+          "backup": "039187C3060AADEDD9019A219485F14802C8101D008CED44C24B5684AB2E0DFD"
+        },
+        "initial": {
+          "goals": 1,
+          "habits": 1,
+          "days": 1,
+          "tasks": 25,
+          "backupRepaired": true
+        },
+        "afterRestart": {
+          "goals": 1,
+          "habits": 1,
+          "days": 1,
+          "tasks": 25,
+          "probe": "repaired"
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "CD83FCB6F27A3E0372811FC2F068745AF946DA503549D233F67A49268963AB90",
+          "backup": "F5D0091E5222B6688FB119055A720BCF4A43B6475B8ACC8CFEF2627CD2312920"
+        }
+      },
+      {
+        "case": "recovery-points-primary",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\recovery-points-primary",
+        "basename": "recovery-points.json",
+        "expected": "Valid recovery-point primary ignores damaged .bak; next write repairs backup and survives restart",
+        "hashesBefore": {
+          "primary": "31CF3D13B3BCA3EF5A14CAA755DEB701EDFF1EDF5A9B4A968FDEDEAC544882DD",
+          "backup": "8AA9184381DE774623E0A8750BA7ACE31E6523CF6483F73F968F37B1574BE6C2"
+        },
+        "initial": {
+          "recoveryPoints": 1,
+          "backupRepaired": true
+        },
+        "afterRestart": {
+          "recoveryPoints": 2,
+          "business": {
+            "goals": 1,
+            "habits": 1,
+            "days": 1,
+            "tasks": 25
+          }
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "95B796C4746EAFEC1A6E4437F363616B0B1720E6F341083735EF73A35B76ACD5",
+          "backup": "31CF3D13B3BCA3EF5A14CAA755DEB701EDFF1EDF5A9B4A968FDEDEAC544882DD"
+        }
+      },
+      {
+        "case": "pomodoro-state-primary",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\pomodoro-state-primary",
+        "basename": "pomodoro-state.json",
+        "expected": "Valid paused timer primary ignores damaged .bak; stop repairs backup and persists empty state",
+        "hashesBefore": {
+          "primary": "89D903038387D765B644A5ABE1D5DFD17AAA6C4E77CF5020A373FE0F8A54B730",
+          "backup": "7167A29E9FAB952BC645FFFB8DE5EFE817F1A0A61CC9E08204AA4C925EEF5526"
+        },
+        "initial": {
+          "timers": 1,
+          "backupRepaired": true
+        },
+        "afterRestart": {
+          "timers": 0,
+          "business": {
+            "goals": 1,
+            "habits": 1,
+            "days": 1,
+            "tasks": 25
+          }
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "21D72C90E4C22741FE86C9CC6157F0DE2AA9832DFEF110569150936D95D7F56E",
+          "backup": "21D72C90E4C22741FE86C9CC6157F0DE2AA9832DFEF110569150936D95D7F56E"
+        }
+      },
+      {
+        "case": "window-state-primary",
+        "version": "0.1.2",
+        "profile": "%TEMP%\\mylifeos-p0-file-matrix-25BST2\\window-state-primary",
+        "basename": "window-state.json",
+        "expected": "Valid window primary ignores damaged .bak; resize repairs backup and survives restart",
+        "hashesBefore": {
+          "primary": "2A8589CFFFA7F03FF67DEE6E4A08C6465174561546A4818D4D72D7FEFEC7333C",
+          "backup": "081C01CCBC73BA614B7D9781C78ED3B52721776A290E27F18C304AE97A18793B"
+        },
+        "initial": {
+          "initialBounds": {
+            "width": 722,
+            "height": 544
+          },
+          "backupRepaired": true
+        },
+        "afterRestart": {
+          "bounds": {
+            "width": 762,
+            "height": 564
+          },
+          "business": {
+            "goals": 1,
+            "habits": 1,
+            "days": 1,
+            "tasks": 25
+          }
+        },
+        "actual": "Expected data and file behavior remained available after restart",
+        "pass": true,
+        "hashesAfter": {
+          "primary": "F29EE407AE1292387F7458B4C8EE18A0B27C570CE3313EB08C44714FA16DE56B",
+          "backup": "2A8589CFFFA7F03FF67DEE6E4A08C6465174561546A4818D4D72D7FEFEC7333C"
+        }
+      }
+    ]
+  },
+  "uiRestore": {
+    "recoveryPoint": {
+      "mode": "point",
+      "date": "2026-09-24T13:36:39.689Z",
+      "appVersion": "0.1.2",
+      "sourceCommit": "01eb6c5",
+      "packagedExe": ".\\out\\win-unpacked\\MyLifeOS.exe",
+      "installerSha256": "8F319ADBAA757E5FCADC58FBA2B8957C9A3E08C29EA60B62D5EEB9A2B70C5D76",
+      "disposableRoot": "%TEMP%\\mylifeos-p0-point-iIA5vV",
+      "sourceProfile": null,
+      "profile": "%TEMP%\\mylifeos-p0-point-iIA5vV\\target-profile",
+      "sourceBackupPath": null,
+      "preRestorePath": "%TEMP%\\mylifeos-p0-point-iIA5vV\\pre-point-backup.json",
+      "hashesBefore": {
+        "app-data.json": {
+          "primary": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684",
+          "backup": null
+        },
+        "recovery-points.json": {
+          "primary": "8AA9184381DE774623E0A8750BA7ACE31E6523CF6483F73F968F37B1574BE6C2",
+          "backup": "22F182241987B2104ED3CB579C98F27A1927BE259D902218A00C2F014279EAD9"
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": null,
+          "backup": null
+        }
+      },
+      "expected": "Restore source task through the packaged UI, save current data first, and retain it after restart",
+      "businessBefore": {
+        "goals": 0,
+        "habits": 0,
+        "days": 1,
+        "tasks": 1,
+        "hasSourceTask": false,
+        "hasCurrentTask": true
+      },
+      "previewText": "Confirm Action\n\nRestore the recovery point from Sep 24, 09:36 PM? It contains 1 habits and 1 daily logs. Your current data will be saved as a new recovery point first.\n\nCancel\nConfirm",
+      "preRestoreSha256": "22815CD7D4AE6DDE6FC0D269369DDC768179B1966C8EE706DBF80F6D9A81484D",
+      "restoreMsAfterBackupSaved": 107,
+      "businessAfter": {
+        "goals": 1,
+        "habits": 1,
+        "days": 1,
+        "tasks": 25,
+        "hasSourceTask": true,
+        "hasCurrentTask": false
+      },
+      "recoveryPointCount": 2,
+      "hashesAfterRestore": {
+        "app-data.json": {
+          "primary": "2C1B0F3E739A5A3ECBD14FC446822DF5F3F6569C591C4C50CC67B9A207F62C21",
+          "backup": "A3D2C2788D663BA7D6CD59814E6B0055EB658993D3B053BAEB5296FFF6B9B33B"
+        },
+        "recovery-points.json": {
+          "primary": "F1944363478A5680BF449B6F4813E0ACB66BD435A2DFE053F7D30BDF12FABCC2",
+          "backup": "22F182241987B2104ED3CB579C98F27A1927BE259D902218A00C2F014279EAD9"
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+          "backup": null
+        }
+      },
+      "businessAfterRestart": {
+        "goals": 1,
+        "habits": 1,
+        "days": 1,
+        "tasks": 25,
+        "hasSourceTask": true,
+        "hasCurrentTask": false
+      },
+      "activeJsonValid": {
+        "app-data.json": true,
+        "recovery-points.json": true,
+        "pomodoro-state.json": null,
+        "window-state.json": true
+      },
+      "hashesAfterRestart": {
+        "app-data.json": {
+          "primary": "2C1B0F3E739A5A3ECBD14FC446822DF5F3F6569C591C4C50CC67B9A207F62C21",
+          "backup": "A3D2C2788D663BA7D6CD59814E6B0055EB658993D3B053BAEB5296FFF6B9B33B"
+        },
+        "recovery-points.json": {
+          "primary": "F1944363478A5680BF449B6F4813E0ACB66BD435A2DFE053F7D30BDF12FABCC2",
+          "backup": "22F182241987B2104ED3CB579C98F27A1927BE259D902218A00C2F014279EAD9"
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+          "backup": null
+        }
+      },
+      "actual": "UI restore succeeded, pre-restore backup preserved current task, and restart retained source task",
+      "pass": true,
+      "hashesFinal": {
+        "app-data.json": {
+          "primary": "2C1B0F3E739A5A3ECBD14FC446822DF5F3F6569C591C4C50CC67B9A207F62C21",
+          "backup": "A3D2C2788D663BA7D6CD59814E6B0055EB658993D3B053BAEB5296FFF6B9B33B"
+        },
+        "recovery-points.json": {
+          "primary": "F1944363478A5680BF449B6F4813E0ACB66BD435A2DFE053F7D30BDF12FABCC2",
+          "backup": "22F182241987B2104ED3CB579C98F27A1927BE259D902218A00C2F014279EAD9"
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+          "backup": null
+        }
+      }
+    },
+    "crossProfileImport": {
+      "mode": "import",
+      "date": "2026-09-24T13:40:12.931Z",
+      "appVersion": "0.1.2",
+      "sourceCommit": "01eb6c5",
+      "packagedExe": ".\\out\\win-unpacked\\MyLifeOS.exe",
+      "installerSha256": "8F319ADBAA757E5FCADC58FBA2B8957C9A3E08C29EA60B62D5EEB9A2B70C5D76",
+      "disposableRoot": "%TEMP%\\mylifeos-p0-import-5ulQRw",
+      "sourceProfile": "%TEMP%\\mylifeos-p0-import-5ulQRw\\source-profile",
+      "profile": "%TEMP%\\mylifeos-p0-import-5ulQRw\\target-profile",
+      "sourceBackupPath": "%TEMP%\\mylifeos-p0-import-5ulQRw\\source-backup.json",
+      "preRestorePath": "%TEMP%\\mylifeos-p0-import-5ulQRw\\pre-import-backup.json",
+      "hashesBefore": {
+        "app-data.json": {
+          "primary": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684",
+          "backup": null
+        },
+        "recovery-points.json": {
+          "primary": null,
+          "backup": null
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": null,
+          "backup": null
+        }
+      },
+      "expected": "Restore source task through the packaged UI, save current data first, and retain it after restart",
+      "sourceBusiness": {
+        "goals": 1,
+        "habits": 1,
+        "days": 1,
+        "tasks": 25,
+        "hasSourceTask": true,
+        "hasCurrentTask": false
+      },
+      "sourceBackupSha256": "C1A335794193543811424D45DE83D316F42754D8513468D9A6A6C67D2CB6E021",
+      "sourceHashes": {
+        "app-data.json": {
+          "primary": "1D9D6083F6576010381F8A3699F53E1FD104DA821062AA10897EE8EAB2B1AC7D",
+          "backup": null
+        },
+        "recovery-points.json": {
+          "primary": "2C2D6B00B0137B3EB3BDBB685D55F2D0C468AB17AF1CC685878CF8E71AB6F91D",
+          "backup": null
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": null,
+          "backup": null
+        }
+      },
+      "businessBefore": {
+        "goals": 0,
+        "habits": 0,
+        "days": 1,
+        "tasks": 1,
+        "hasSourceTask": false,
+        "hasCurrentTask": true
+      },
+      "previewMs": 65,
+      "previewText": "Confirm Action\n\nRestore preview:\nImported 1 habits and 1 daily logs.\n1 goals, 25 tasks, 5 setting groups; 0 invalid goals filtered.\nA backup of your current data will be downloaded before restore.\nThis will overwrite current data. Continue?\n\nCancel\nConfirm",
+      "preRestoreSha256": "05951EED7DC845BB8AD9F18204056AD27B8FA0D8AA19015914BBBD89DE66CFCD",
+      "restoreMsAfterBackupSaved": 94,
+      "businessAfter": {
+        "goals": 1,
+        "habits": 1,
+        "days": 1,
+        "tasks": 25,
+        "hasSourceTask": true,
+        "hasCurrentTask": false
+      },
+      "hashesAfterRestore": {
+        "app-data.json": {
+          "primary": "4A8F1BF4B5A881E32B3C7F93FFB06290D92C4EB3113900B23E428DF96AACF68F",
+          "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+        },
+        "recovery-points.json": {
+          "primary": "3490BBCB7E1281B248EC4111B491DA065A4211ADEF862F3DB2FBFAA0F1F86ABA",
+          "backup": null
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+          "backup": null
+        }
+      },
+      "businessAfterRestart": {
+        "goals": 1,
+        "habits": 1,
+        "days": 1,
+        "tasks": 25,
+        "hasSourceTask": true,
+        "hasCurrentTask": false
+      },
+      "activeJsonValid": {
+        "app-data.json": true,
+        "recovery-points.json": true,
+        "pomodoro-state.json": null,
+        "window-state.json": true
+      },
+      "hashesAfterRestart": {
+        "app-data.json": {
+          "primary": "4A8F1BF4B5A881E32B3C7F93FFB06290D92C4EB3113900B23E428DF96AACF68F",
+          "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+        },
+        "recovery-points.json": {
+          "primary": "3490BBCB7E1281B248EC4111B491DA065A4211ADEF862F3DB2FBFAA0F1F86ABA",
+          "backup": null
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+          "backup": null
+        }
+      },
+      "actual": "UI restore succeeded, pre-restore backup preserved current task, and restart retained source task",
+      "pass": true,
+      "hashesFinal": {
+        "app-data.json": {
+          "primary": "4A8F1BF4B5A881E32B3C7F93FFB06290D92C4EB3113900B23E428DF96AACF68F",
+          "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+        },
+        "recovery-points.json": {
+          "primary": "3490BBCB7E1281B248EC4111B491DA065A4211ADEF862F3DB2FBFAA0F1F86ABA",
+          "backup": null
+        },
+        "pomodoro-state.json": {
+          "primary": null,
+          "backup": null
+        },
+        "window-state.json": {
+          "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+          "backup": null
+        }
+      }
+    }
+  },
+  "largeRestore": {
+    "fixture": {
+      "path": "tmp/p0-large-backup-2026-09-24.json",
+      "sha256": "E3CBE485169A01543ED31D5E870662F3428F463CCE3DBA423098D316CC743A2D",
+      "bytes": 1961123,
+      "counts": {
+        "days": 5844,
+        "tasks": 10000,
+        "firstDay": "2010-01-01",
+        "lastDay": "2025-12-31"
+      }
+    },
+    "previewMs": {
+      "min": 63,
+      "median": 71,
+      "max": 85
+    },
+    "restoreMsAfterPrebackupSaved": {
+      "min": 109,
+      "median": 110,
+      "max": 141
+    },
+    "maxCdpProbeMs": {
+      "min": 54,
+      "median": 57,
+      "max": 78
+    },
+    "timingBoundary": "Starts when the native dialog has saved the pre-restore file; ends when the success summary becomes visible. Manual dialog navigation is excluded. CDP probing is sampled, not continuous frame-rate measurement.",
+    "runs": [
+      {
+        "mode": "large",
+        "date": "2026-09-24T13:44:24.037Z",
+        "appVersion": "0.1.2",
+        "sourceCommit": "01eb6c5",
+        "packagedExe": ".\\out\\win-unpacked\\MyLifeOS.exe",
+        "installerSha256": "8F319ADBAA757E5FCADC58FBA2B8957C9A3E08C29EA60B62D5EEB9A2B70C5D76",
+        "disposableRoot": "%TEMP%\\mylifeos-p0-large-Ps80BJ",
+        "sourceProfile": null,
+        "profile": "%TEMP%\\mylifeos-p0-large-Ps80BJ\\target-profile",
+        "sourceBackupPath": ".\\tmp\\p0-large-backup-2026-09-24.json",
+        "preRestorePath": "%TEMP%\\mylifeos-p0-large-Ps80BJ\\pre-large-backup.json",
+        "hashesBefore": {
+          "app-data.json": {
+            "primary": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684",
+            "backup": null
+          },
+          "recovery-points.json": {
+            "primary": null,
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": null,
+            "backup": null
+          }
+        },
+        "expected": "Restore source task through the packaged UI, save current data first, and retain it after restart",
+        "fixtureSha256": "E3CBE485169A01543ED31D5E870662F3428F463CCE3DBA423098D316CC743A2D",
+        "fixtureBytes": 1961123,
+        "fixtureCounts": {
+          "days": 5844,
+          "tasks": 10000,
+          "firstDay": "2010-01-01",
+          "lastDay": "2025-12-31"
+        },
+        "businessBefore": {
+          "goals": 0,
+          "habits": 0,
+          "days": 1,
+          "tasks": 1,
+          "hasSourceTask": false,
+          "hasCurrentTask": true
+        },
+        "previewMs": 63,
+        "previewText": "Confirm Action\n\nRestore preview:\nImported 0 habits and 5844 daily logs.\n1 goals, 10000 tasks, 5 setting groups; 0 invalid goals filtered.\nA backup of your current data will be downloaded before restore.\nThis will overwrite current data. Continue?\n\nCancel\nConfirm",
+        "preRestoreSha256": "449CDDEAD967707D86666AD4949DC00CA9D19D558C5A7ACBAEAD7F352C62092D",
+        "restoreMsAfterBackupSaved": 109,
+        "maxUiProbeMs": 54,
+        "uiProbeCount": 2,
+        "businessAfter": {
+          "goals": 1,
+          "habits": 0,
+          "days": 5844,
+          "tasks": 10000,
+          "hasSourceTask": true,
+          "hasCurrentTask": false
+        },
+        "historicalSamplesAfter": {
+          "2010-01-01": 2,
+          "2017-12-31": 2,
+          "2025-12-31": 1
+        },
+        "hashesAfterRestore": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "7D509F967E90DCFEF1D4392EFF4D93E81B51D61D603A606BA8BB95013E93FDC6",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+            "backup": null
+          }
+        },
+        "businessAfterRestart": {
+          "goals": 1,
+          "habits": 0,
+          "days": 5844,
+          "tasks": 10000,
+          "hasSourceTask": true,
+          "hasCurrentTask": false
+        },
+        "historicalSamplesAfterRestart": {
+          "2010-01-01": 2,
+          "2017-12-31": 2,
+          "2025-12-31": 1
+        },
+        "activeJsonValid": {
+          "app-data.json": true,
+          "recovery-points.json": true,
+          "pomodoro-state.json": null,
+          "window-state.json": true
+        },
+        "hashesAfterRestart": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "7D509F967E90DCFEF1D4392EFF4D93E81B51D61D603A606BA8BB95013E93FDC6",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+            "backup": null
+          }
+        },
+        "actual": "UI restore succeeded, pre-restore backup preserved current task, and restart retained source task",
+        "pass": true,
+        "hashesFinal": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "7D509F967E90DCFEF1D4392EFF4D93E81B51D61D603A606BA8BB95013E93FDC6",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "B020EC770C68F4B10B822B56C4B30C7C0BE5F02F009237271E83304980A57EB0",
+            "backup": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE"
+          }
+        }
+      },
+      {
+        "mode": "large",
+        "date": "2026-09-24T13:45:32.481Z",
+        "appVersion": "0.1.2",
+        "sourceCommit": "01eb6c5",
+        "packagedExe": ".\\out\\win-unpacked\\MyLifeOS.exe",
+        "installerSha256": "8F319ADBAA757E5FCADC58FBA2B8957C9A3E08C29EA60B62D5EEB9A2B70C5D76",
+        "disposableRoot": "%TEMP%\\mylifeos-p0-large-etd0at",
+        "sourceProfile": null,
+        "profile": "%TEMP%\\mylifeos-p0-large-etd0at\\target-profile",
+        "sourceBackupPath": ".\\tmp\\p0-large-backup-2026-09-24.json",
+        "preRestorePath": "%TEMP%\\mylifeos-p0-large-etd0at\\pre-large-backup.json",
+        "hashesBefore": {
+          "app-data.json": {
+            "primary": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684",
+            "backup": null
+          },
+          "recovery-points.json": {
+            "primary": null,
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": null,
+            "backup": null
+          }
+        },
+        "expected": "Restore source task through the packaged UI, save current data first, and retain it after restart",
+        "fixtureSha256": "E3CBE485169A01543ED31D5E870662F3428F463CCE3DBA423098D316CC743A2D",
+        "fixtureBytes": 1961123,
+        "fixtureCounts": {
+          "days": 5844,
+          "tasks": 10000,
+          "firstDay": "2010-01-01",
+          "lastDay": "2025-12-31"
+        },
+        "businessBefore": {
+          "goals": 0,
+          "habits": 0,
+          "days": 1,
+          "tasks": 1,
+          "hasSourceTask": false,
+          "hasCurrentTask": true
+        },
+        "previewMs": 71,
+        "previewText": "Confirm Action\n\nRestore preview:\nImported 0 habits and 5844 daily logs.\n1 goals, 10000 tasks, 5 setting groups; 0 invalid goals filtered.\nA backup of your current data will be downloaded before restore.\nThis will overwrite current data. Continue?\n\nCancel\nConfirm",
+        "preRestoreSha256": "7F26B7B3434515766B36B5B0B2682EB35AC7DCD30D8BA8B2CBE9D34EB6A15C1D",
+        "restoreMsAfterBackupSaved": 141,
+        "maxUiProbeMs": 78,
+        "uiProbeCount": 2,
+        "businessAfter": {
+          "goals": 1,
+          "habits": 0,
+          "days": 5844,
+          "tasks": 10000,
+          "hasSourceTask": true,
+          "hasCurrentTask": false
+        },
+        "historicalSamplesAfter": {
+          "2010-01-01": 2,
+          "2017-12-31": 2,
+          "2025-12-31": 1
+        },
+        "hashesAfterRestore": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "7B58F59001A5EC1237010E7678AD6207E511D42163F335AAB2643C7EEFA13E8F",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+            "backup": null
+          }
+        },
+        "businessAfterRestart": {
+          "goals": 1,
+          "habits": 0,
+          "days": 5844,
+          "tasks": 10000,
+          "hasSourceTask": true,
+          "hasCurrentTask": false
+        },
+        "historicalSamplesAfterRestart": {
+          "2010-01-01": 2,
+          "2017-12-31": 2,
+          "2025-12-31": 1
+        },
+        "activeJsonValid": {
+          "app-data.json": true,
+          "recovery-points.json": true,
+          "pomodoro-state.json": null,
+          "window-state.json": true
+        },
+        "hashesAfterRestart": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "7B58F59001A5EC1237010E7678AD6207E511D42163F335AAB2643C7EEFA13E8F",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+            "backup": null
+          }
+        },
+        "actual": "UI restore succeeded, pre-restore backup preserved current task, and restart retained source task",
+        "pass": true,
+        "hashesFinal": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "7B58F59001A5EC1237010E7678AD6207E511D42163F335AAB2643C7EEFA13E8F",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "B020EC770C68F4B10B822B56C4B30C7C0BE5F02F009237271E83304980A57EB0",
+            "backup": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE"
+          }
+        }
+      },
+      {
+        "mode": "large",
+        "date": "2026-09-24T13:46:39.345Z",
+        "appVersion": "0.1.2",
+        "sourceCommit": "01eb6c5",
+        "packagedExe": ".\\out\\win-unpacked\\MyLifeOS.exe",
+        "installerSha256": "8F319ADBAA757E5FCADC58FBA2B8957C9A3E08C29EA60B62D5EEB9A2B70C5D76",
+        "disposableRoot": "%TEMP%\\mylifeos-p0-large-MzYz4q",
+        "sourceProfile": null,
+        "profile": "%TEMP%\\mylifeos-p0-large-MzYz4q\\target-profile",
+        "sourceBackupPath": ".\\tmp\\p0-large-backup-2026-09-24.json",
+        "preRestorePath": "%TEMP%\\mylifeos-p0-large-MzYz4q\\pre-large-backup.json",
+        "hashesBefore": {
+          "app-data.json": {
+            "primary": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684",
+            "backup": null
+          },
+          "recovery-points.json": {
+            "primary": null,
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": null,
+            "backup": null
+          }
+        },
+        "expected": "Restore source task through the packaged UI, save current data first, and retain it after restart",
+        "fixtureSha256": "E3CBE485169A01543ED31D5E870662F3428F463CCE3DBA423098D316CC743A2D",
+        "fixtureBytes": 1961123,
+        "fixtureCounts": {
+          "days": 5844,
+          "tasks": 10000,
+          "firstDay": "2010-01-01",
+          "lastDay": "2025-12-31"
+        },
+        "businessBefore": {
+          "goals": 0,
+          "habits": 0,
+          "days": 1,
+          "tasks": 1,
+          "hasSourceTask": false,
+          "hasCurrentTask": true
+        },
+        "previewMs": 85,
+        "previewText": "Confirm Action\n\nRestore preview:\nImported 0 habits and 5844 daily logs.\n1 goals, 10000 tasks, 5 setting groups; 0 invalid goals filtered.\nA backup of your current data will be downloaded before restore.\nThis will overwrite current data. Continue?\n\nCancel\nConfirm",
+        "preRestoreSha256": "00A68419B6F5C0B7076F866704E6A12C0CEAD19C53E0819530431CA5D24AA907",
+        "restoreMsAfterBackupSaved": 110,
+        "maxUiProbeMs": 57,
+        "uiProbeCount": 2,
+        "businessAfter": {
+          "goals": 1,
+          "habits": 0,
+          "days": 5844,
+          "tasks": 10000,
+          "hasSourceTask": true,
+          "hasCurrentTask": false
+        },
+        "historicalSamplesAfter": {
+          "2010-01-01": 2,
+          "2017-12-31": 2,
+          "2025-12-31": 1
+        },
+        "hashesAfterRestore": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "19CA0F51284213A1367550BB09BD70AEE277AEC9E99D4AB0A24D52BC0B4DFA29",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+            "backup": null
+          }
+        },
+        "businessAfterRestart": {
+          "goals": 1,
+          "habits": 0,
+          "days": 5844,
+          "tasks": 10000,
+          "hasSourceTask": true,
+          "hasCurrentTask": false
+        },
+        "historicalSamplesAfterRestart": {
+          "2010-01-01": 2,
+          "2017-12-31": 2,
+          "2025-12-31": 1
+        },
+        "activeJsonValid": {
+          "app-data.json": true,
+          "recovery-points.json": true,
+          "pomodoro-state.json": null,
+          "window-state.json": true
+        },
+        "hashesAfterRestart": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "19CA0F51284213A1367550BB09BD70AEE277AEC9E99D4AB0A24D52BC0B4DFA29",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE",
+            "backup": null
+          }
+        },
+        "actual": "UI restore succeeded, pre-restore backup preserved current task, and restart retained source task",
+        "pass": true,
+        "hashesFinal": {
+          "app-data.json": {
+            "primary": "5E8C2ABD1533194D8E16397878992267A01E9748C51CA49A14DF553EC3EDF0CE",
+            "backup": "754867AE6D1293A14398B3A0408709EE1D55A792D3642710644F1A082D957684"
+          },
+          "recovery-points.json": {
+            "primary": "19CA0F51284213A1367550BB09BD70AEE277AEC9E99D4AB0A24D52BC0B4DFA29",
+            "backup": null
+          },
+          "pomodoro-state.json": {
+            "primary": null,
+            "backup": null
+          },
+          "window-state.json": {
+            "primary": "B020EC770C68F4B10B822B56C4B30C7C0BE5F02F009237271E83304980A57EB0",
+            "backup": "1A299F7215A2284604A8F6F5371AA2BF0A5B9CB89DCE4459440C2A03A5F6E7BE"
+          }
+        }
+      }
+    ]
+  },
+  "openGates": [
+    "OS-level disk exhaustion and power-cut durability require a disposable snapshot VM or constrained virtual disk; no such host tooling was found.",
+    "Installed app emitted native Notification show, but an independent Windows toast was not observed visually.",
+    "Installer and executable are unsigned; no usable local code-signing certificate or CSC_LINK/WIN_CSC_LINK/CSC_NAME configuration was found."
+  ]
+}
