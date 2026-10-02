@@ -43,10 +43,10 @@
     "android:verify:emulator": "node scripts/verify-android-emulator.js",
     "android:open": "cap open android",
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && node scripts/build-metadata.js build",
     "typecheck": "tsc --noEmit",
     "test": "react-scripts test --watchAll=false --passWithNoTests",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsc -p tsconfig.main.json && node scripts/build-metadata.js dist-main",
     "check:electron": "tsc --noEmit -p tsconfig.main.json",
     "verify:quality": "npm run typecheck && npm run test && npm run build && npm run build:main",
     "verify:release": "npm run verify:quality && npm run check:electron",
@@ -58,7 +58,7 @@
     "verify:p0-native": "npm run build:main && node ./scripts/verify-p0-native.js",
     "prod": "npm run build:main && node ./scripts/start-electron.js",
     "electron:dev": "npm run build:main && concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
-    "electron:build": "npm run verify:release && npm run clean:build && electron-builder --win --x64 --publish never && npm run verify:packaged"
+    "electron:build": "npm run verify:release && npm run clean:build && node scripts/package-windows.js"
   },
   "build": {
     "extends": null,
