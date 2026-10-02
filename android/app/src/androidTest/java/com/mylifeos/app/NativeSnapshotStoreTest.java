@@ -60,4 +60,56 @@ public class NativeSnapshotStoreTest {
         try { store.write(new JSONObject().put("mylifeos_lang", "zh"), 0, false, false); fail("CAS must reject stale page"); }
         catch (org.json.JSONException expected) { assertEquals("en", store.get().getJSONObject("entries").getString("mylifeos_lang")); }
     }
+    @Test public void unreadableRecoveryRequiresExplicitSessionStopAndPreservesOriginal() throws Exception {
+        try (FileOutputStream output = new FileOutputStream(new File(directory, "app-data.json"))) {
+            output.write("damaged-original".getBytes(StandardCharsets.UTF_8)); output.getFD().sync();
+        }
+        try { store.write(new JSONObject().put("mylifeos_goals", "[]"), 0, true, true); fail("Cannot treat unreadable sessions as absent"); }
+        catch (IOException expected) { assertTrue(expected.getMessage().contains("Stop unreadable sessions")); }
+        assertTrue(store.stopForRecovery().getBoolean("recoveryStopped"));
+        store.write(new JSONObject().put("mylifeos_goals", "[]"), 0, true, true);
+        File[] archives = directory.listFiles((folder, name) -> name.startsWith("app-data.json.corrupt-"));
+        assertNotNull(archives); assertEquals(1, archives.length);
+        assertEquals("damaged-original".length(), archives[0].length());
+    }
+
+    private static JSONObject taskEntries() throws Exception {
+        JSONObject task = new JSONObject().put("id", "t").put("name", "Focus").put("date", "2026-10-02")
+            .put("status", "scheduled").put("priority", "P1").put("durationMinutes", 25).put("habitId", "deleted-rule");
+        JSONObject day = new JSONObject().put("date", "2026-10-02").put("tasks", new JSONArray().put(task));
+        return new JSONObject().put(SnapshotRules.LOGS, new JSONObject().put("2026-10-02", day).toString());
+    }
+    private static JSONObject timerData() throws Exception {
+        return new JSONObject().put("timerId", "s").put("duration", 1500).put("isFocusMode", true)
+            .put("taskId", "t").put("taskName", "Focus").put("taskDate", "2026-10-02").put("taskDurationMinutes", 25);
+    }
+    @Test public void repeatedStartPauseResumeAreIdempotentAndUnfinishedSessionsBlockReplace() throws Exception {
+        store.write(taskEntries(), 0, false, false);
+        store.timer("start", "s", timerData(), 1000);
+        store.timer("start", "s", timerData(), 2000);
+        assertEquals(1501000, store.get().getJSONArray("sessions").getJSONObject(0).getLong("endTime"));
+        store.timer("pause", "s", null, 61000); store.timer("pause", "s", null, 121000);
+        assertEquals(1440000, store.get().getJSONArray("sessions").getJSONObject(0).getLong("remaining"));
+        store.timer("resume", "s", null, 121000); store.timer("resume", "s", null, 181000);
+        assertEquals(1561000, store.get().getJSONArray("sessions").getJSONObject(0).getLong("endTime"));
+        try { store.write(new JSONObject(), store.get().getLong("revision"), true, false); fail("Unfinished session must block import"); }
+        catch (org.json.JSONException expected) { assertEquals(1, store.get().getJSONArray("sessions").length()); }
+    }
+    @Test public void receiverAndRepeatedReconciliationSaveOneCompletion() throws Exception {
+        store.write(taskEntries(), 0, false, false); store.timer("start", "s", timerData(), 1000);
+        assertTrue(store.completeAlarm("s", 9999999));
+        long completedRevision = store.get().getLong("revision");
+        assertTrue(store.completeAlarm("s", 10000000)); store.reconcile(10000001);
+        assertEquals(completedRevision, store.get().getLong("revision"));
+        JSONObject logs = new JSONObject(store.get().getJSONObject("entries").getString(SnapshotRules.LOGS));
+        assertEquals(25, logs.getJSONObject("2026-10-02").getJSONArray("tasks").getJSONObject(0).getInt("actualFocusMinutes"));
+    }
+    @Test public void dirtyLegacyPreferenceMigrationKeepsRollbackSources() throws Exception {
+        SharedPreferences legacy = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
+        legacy.edit().putString("mylifeos_goals", "[{\"id\":\"old\",\"name\":\"Old\"}]").commit();
+        NativeSnapshotStore migrating = new NativeSnapshotStore(context, new File(directory, "migration"));
+        JSONObject loaded = migrating.load(new JSONObject().put("mylifeos_goals", "[{\"id\":\"new\",\"name\":\"New\"}]"), new JSONArray().put("mylifeos_goals"));
+        assertTrue(loaded.getJSONObject("entries").getString("mylifeos_goals").contains("new"));
+        assertTrue(legacy.getString("mylifeos_goals", "").contains("old"));
+    }
 }

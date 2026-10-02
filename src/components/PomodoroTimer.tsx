@@ -404,7 +404,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     if (mode !== 'focus') return;
     if (android) {
       if (!hasStarted || focusSaved) return;
-      try { await electronIPC.completePomodoro(currentTimerIdRef.current); playSound('complete'); }
+      try { await electronIPC.completePomodoro(currentTimerIdRef.current); }
       catch (error) { setTimerError(t('storage_write_failed')); }
       return;
     }

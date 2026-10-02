@@ -86,6 +86,13 @@ public class NativeReminderPlugin extends Plugin {
         call.resolve(result);
     }
 
+    static boolean vibrationAllowed(Context context) {
+        AudioManager audio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        NotificationManager notifications = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        return audio != null && audio.getRingerMode() != AudioManager.RINGER_MODE_SILENT && notifications != null
+            && notifications.getCurrentInterruptionFilter() == NotificationManager.INTERRUPTION_FILTER_ALL;
+    }
+
     @PluginMethod public void capabilities(PluginCall call) {
         NotificationManager notifications = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
         AlarmManager alarms = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
@@ -126,7 +133,7 @@ public class NativeReminderPlugin extends Plugin {
     @SuppressWarnings("deprecation")
     static void vibrateNow(Context context) {
             Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-            if (alertsAllowed(context) && vibrator != null && vibrator.hasVibrator()) {
+            if (vibrationAllowed(context) && vibrator != null && vibrator.hasVibrator()) {
                 long[] pattern = { 0, 200, 150, 200 };
                 AudioAttributes attributes = new AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_NOTIFICATION)

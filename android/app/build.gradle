@@ -18,13 +18,14 @@ android {
     }
     signingConfigs {
         personal {
-            storeFile file(System.getenv('MYLIFEOS_KEYSTORE') ?: "${System.getProperty('user.home')}/.android/debug.keystore")
+            storeFile file(System.getenv('MYLIFEOS_KEYSTORE') ?: "${System.getProperty('user.home')}/.android/mylifeos-personal-upgrade.keystore")
             storePassword System.getenv('MYLIFEOS_STORE_PASSWORD') ?: 'android'
             keyAlias System.getenv('MYLIFEOS_KEY_ALIAS') ?: 'androiddebugkey'
             keyPassword System.getenv('MYLIFEOS_KEY_PASSWORD') ?: 'android'
         }
     }
     buildTypes {
+        debug { signingConfig signingConfigs.personal }
         release {
             debuggable false
             signingConfig signingConfigs.personal

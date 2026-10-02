@@ -6,6 +6,10 @@ import { KEYS, setStorageItem } from '../services/storage/localStorageStore';
 import { electronIPC } from '../services/electronIPC';
 import type { PomodoroUpdateData } from '../services/electronIPC';
 import type { Task } from '../types';
+import { isAndroid } from '../services/platform';
+import * as localStorageStore from '../services/storage/localStorageStore';
+const mockIsAndroid = isAndroid as jest.Mock;
+jest.mock('../services/platform', () => ({ isAndroid: jest.fn(() => false) }));
 
 describe('PomodoroTimer task completion', () => {
   let container: HTMLDivElement;
@@ -21,6 +25,7 @@ describe('PomodoroTimer task completion', () => {
   };
 
   beforeEach(() => {
+    mockIsAndroid.mockReturnValue(false);
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
     // Pin the language preference so the assertion on the Chinese title below
@@ -131,5 +136,49 @@ describe('PomodoroTimer task completion', () => {
 
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(onSessionStateChange).toHaveBeenCalledWith(expect.objectContaining({ timerId, isActive: true }));
+  });
+
+  it('offers an Android break only after focus completion has been saved', async () => {
+    mockIsAndroid.mockReturnValue(true);
+    jest.spyOn(localStorageStore, 'getStorageItem').mockImplementation(key => localStorage.getItem(key));
+    let update: ((data: PomodoroUpdateData) => void) | undefined;
+    jest.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation(callback => { update = callback; return jest.fn(); });
+    const start = jest.spyOn(electronIPC, 'startPomodoro').mockImplementation(async payload => ({
+      ...payload, remaining: payload.duration * 1000, endTime: Date.now() + payload.duration * 1000,
+      elapsed: 0, isFinished: false, isActive: true,
+    }));
+    let acknowledge: (result: boolean) => void = () => undefined;
+    const onComplete = jest.fn(() => new Promise<boolean>(resolve => { acknowledge = resolve; }));
+    const onClose = jest.fn();
+    const stop = jest.spyOn(electronIPC, 'stopPomodoro').mockResolvedValue();
+    await act(async () => { root.render(<LanguageProvider><PomodoroTimer task={task} onClose={onClose}
+      onComplete={onComplete} onSessionStateChange={jest.fn()} /></LanguageProvider>); });
+    await act(async () => { (container.querySelectorAll('button')[1] as HTMLButtonElement).click(); });
+    const timerId = start.mock.calls[0][0].timerId;
+    await act(async () => { update?.({ timerId, duration: 1500, remaining: 0, endTime: Date.now(),
+      elapsed: 1500000, isFinished: true, isActive: false, completionPersisted: true, suppressCompletionAlert: true }); });
+    expect(onComplete).toHaveBeenCalledWith(task, 25);
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(container.textContent).not.toContain('开始休息');
+    await act(async () => { acknowledge(true); });
+    expect(container.textContent).toContain('开始休息');
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => { (Array.from(container.querySelectorAll('button')).find(button => button.textContent === '返回计划') as HTMLButtonElement).click(); });
+    expect(stop).toHaveBeenCalledWith(timerId);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an Android running session alive when the timer panel is closed', async () => {
+    mockIsAndroid.mockReturnValue(true);
+    jest.spyOn(localStorageStore, 'getStorageItem').mockImplementation(key => localStorage.getItem(key));
+    const stop = jest.spyOn(electronIPC, 'stopPomodoro').mockResolvedValue();
+    const onClose = jest.fn();
+    await act(async () => { root.render(<LanguageProvider><PomodoroTimer task={task} onClose={onClose}
+      onComplete={jest.fn()} onSessionStateChange={jest.fn()} restoredState={{ timerId: 's', taskId: task.id,
+        taskName: task.name, taskDate: task.date, taskPriority: task.priority, taskDurationMinutes: 25,
+        mode: 'focus', remainingSeconds: 100, isActive: true }} /></LanguageProvider>); });
+    await act(async () => { (container.querySelector('button') as HTMLButtonElement).click(); });
+    expect(onClose).toHaveBeenCalledTimes(1); expect(stop).not.toHaveBeenCalled();
   });
 });

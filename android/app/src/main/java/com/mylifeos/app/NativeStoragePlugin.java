@@ -52,19 +52,28 @@ public class NativeStoragePlugin extends Plugin {
     @PluginMethod public void timer(PluginCall call) {
         run(call, () -> {
             String id = call.getString("timerId"); String action = call.getString("action");
-            if (id == null || action == null || !action.matches("start|toggle|stop|complete")) throw new IllegalArgumentException("Invalid timer action");
+            if (id == null || action == null || !action.matches("start|toggle|pause|resume|stop|complete")) throw new IllegalArgumentException("Invalid timer action");
             JSONObject result = store().timer(action, id, call.getObject("data"), System.currentTimeMillis());
             JSONArray sessions = result.getJSONArray("sessions"); JSONObject session = null;
             for (int i = 0; i < sessions.length(); i++) if (id.equals(sessions.getJSONObject(i).getString("timerId"))) session = sessions.getJSONObject(i);
             int notificationId = Math.max(1, id.hashCode() & 0x7fffffff);
+            if (session != null && "completed".equals(session.optString("state")) && action.equals("complete")) {
+                try { CompletionReminderReceiver.completeManual(getContext(), session); }
+                catch (RuntimeException error) { result.put("reminderError", error.getMessage()); }
+            }
             CompletionReminderReceiver.cancel(getContext(), notificationId);
             if (session != null && session.getBoolean("isActive")) {
                 try { schedule(getContext(), session); }
                 catch (RuntimeException error) { result.put("reminderError", error.getMessage()); }
-            } else if (session != null && "completed".equals(session.optString("state")) && action.equals("complete")) {
-                // Manual completion alerts use the foreground UI, after this durable commit.
             }
             return result;
+        });
+    }
+
+    @PluginMethod public void stopForRecovery(PluginCall call) {
+        run(call, () -> {
+            CompletionReminderReceiver.cancelAll(getContext());
+            return store().stopForRecovery();
         });
     }
 

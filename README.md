@@ -76,6 +76,13 @@ and network mirror setup.
 
 See [RELEASE_CHECKS.md](RELEASE_CHECKS.md).
 
+## Android personal APK
+
+The Android app shares the current business code through a platform adapter.
+Run `npm run android:verify` with JDK 21, Android SDK 36 and the preserved personal signing key.
+The verified APK and certificate/source/check metadata are written to `out/android/`.
+See [Android implementation and device acceptance](docs/android/IMPLEMENTATION.md) for migration, backup formats, toolchain setup and isolated emulator tests.
+
 ## Extra docs
 
 - [USER_GUIDE.md](USER_GUIDE.md)

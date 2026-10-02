@@ -8,7 +8,7 @@ import { saveJSONFile } from '../services/platformFiles';
 import { hasManagedStorage, storageBridge } from '../services/storageBridge';
 import { electronIPC } from '../services/electronIPC';
 import { isAndroid } from '../services/platform';
-import { refreshNativeTimers } from '../services/nativeRuntime';
+import { stopNativeForRecovery, getNativeTimerPending } from '../services/nativeRuntime';
 
 /** Owns the desktop save state outside the application that may need reloading. */
 export default function StorageBoundary({ children }: { children: React.ReactNode }) {
@@ -66,15 +66,18 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
     Object.entries(SETTING_KEYS).forEach(([name, key]) => {
       if (snapshot[key] !== undefined) settings[name as keyof typeof settings] = name === 'language' ? snapshot[key] : JSON.parse(snapshot[key]);
     });
-    const json = exportBackupJSON(JSON.parse(snapshot[KEYS.HABITS] || '[]'), JSON.parse(snapshot[KEYS.DAILY_LOGS] || '{}'), JSON.parse(snapshot[KEYS.GOALS] || '[]'), settings);
+    const backup = JSON.parse(exportBackupJSON(JSON.parse(snapshot[KEYS.HABITS] || '[]'), JSON.parse(snapshot[KEYS.DAILY_LOGS] || '{}'), JSON.parse(snapshot[KEYS.GOALS] || '[]'), settings));
+    if (isAndroid()) backup.unsavedTimerOperation = getNativeTimerPending();
+    const json = JSON.stringify(backup, null, 2);
     const path = await saveJSONFile(json, `mylifeos_unsaved_${Date.now()}.json`);
     if (path) setMessage(zh ? `待保存数据已导出：${path}` : `Pending data exported: ${path}`);
   };
   const recovery = status.state === 'recovery';
   const failed = status.state === 'error';
   const buttonClass = 'rounded border border-current px-3 py-1 disabled:opacity-50';
+  const interactionBlocked = failed || busy || Boolean(status.transaction);
   const blockInteraction = (event: React.SyntheticEvent) => {
-    if (failed || busy) { event.preventDefault(); event.stopPropagation(); }
+    if (interactionBlocked) { event.preventDefault(); event.stopPropagation(); }
   };
   return <>
     <section aria-label={zh ? '数据保存状态' : 'Data save status'} className={`sticky top-0 z-[100] px-4 py-2 text-sm ${recovery || failed ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-700'}`}>
@@ -85,14 +88,17 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       </div>
       {(failed || recovery) && <div className="mt-2 flex flex-wrap items-center gap-2">
         {status.hasPending && <>
-          <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
+          {!recovery && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
             await storageBridge.retry();
-          })}>{zh ? '重试保存' : 'Retry saving'}</button>
+          })}>{zh ? '重试保存' : 'Retry saving'}</button>}
           <button className={buttonClass} disabled={busy} onClick={() => void run(exportPending)}>{zh ? '导出待保存数据' : 'Export pending data'}</button>
         </>}
         {(recovery || failed) && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
-          const timers = isAndroid() ? (await refreshNativeTimers(true)).filter(session => session.state !== 'completed') : await electronIPC.getActiveTimers(true);
-          for (const timer of timers) await electronIPC.stopPomodoro(timer.timerId);
+          if (isAndroid()) await stopNativeForRecovery();
+          else {
+            const timers = await electronIPC.getActiveTimers(true);
+            for (const timer of timers) await electronIPC.stopPomodoro(timer.timerId);
+          }
           setMessage(zh ? '计时器已停止，可继续恢复。' : 'Timers stopped. You can now restore.');
         })}>{zh ? '停止当前计时器' : 'Stop current timers'}</button>}
         {recovery && <label className={buttonClass}>{zh ? '选择恢复备份' : 'Choose recovery backup'}
@@ -111,7 +117,7 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       </div>}
       {candidate && recovery && <div className="mt-2">
         <p>{candidate.summary}</p>
-        <p>{zh ? '确认后先保存损坏原文件副本，再整体恢复；运行中的计时器不会导入。' : 'Original damaged files will be archived before restoring the snapshot. Running timers are not imported.'}</p>
+        <p>{zh ? '请先停止当前计时器。确认后先保存损坏原文件副本，再整体恢复；无法读取的会话不会继续或导入。' : 'Stop current timers first. Damaged originals are archived before restoring; unreadable sessions will not continue or transfer.'}</p>
         <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
           const result = await importBackupJSON(candidate.json, true);
           if (!result.ok) throw new Error(result.message);
@@ -122,8 +128,8 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       {message && <p role="alert">{message}</p>}
       {reminderError && <p role="alert">{zh ? '提醒设置失败，请到应用设置检查：' : 'Reminder failed; check application settings: '}{reminderError}</p>}
     </section>
-    {initialized && !recovery && <fieldset key={generation} disabled={failed || busy}
-      ref={element => { if (element) { if (failed || busy) element.setAttribute('inert', ''); else element.removeAttribute('inert'); } }}
+    {initialized && !recovery && <fieldset key={generation} disabled={interactionBlocked}
+      ref={element => { if (element) { if (interactionBlocked) element.setAttribute('inert', ''); else element.removeAttribute('inert'); } }}
       onClickCapture={blockInteraction} onKeyDownCapture={blockInteraction} onDragStartCapture={blockInteraction}
       onDropCapture={blockInteraction} onPointerDownCapture={blockInteraction}
       className="m-0 min-w-0 border-0 p-0">{children}</fieldset>}

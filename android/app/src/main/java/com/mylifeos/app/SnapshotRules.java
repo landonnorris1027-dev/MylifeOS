@@ -35,7 +35,8 @@ final class SnapshotRules {
 
     static void validate(JSONObject snapshot) throws JSONException {
         require(snapshot.optInt("formatVersion") == 1, "Unsupported native snapshot format");
-        require(finite(snapshot.opt("revision")) && snapshot.getLong("revision") >= 0, "Invalid native revision");
+        require(finite(snapshot.opt("revision")) && snapshot.getLong("revision") >= 0
+            && snapshot.getDouble("revision") == snapshot.getLong("revision"), "Invalid native revision");
         JSONObject entries = snapshot.getJSONObject("entries");
         Iterator<String> keys = entries.keys();
         while (keys.hasNext()) {

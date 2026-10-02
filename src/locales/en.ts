@@ -144,7 +144,7 @@ const en = {
   edit_habit: 'Edit habit',
   focus_preferences: 'Focus Preferences',
   sound_enabled: 'Timer sound',
-  notifications_enabled: 'Desktop notifications',
+  notifications_enabled: 'Completion notifications',
   notification_focus_complete_title: 'Focus session completed',
   notification_focus_complete_body: '"{task}" is ready for a break.',
   notification_break_finished_title: 'Break finished',

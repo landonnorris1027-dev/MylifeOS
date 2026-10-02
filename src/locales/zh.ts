@@ -144,7 +144,7 @@ const zh = {
   edit_habit: '编辑习惯',
   focus_preferences: '专注偏好',
   sound_enabled: '计时提示音',
-  notifications_enabled: '桌面通知',
+  notifications_enabled: '完成通知',
   notification_focus_complete_title: '专注已完成',
   notification_focus_complete_body: '“{task}”已经完成，可以休息一下了。',
   notification_break_finished_title: '休息结束',

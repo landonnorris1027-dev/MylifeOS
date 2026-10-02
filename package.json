@@ -40,6 +40,7 @@
   "scripts": {
     "android:sync": "npm run build && cap sync android",
     "android:verify": "node scripts/verify-android.js",
+    "android:verify:emulator": "node scripts/verify-android-emulator.js",
     "android:open": "cap open android",
     "start": "react-scripts start",
     "build": "react-scripts build",

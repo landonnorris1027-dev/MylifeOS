@@ -18,6 +18,7 @@ final class NativeSnapshotStore {
     private final Context context;
     private final File primary;
     private final File previous;
+    private final File recoveryControl;
     interface WriteCheck { void beforeWrite(File file) throws IOException; }
     private final WriteCheck writeCheck;
 
@@ -29,6 +30,7 @@ final class NativeSnapshotStore {
         this.context = context.getApplicationContext();
         this.writeCheck = writeCheck;
         primary = new File(directory, "app-data.json"); previous = new File(directory, "app-data.previous.json");
+        recoveryControl = new File(directory, "app-data.recovery-control.json");
     }
 
     private JSONObject read(File file) throws IOException, JSONException {
@@ -130,7 +132,13 @@ final class NativeSnapshotStore {
             JSONObject old = null;
             if (recover) {
                 JSONObject readable = null;
-                try { readable = readDurable(); } catch (IOException | JSONException ignored) { /* damaged originals are archived below */ }
+                try { readable = readDurable(); }
+                catch (IOException | JSONException unreadable) {
+                    JSONObject control;
+                    try { control = read(recoveryControl); }
+                    catch (IOException | JSONException missing) { throw new IOException("Stop unreadable sessions before recovery", missing); }
+                    SnapshotRules.require(fingerprint().equals(control.optString("stoppedFingerprint")), "Stop unreadable sessions again before recovery");
+                }
                 if (readable != null) requireFinished(readable);
                 archive();
             }
@@ -148,6 +156,38 @@ final class NativeSnapshotStore {
         }
     }
 
+    private String fingerprint() throws IOException {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            for (File file : new File[] { primary, previous, new File(primary + ".bak"), new File(primary + ".new") }) {
+                digest.update(file.getName().getBytes(StandardCharsets.UTF_8));
+                if (!file.exists()) continue;
+                try (java.io.FileInputStream input = new java.io.FileInputStream(file)) {
+                    byte[] buffer = new byte[8192]; int count;
+                    while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
+                }
+            }
+            StringBuilder value = new StringBuilder();
+            for (byte item : digest.digest()) value.append(String.format(java.util.Locale.ROOT, "%02x", item & 0xff));
+            return value.toString();
+        } catch (java.security.NoSuchAlgorithmException error) { throw new IOException(error); }
+    }
+
+    /** Called only after old alarms were successfully cancelled by the plugin. */
+    JSONObject stopForRecovery() throws IOException, JSONException {
+        synchronized (LOCK) {
+            JSONObject old;
+            try { old = readDurable(); }
+            catch (IOException | JSONException unreadable) {
+                JSONObject control = SnapshotRules.empty().put("stoppedFingerprint", fingerprint());
+                writeAtomic(recoveryControl, control);
+                return new JSONObject().put("recoveryStopped", true);
+            }
+            JSONObject next = new JSONObject(old.toString()); next.put("sessions", new JSONObject());
+            next.put("revision", old.getLong("revision") + 1); persist(old, next); return view(next);
+        }
+    }
+
     private static void requireFinished(JSONObject snapshot) throws JSONException {
         Iterator<String> ids = snapshot.getJSONObject("sessions").keys();
         while (ids.hasNext()) SnapshotRules.require("completed".equals(snapshot.getJSONObject("sessions").getJSONObject(ids.next()).getString("state")), "Stop unfinished sessions before importing or restoring");
@@ -159,6 +199,13 @@ final class NativeSnapshotStore {
             JSONObject sessions = next.getJSONObject("sessions"); JSONObject timer = sessions.optJSONObject(id);
             if (action.equals("start")) {
                 SnapshotRules.require(data != null && id.equals(data.getString("timerId")), "Missing session payload");
+                if (timer != null) {
+                    SnapshotRules.require(timer.getString("taskId").equals(data.getString("taskId"))
+                        && timer.getString("taskDate").equals(data.getString("taskDate"))
+                        && timer.getDouble("duration") == data.getDouble("duration")
+                        && timer.getBoolean("isFocusMode") == data.getBoolean("isFocusMode"), "Session ID reused for another task");
+                    return view(old);
+                }
                 Iterator<String> ids = sessions.keys();
                 while (ids.hasNext()) {
                     JSONObject other = sessions.getJSONObject(ids.next());
@@ -175,7 +222,8 @@ final class NativeSnapshotStore {
             } else if (timer != null) {
                 if (action.equals("stop")) sessions.remove(id);
                 else if (action.equals("complete")) SnapshotRules.complete(next, id, now, true);
-                else if (action.equals("toggle") && !"completed".equals(timer.optString("state"))) {
+                else if ((action.equals("toggle") || action.equals("pause") || action.equals("resume")) && !"completed".equals(timer.optString("state"))) {
+                    if ((action.equals("pause") && !timer.getBoolean("isActive")) || (action.equals("resume") && timer.getBoolean("isActive"))) return view(old);
                     if (timer.getBoolean("isActive") && timer.getLong("endTime") <= now) SnapshotRules.complete(next, id, now, false);
                     else if (timer.getBoolean("isActive")) timer.put("remaining", Math.max(0, timer.getLong("endTime") - now)).put("isActive", false).put("state", "paused");
                     else timer.put("endTime", now + timer.getLong("remaining")).put("isActive", true).put("state", "running");

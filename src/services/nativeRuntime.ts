@@ -19,22 +19,45 @@ export interface NativeSnapshot {
 export interface NativeStoragePlugin {
   load(options: { legacy?: Record<string, string>; dirty?: string[] }): Promise<NativeSnapshot>;
   write(options: { entries: Record<string, string>; expectedRevision: number; replace?: boolean; recover?: boolean }): Promise<NativeSnapshot>;
-  timer(options: { action: 'start' | 'toggle' | 'stop' | 'complete'; timerId: string; data?: PomodoroTimerData }): Promise<NativeSnapshot>;
+  timer(options: NativeTimerRequest): Promise<NativeSnapshot>;
   timers(options?: { rearm: boolean }): Promise<NativeSnapshot>;
+  stopForRecovery(): Promise<NativeSnapshot | { recoveryStopped: boolean }>;
   saveDocument(options: { content: string; filename: string }): Promise<{ canceled: boolean; uri?: string }>;
 }
+interface NativeTimerRequest { action: 'start' | 'toggle' | 'pause' | 'resume' | 'stop' | 'complete'; timerId: string; data?: PomodoroTimerData; }
 
 export const NativeStorage = registerPlugin<NativeStoragePlugin>('NativeStorage');
 let snapshot: NativeSnapshot = { revision: 0, entries: {}, sessions: [] };
 let draft: Record<string, string> = {};
 let candidate: Record<string, string> | null = null;
+let candidateReplace = false;
+let timerCandidate: NativeTimerRequest | null = null;
 let queue: Promise<void> = Promise.resolve();
 let status: StorageStatus = { state: 'saving', hasPending: false };
 const listeners = new Set<(status: StorageStatus) => void>();
 let initialized = false;
-const publish = (next: StorageStatus) => { status = next; listeners.forEach(listener => listener(next)); };
+let replacementPending = 0;
+const publish = (next: StorageStatus) => {
+  status = { ...next, transaction: replacementPending > 0 };
+  listeners.forEach(listener => listener(status));
+};
 const blocked = () => status.state === 'error' || status.state === 'recovery';
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+
+function enqueue<T>(action: () => Promise<T>): Promise<T> {
+  const operation = queue.then(action);
+  const tail = operation.then(() => undefined, () => undefined);
+  queue = tail;
+  tail.then(() => {
+    if (queue !== tail || blocked()) return;
+    const changed = draft.mylifeos_daily_logs !== snapshot.entries.mylifeos_daily_logs;
+    draft = { ...snapshot.entries }; candidate = null; candidateReplace = false;
+    publish({ state: 'saved', hasPending: false });
+    if (changed) window.dispatchEvent(new Event('mylifeos-storage-restored'));
+  });
+  void operation.catch(() => undefined);
+  return operation;
+}
 
 function accept(next: NativeSnapshot) {
   if (!next || !Number.isInteger(next.revision) || !next.entries || !Array.isArray(next.sessions)) throw new Error('Invalid native snapshot');
@@ -46,7 +69,15 @@ export async function bootstrapNativeStorage(keys: readonly string[]): Promise<v
   const dirty: string[] = [];
   try {
     const raw = localStorage.getItem('mylifeos_business_snapshot');
-    const browser = raw ? JSON.parse(raw) : {};
+    let browser: Record<string, unknown> = {};
+    // A damaged WebView cache must not hide an intact authoritative native file.
+    // Keep the raw legacy source untouched; individual keys remain migration inputs.
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) browser = parsed;
+      } catch { /* Native load validates whichever legacy values it actually needs. */ }
+    }
     keys.forEach(key => {
       const value = browser[key] ?? localStorage.getItem(key);
       if (typeof value === 'string') legacy[key] = value;
@@ -55,6 +86,7 @@ export async function bootstrapNativeStorage(keys: readonly string[]): Promise<v
     accept(await NativeStorage.load({ legacy, dirty }));
     if (snapshot.reminderError) window.dispatchEvent(new CustomEvent('mylifeos-reminder-error', { detail: snapshot.reminderError }));
     draft = { ...snapshot.entries };
+    candidate = null; candidateReplace = false;
     publish({ state: 'saved', hasPending: false });
   } catch (error) {
     candidate = Object.keys(legacy).length ? legacy : null;
@@ -68,6 +100,7 @@ export const getCompletedNativeFocus = () => snapshot.sessions.filter(session =>
 export const getNativeItem = (key: string): string | null => (blocked() ? snapshot.entries : draft)[key] ?? null;
 export const getNativeStatus = () => status;
 export const getNativePending = () => ({ ...(candidate || draft) });
+export const getNativeTimerPending = () => timerCandidate;
 export const subscribeNativeStatus = (listener: (status: StorageStatus) => void) => {
   listeners.add(listener); listener(status);
   return () => { listeners.delete(listener); };
@@ -75,10 +108,11 @@ export const subscribeNativeStatus = (listener: (status: StorageStatus) => void)
 
 export function setNativeItem(key: string, value: string): Promise<void> {
   if (blocked()) throw new Error('Storage is read-only until retry or recovery succeeds');
+  if (replacementPending) throw new Error('Wait for the whole-data transaction to finish before editing');
   draft = { ...draft, [key]: value };
   candidate = { ...draft };
   publish({ state: 'saving', hasPending: true });
-  const operation = queue.then(async () => {
+  return enqueue(async () => {
     if (blocked()) throw new Error(status.error || 'Native storage blocked');
     try {
       accept(await NativeStorage.write({ entries: { [key]: value }, expectedRevision: snapshot.revision }));
@@ -87,18 +121,6 @@ export function setNativeItem(key: string, value: string): Promise<void> {
       throw error;
     }
   });
-  // The queue remains drainable; the state carries failures to synchronous
-  // repository callers and flushNativeWrites rejects until recovery succeeds.
-  queue = operation.catch(() => undefined);
-  queue.then(() => {
-    if (queue === tail && !blocked()) {
-      draft = { ...snapshot.entries }; candidate = null;
-      publish({ state: 'saved', hasPending: false });
-    }
-  });
-  const tail = queue;
-  void operation.catch(() => undefined);
-  return operation;
 }
 
 export async function flushNativeWrites(): Promise<void> {
@@ -107,72 +129,97 @@ export async function flushNativeWrites(): Promise<void> {
 }
 
 export async function commitNativeEntries(entries: Record<string, string>, recover = false): Promise<void> {
-  await queue;
-  if (!recover) await flushNativeWrites();
-  candidate = { ...snapshot.entries, ...entries };
-  publish({ state: recover ? 'recovery' : 'saving', hasPending: true });
-  try {
-    accept(await NativeStorage.write({ entries, expectedRevision: snapshot.revision, replace: true, recover }));
-    draft = { ...snapshot.entries }; candidate = null;
-    publish({ state: 'saved', hasPending: false });
-  } catch (error) {
-    publish({ state: recover ? 'recovery' : 'error', hasPending: true, error: message(error) });
-    throw error;
-  }
+  replacementPending++;
+  publish({ ...status, state: recover ? 'recovery' : blocked() ? status.state : 'saving' });
+  return enqueue(async () => {
+    try {
+      if (!recover && blocked()) throw new Error(status.error || 'Native storage blocked');
+      draft = { ...snapshot.entries, ...entries };
+      candidate = { ...draft }; candidateReplace = true;
+      publish({ state: recover ? 'recovery' : 'saving', hasPending: true });
+      accept(await NativeStorage.write({ entries, expectedRevision: snapshot.revision, replace: true, recover }));
+      // Publish saved and reconcile the cache only when the shared queue is idle.
+      if (recover) publish({ state: 'saving', hasPending: true });
+    } catch (error) {
+      publish({ state: recover ? 'recovery' : 'error', hasPending: true, error: message(error) }); throw error;
+    } finally {
+      replacementPending--;
+      // Failed transactions must release their UI lock while retaining the error.
+      if (blocked()) publish(status);
+    }
+  });
 }
 
 export async function retryNativeWrites(): Promise<void> {
-  await queue;
   if (status.state === 'recovery') throw new Error('Choose a validated backup to recover unreadable data');
-  const pending = candidate || draft;
-  publish({ state: 'saving', hasPending: true });
-  try {
-    accept(await NativeStorage.load({}));
-    accept(await NativeStorage.write({ entries: pending, expectedRevision: snapshot.revision }));
-    draft = { ...snapshot.entries }; candidate = null;
-    publish({ state: 'saved', hasPending: false });
-  } catch (error) {
-    publish({ state: 'error', hasPending: true, error: message(error) }); throw error;
-  }
+  const replacing = candidateReplace;
+  if (replacing) { replacementPending++; publish(status); }
+  return enqueue(async () => {
+    const pending = candidate || draft;
+    publish({ state: 'saving', hasPending: true });
+    try {
+      accept(await NativeStorage.load({}));
+      accept(await NativeStorage.write({ entries: pending, expectedRevision: snapshot.revision, replace: candidateReplace }));
+      if (timerCandidate) {
+        accept(await NativeStorage.timer(timerCandidate)); timerCandidate = null;
+        window.dispatchEvent(new Event('mylifeos-storage-restored'));
+      }
+    } catch (error) {
+      publish({ state: 'error', hasPending: true, error: message(error) }); throw error;
+    } finally {
+      if (replacing) replacementPending--;
+      if (blocked()) publish(status);
+    }
+  });
 }
 
 export async function nativeTimerOperation(action: 'start' | 'toggle' | 'stop' | 'complete', timerId: string, data?: PomodoroTimerData): Promise<NativeSession[]> {
-  const operation = queue.then(async () => {
+  if (replacementPending) throw new Error('Wait for the whole-data transaction to finish before changing sessions');
+  return enqueue(async () => {
     if (blocked() && action !== 'stop') throw new Error(status.error || 'Native storage blocked');
+    const wasRecovery = status.state === 'recovery';
+    const actualAction = action === 'toggle' ? (snapshot.sessions.find(session => session.timerId === timerId)?.isActive ? 'pause' : 'resume') : action;
+    const request: NativeTimerRequest = { action: actualAction, timerId, data };
+    if (!blocked()) publish({ state: 'saving', hasPending: true });
     try {
-    const next = await NativeStorage.timer({ action, timerId, data });
-    accept(next);
-    if (!blocked()) draft = { ...snapshot.entries };
-    window.dispatchEvent(new Event('mylifeos-storage-restored'));
-    if (next.reminderError) window.dispatchEvent(new CustomEvent('mylifeos-reminder-error', { detail: next.reminderError }));
-    return next.sessions;
+      const next = await NativeStorage.timer(request);
+      accept(next);
+      if (timerCandidate?.timerId === timerId || action !== 'stop') timerCandidate = null;
+      window.dispatchEvent(new Event('mylifeos-storage-restored'));
+      if (next.reminderError) window.dispatchEvent(new CustomEvent('mylifeos-reminder-error', { detail: next.reminderError }));
+      return next.sessions;
     } catch (error) {
-    candidate = candidate || { ...snapshot.entries };
-    publish({ state: 'error', hasPending: true, error: message(error) });
-    throw error;
+      timerCandidate = request;
+      candidate = candidate || { ...snapshot.entries };
+      publish({ state: wasRecovery ? 'recovery' : 'error', hasPending: true, error: message(error) });
+      throw error;
     }
   });
-  queue = operation.then(() => undefined, () => undefined);
-  return operation;
 }
 
 export async function refreshNativeTimers(allowBlocked = false, rearm = false): Promise<NativeSession[]> {
-  const operation = queue.then(async () => {
+  return enqueue(async () => {
     if (!initialized) throw new Error('Native storage is still initializing');
     if (blocked() && !allowBlocked) throw new Error(status.error || 'Native storage blocked');
+    const wasRecovery = status.state === 'recovery';
     try {
-    const previousLogs = snapshot.entries.mylifeos_daily_logs;
-    accept(await NativeStorage.timers({ rearm }));
-    if (snapshot.reminderError) window.dispatchEvent(new CustomEvent('mylifeos-reminder-error', { detail: snapshot.reminderError }));
-    if (!blocked()) draft = { ...snapshot.entries };
-    if (snapshot.entries.mylifeos_daily_logs !== previousLogs) window.dispatchEvent(new Event('mylifeos-storage-restored'));
-    if (snapshot.entries.mylifeos_daily_logs !== previousLogs) window.dispatchEvent(new Event('mylifeos-focus-completed'));
-    return snapshot.sessions;
+      const previousLogs = snapshot.entries.mylifeos_daily_logs;
+      accept(await NativeStorage.timers({ rearm }));
+      if (snapshot.reminderError) window.dispatchEvent(new CustomEvent('mylifeos-reminder-error', { detail: snapshot.reminderError }));
+      if (snapshot.entries.mylifeos_daily_logs !== previousLogs) window.dispatchEvent(new Event('mylifeos-storage-restored'));
+      if (snapshot.entries.mylifeos_daily_logs !== previousLogs) window.dispatchEvent(new Event('mylifeos-focus-completed'));
+      return snapshot.sessions;
     } catch (error) {
-    candidate = candidate || { ...snapshot.entries };
-    publish({ state: 'error', hasPending: true, error: message(error) }); throw error;
+      candidate = candidate || { ...snapshot.entries };
+      publish({ state: wasRecovery ? 'recovery' : 'error', hasPending: true, error: message(error) }); throw error;
     }
   });
-  queue = operation.then(() => undefined, () => undefined);
-  return operation;
+}
+
+export async function stopNativeForRecovery(): Promise<void> {
+  return enqueue(async () => {
+    const result = await NativeStorage.stopForRecovery();
+    if ('revision' in result) accept(result);
+    timerCandidate = null;
+  });
 }

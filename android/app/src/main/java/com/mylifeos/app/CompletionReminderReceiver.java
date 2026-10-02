@@ -105,6 +105,26 @@ public class CompletionReminderReceiver extends BroadcastReceiver {
             try { cancel(context, Integer.parseInt(key.replace(":payload", ""))); }
             catch (NumberFormatException ignored) { /* unrelated preference */ }
         }
+        if (!claims(context).edit().clear().commit()) throw new IllegalStateException("Cannot persist reminder cancellation");
+    }
+
+    static void completeManual(Context context, org.json.JSONObject session) throws org.json.JSONException {
+        synchronized (LOCK) {
+            String timerId = session.getString("timerId");
+            if (claims(context).getBoolean("delivered:" + timerId, false)) return;
+            int id = session.getInt("notificationId"); String token = UUID.randomUUID().toString();
+            org.json.JSONObject messages = session.optJSONObject("notificationMessages");
+            if (messages == null) messages = new org.json.JSONObject();
+            Intent intent = new Intent(context, CompletionReminderReceiver.class).putExtra("id", id).putExtra("token", token)
+                .putExtra("timerId", timerId).putExtra("title", messages.optString("focusCompleteTitle", "Focus complete"))
+                .putExtra("body", messages.optString("focusCompleteBody", ""))
+                .putExtra("sound", session.optBoolean("soundEnabled", true)).putExtra("vibration", session.optBoolean("vibrationEnabled", true))
+                .putExtra("notifications", session.optBoolean("notificationsEnabled", true));
+            if (!claims(context).edit().putString(String.valueOf(id), token).putString(id + ":payload", intent.toUri(0)).commit()) {
+                throw new IllegalStateException("Cannot persist completion reminder");
+            }
+            new CompletionReminderReceiver().onReceive(context, intent);
+        }
     }
 
     private static void restoreAlarms(Context context) {
@@ -124,12 +144,13 @@ public class CompletionReminderReceiver extends BroadcastReceiver {
         }
     }
 
-    static String ensureChannel(NotificationManager manager, boolean vibration) {
-        String id = "mylifeos-focus-v2-" + (vibration ? "vibrate" : "sound");
+    static String ensureChannel(NotificationManager manager, boolean vibration, boolean sound) {
+        String id = "mylifeos-focus-v3-" + (sound ? "sound-" : "silent-") + (vibration ? "vibrate" : "no-vibrate");
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || manager.getNotificationChannel(id) != null) return id;
-        NotificationChannel old = manager.getNotificationChannel("mylifeos-focus");
+        NotificationChannel old = manager.getNotificationChannel("mylifeos-focus-v2-" + (vibration ? "vibrate" : "sound"));
+        if (old == null) old = manager.getNotificationChannel("mylifeos-focus");
         NotificationChannel channel = new NotificationChannel(id,
-            vibration ? "Focus timer (sound and vibration)" : "Focus timer (sound only)",
+            "Focus timer (" + (sound ? "sound" : "silent") + (vibration ? ", vibration)" : ")"),
             old == null ? NotificationManager.IMPORTANCE_HIGH : old.getImportance());
         channel.setDescription("Focus and break completion alerts");
         channel.enableVibration(vibration && (old == null || old.shouldVibrate()));
@@ -139,6 +160,7 @@ public class CompletionReminderReceiver extends BroadcastReceiver {
             channel.enableLights(old.shouldShowLights());
             channel.setLightColor(old.getLightColor());
         }
+        if (!sound) channel.setSound(null, null);
         manager.createNotificationChannel(channel);
         return id;
     }
@@ -173,11 +195,15 @@ public class CompletionReminderReceiver extends BroadcastReceiver {
                 }
             }
             // Claim once before any effects; cancelled/replaced/duplicate broadcasts stay silent.
-            if (!claims(context).edit().remove(String.valueOf(id)).remove(id + ":payload").commit()) return;
+            boolean alreadyDelivered = timerId != null && claims(context).getBoolean("delivered:" + timerId, false);
+            SharedPreferences.Editor claim = claims(context).edit().remove(String.valueOf(id)).remove(id + ":payload");
+            if (timerId != null) claim.putBoolean("delivered:" + timerId, true);
+            if (!claim.commit()) return;
             cancel(context, id);
+            if (alreadyDelivered) return;
             try {
                 if (NativeReminderPlugin.appActive && NativeReminderPlugin.timerVisible) {
-                    if (intent.getBooleanExtra("sound", true)) ringForeground(context, intent.getBooleanExtra("vibration", true));
+                    ringForeground(context, intent.getBooleanExtra("sound", true), intent.getBooleanExtra("vibration", true));
                 } else if (intent.getBooleanExtra("notifications", true)) {
                     notifyBackground(context, id, intent);
                 }
@@ -187,13 +213,14 @@ public class CompletionReminderReceiver extends BroadcastReceiver {
         }
     }
 
-    private static void ringForeground(Context context, boolean vibration) {
-        if (!NativeReminderPlugin.alertsAllowed(context)) return;
-        Ringtone ringtone = RingtoneManager.getRingtone(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
-        if (ringtone == null) return;
-        ringtone.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build());
-        ringtone.play();
-        new Handler(Looper.getMainLooper()).postDelayed(ringtone::stop, 1000);
+    private static void ringForeground(Context context, boolean sound, boolean vibration) {
+        if (sound && NativeReminderPlugin.alertsAllowed(context)) {
+            Ringtone ringtone = RingtoneManager.getRingtone(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+            if (ringtone != null) {
+                ringtone.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build());
+                ringtone.play(); new Handler(Looper.getMainLooper()).postDelayed(ringtone::stop, 1000);
+            }
+        }
         if (vibration) NativeReminderPlugin.vibrateNow(context);
     }
 
@@ -202,13 +229,15 @@ public class CompletionReminderReceiver extends BroadcastReceiver {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null || !manager.areNotificationsEnabled()) return;
         boolean vibration = intent.getBooleanExtra("vibration", true);
+        boolean sound = intent.getBooleanExtra("sound", true);
         PendingIntent open = PendingIntent.getActivity(context, id, new Intent(context, MainActivity.class),
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder = new Notification.Builder(context, ensureChannel(manager, vibration));
+            builder = new Notification.Builder(context, ensureChannel(manager, vibration, sound));
         } else {
-            int defaults = Notification.DEFAULT_SOUND | Notification.DEFAULT_LIGHTS;
+            int defaults = Notification.DEFAULT_LIGHTS;
+            if (sound) defaults |= Notification.DEFAULT_SOUND;
             if (vibration) defaults |= Notification.DEFAULT_VIBRATE;
             builder = new Notification.Builder(context).setDefaults(defaults);
         }

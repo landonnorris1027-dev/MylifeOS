@@ -688,7 +688,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                 ))}
               </div>
               {repeatMode === 'custom' && (
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
                   {Array.from({ length: 7 }, (_, day) => (
                     <label key={day} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 p-1 text-xs">
                       <span>{new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'short' })}</span>

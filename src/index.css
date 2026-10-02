@@ -20,12 +20,12 @@ html {
   background: rgba(255,255,255,.8); backdrop-filter: blur(16px);
 }
 @media (pointer: coarse) {
-  button, [role="button"] { min-height: 48px; min-width: 48px; touch-action: manipulation; }
+  button, [role="button"], a, label.flex, label.inline-flex { min-height: 48px; min-width: 48px; touch-action: manipulation; }
   .task-heading { flex-wrap: wrap; }
   .task-actions { opacity: 1; flex-wrap: wrap; width: 100%; }
 }
 @media (max-width: 767px) {
-  [role="dialog"] { max-height: 100dvh; overflow-y: auto; }
+  [role="dialog"] { max-height: 100vh; max-height: 100dvh; overflow-y: auto; }
 }
 
 body {

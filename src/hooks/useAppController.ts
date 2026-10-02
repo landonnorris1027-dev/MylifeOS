@@ -272,12 +272,10 @@ const getTimerTaskHabitId = (timer: Pick<PomodoroUpdateData | PomodoroRecoveryDa
 };
 
 const isRestoredSessionAlive = async (snapshot: TimerSessionSnapshot): Promise<boolean> => {
-  try {
-    const timers = await electronIPC.getActiveTimers();
-    return timers.some((timer) => (
-      timer.timerId === snapshot.timerId || timer.timerId === `${snapshot.timerId}_break`
-    ));
-    } catch (error) { throw error; }
+  const timers = await electronIPC.getActiveTimers();
+  return timers.some((timer) => (
+    timer.timerId === snapshot.timerId || timer.timerId === `${snapshot.timerId}_break`
+  ));
 };
 
 export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | null => {

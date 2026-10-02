@@ -13,8 +13,7 @@ export const KEYS = {
   DESKTOP_SETTINGS: 'mylifeos_desktop_settings',
 } as const;
 
-// v6 adds weekday rules. Older releases must reject, rather than silently
-// convert a weekday habit back into a daily habit on import.
+// v6 adds weekday rules; v7 includes the device's vibration preference.
 export const DATA_SCHEMA_VERSION = 7;
 const BROWSER_SNAPSHOT = 'mylifeos_business_snapshot';
 let desktopReadOnly = false;
