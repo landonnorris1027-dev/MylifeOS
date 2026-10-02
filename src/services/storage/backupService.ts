@@ -276,6 +276,12 @@ const normalizeBackupPayload = (
       ? focus.vibrationEnabled : getFocusSettings().vibrationEnabled !== false };
   }
 
+  if (settings?.planner) {
+    const planner = settings.planner as Record<string, unknown>;
+    if (schemaVersion >= 8 && ![5, 15, 30].includes(planner.intervalMinutes as number)) throw new Error('Invalid scheduling precision');
+    settings.planner = { ...planner, intervalMinutes: schemaVersion >= 8 ? planner.intervalMinutes : 30 };
+  }
+
   const rawGoals = Array.isArray(raw.goals) ? raw.goals : [];
   const seenGoalIds = new Set<string>();
   const goals = rawGoals

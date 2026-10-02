@@ -70,6 +70,18 @@ describe('PomodoroTimer task completion', () => {
     expect(onComplete).toHaveBeenCalledWith(task, 1);
   });
 
+  it('direct focus starts a managed session while preserving the original non-grid schedule', async () => {
+    const scheduled = { ...task, startTime: '09:07' };
+    jest.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
+    const start = jest.spyOn(electronIPC, 'startPomodoro').mockImplementation(async data => ({ ...data, remaining: data.duration * 1000, endTime: Date.now() + data.duration * 1000, elapsed: 0, isFinished: false, isActive: true }));
+    const onComplete = jest.fn();
+    await act(async () => root.render(<React.StrictMode><LanguageProvider><PomodoroTimer autoStart task={scheduled} onClose={jest.fn()} onComplete={onComplete} onSessionStateChange={jest.fn()} /></LanguageProvider></React.StrictMode>));
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ taskId: scheduled.id, taskDate: scheduled.date, duration: 1500 }));
+    expect(scheduled.startTime).toBe('09:07');
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
   it('shows a retryable error and clears session state when a desktop timer fails to start', async () => {
     const onSessionStateChange = jest.fn();
     let handleUpdate: ((update: PomodoroUpdateData) => void) | undefined;

@@ -40,3 +40,6 @@ or claim code signing, visible Windows toast, OS disk-full or power-cut tests pa
   and 22 suites / 143 tests passing. Existing executable and shortcuts remain untouched.
 
 - P0: durable main-process focus transitions/outbox, precise sessions and v8/v7/v6 backups; 23 suites / 153 tests, renderer/main type checks and production builds passed. Packaged acceptance is recorded with the candidate artifact.
+
+- P0 candidate 0.1.5: all packaged regressions passed; app.asar 3,132,413 bytes; installer 121,024,247 bytes; SHA-256 34b204d4676af8addee94625dabf3015c8ae93a48739b5bb94f2c23291a2afc3. Isolated window/tray/second-instance and native save/quit paths passed (save-dialog choices stubbed; visual dialog acceptance remains separate).
+- P1-A: direct focus, precision, batch operations and task-scoped undo; 24 suites / 160 tests plus renderer/main type checks and production builds passed. Candidate regression includes all three grids, preserved 09:07 schedule, paused-session routing, batch undo and text shortcut isolation.

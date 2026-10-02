@@ -1,3 +1,4 @@
+import { assertTaskInactive } from './taskActivity';
 import { DailyData, Goal, Habit, Priority, Task } from '../types';
 import { exportBackupJSON, exportAndroidCompatibleBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
 import { flushStorageWrites } from './storage/localStorageStore';
@@ -351,6 +352,7 @@ export const updateTask = (task: Task) => {
 };
 
 export const deleteTaskFromDay = (taskId: string, date: string) => {
+  assertTaskInactive(taskId);
   const data = getDailyLogByDate(date);
   if (!data) return;
 
@@ -360,6 +362,7 @@ export const deleteTaskFromDay = (taskId: string, date: string) => {
 };
 
 export const deleteTaskForToday = (taskId: string, date: string) => {
+  assertTaskInactive(taskId);
   const data = getDailyLogByDate(date);
   if (!data) return;
 
@@ -375,6 +378,7 @@ export const deleteTaskForToday = (taskId: string, date: string) => {
 // Both dates live in one daily-logs storage value, so a failed write cannot
 // leave a removed source task without its destination copy.
 export const rescheduleManualTask = (taskId: string, sourceDate: string, targetDate: string): Task => {
+  assertTaskInactive(taskId);
   const date = parseDateLocal(targetDate);
   if (formatDateLocal(date) !== targetDate || sourceDate === targetDate) {
     throw new Error('Choose a different valid date');

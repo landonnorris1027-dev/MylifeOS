@@ -1,3 +1,4 @@
+import BatchRescheduleModal from './components/BatchRescheduleModal';
 import React from 'react';
 import { isStorageReadOnly } from './services/storage/localStorageStore';
 import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search } from 'lucide-react';
@@ -31,6 +32,7 @@ const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
 };
 
 export default function App() {
+  const [batchOpen, setBatchOpen] = React.useState(false);
   const [mobilePane, setMobilePane] = React.useState<'inbox' | 'timeline'>('inbox');
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [selectedSearchTask, setSelectedSearchTask] = React.useState<Task | null>(null);
@@ -67,6 +69,9 @@ export default function App() {
     selectedDate,
     graphRefreshToken,
     timelineMode,
+    intervalMinutes,
+    autoStartFocus,
+    undoCount,
     isHabitConfigOpen,
     isManualTaskOpen,
     isTaskSearchOpen,
@@ -90,6 +95,11 @@ export default function App() {
   const {
     setView,
     setTimelineMode,
+    setIntervalMinutes,
+    handleDirectFocus,
+    openCurrentSession,
+    handleUndoTaskOperation,
+    handleBatchReschedule,
     openHabitConfig,
     closeHabitConfig,
     openManualTask,
@@ -130,7 +140,17 @@ export default function App() {
   } = actions;
 
   const formatHours = (minutes: number) => (minutes / 60).toFixed(1);
-  const timelineSlots = React.useMemo(() => buildTimelineSlotsForMode(timelineMode), [timelineMode]);
+  const timelineSlots = React.useMemo(() => {
+    const slots = buildTimelineSlotsForMode(timelineMode, intervalMinutes);
+    const seen = new Set(slots.map(slot => slot.time));
+    for (const task of scheduledTasks) {
+      if (task.startTime && !seen.has(task.startTime)) {
+        seen.add(task.startTime); const [h, m] = task.startTime.split(':').map(Number);
+        slots.push({ time: task.startTime, minutes: h * 60 + m });
+      }
+    }
+    return slots.sort((a, b) => a.minutes - b.minutes);
+  }, [timelineMode, intervalMinutes, scheduledTasks]);
   React.useEffect(() => {
     if (selectedSearchTask?.date !== selectedDate) return;
     searchResultRef.current?.scrollIntoView({ block: 'start' });
@@ -155,6 +175,16 @@ export default function App() {
   // useModalBehavior.
   React.useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editing = Boolean(target?.closest('input,textarea,select,[contenteditable="true"]'));
+      const modal = Boolean(document.querySelector('[role="dialog"],[role="alertdialog"],[aria-modal="true"]'));
+      if ((event.ctrlKey || event.metaKey) && ['z', 'j'].includes(event.key.toLowerCase())) {
+        if (editing || modal || isStorageReadOnly() || event.altKey || event.shiftKey) return;
+        event.preventDefault();
+        if (event.key.toLowerCase() === 'z' && undoCount) void handleUndoTaskOperation();
+        if (event.key.toLowerCase() === 'j') void openCurrentSession();
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         if (isHabitConfigOpen || isSettingsOpen || isTaskSearchOpen || isManualTaskOpen || activeTask || schedulingTask || reschedulingTask || reviewingTask || isRecoveryModalOpen) return;
         event.preventDefault();
@@ -179,7 +209,6 @@ export default function App() {
 
       if (event.key !== 'n' && event.key !== 'N') return;
 
-      const target = event.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
       const isEditingField =
         tagName === 'input' ||
@@ -214,6 +243,7 @@ export default function App() {
     isTaskSearchOpen,
     reschedulingTask,
     openTaskSearch,
+    undoCount, handleUndoTaskOperation, openCurrentSession,
   ]);
 
   return (
@@ -362,6 +392,13 @@ export default function App() {
         </div>
       </header>
 
+      <div className="mx-auto mb-4 flex max-w-6xl flex-wrap items-center gap-3 px-4 text-sm">
+        <button className="rounded border bg-white px-3 py-2" onClick={() => void openCurrentSession()}>{language === 'zh' ? '当前会话' : 'Current session'} · Ctrl+J</button>
+        <button disabled={!undoCount} className="rounded border bg-white px-3 py-2 disabled:opacity-40" onClick={() => void handleUndoTaskOperation()}>{language === 'zh' ? '撤销' : 'Undo'} ({undoCount}/20)</button>
+        {view === 'planner' && <button className="rounded border bg-white px-3 py-2" onClick={() => setBatchOpen(true)}>{language === 'zh' ? '批量改期' : 'Batch reschedule'}</button>}
+        <label>{language === 'zh' ? '排期精度' : 'Schedule interval'} <select className="rounded border bg-white p-2" value={intervalMinutes} onChange={e => setIntervalMinutes(Number(e.target.value) as 5 | 15 | 30)}>{[5, 15, 30].map(value => <option key={value} value={value}>{value} min</option>)}</select></label>
+        <details><summary className="cursor-pointer">{language === 'zh' ? '快捷键' : 'Keyboard shortcuts'}</summary><p>N: {language === 'zh' ? '新建任务' : 'New task'} · Ctrl+K: {language === 'zh' ? '搜索' : 'Search'} · Ctrl+J: {language === 'zh' ? '当前会话' : 'Current session'} · Ctrl+Z: {language === 'zh' ? '撤销' : 'Undo'} · Ctrl+1/2: {language === 'zh' ? '计划/画像' : 'Planner/Profile'} · Esc: {language === 'zh' ? '关闭弹窗' : 'Close dialog'}</p></details>
+      </div>
       <main className="max-w-6xl mx-auto px-3 md:px-6">
         {selectedSearchTask?.date === selectedDate && (
           <div ref={searchResultRef} tabIndex={-1} className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
@@ -468,6 +505,7 @@ export default function App() {
                         task={task}
                         mode="pool"
                         onClick={handleTaskCardClick}
+                        onFocus={isToday ? handleDirectFocus : undefined}
                         draggable
                         onDragStart={handleTaskDragStart}
                         onDeleteToday={handleTaskDeleteToday}
@@ -597,6 +635,7 @@ export default function App() {
                                   task={task}
                                   mode="schedule"
                                   onClick={handleTaskCardClick}
+                        onFocus={isToday ? handleDirectFocus : undefined}
                                   onUnschedule={handleTaskUnschedule}
                                   onEditReview={openTaskReview}
                                   onReschedule={openReschedule}
@@ -649,6 +688,7 @@ export default function App() {
           task={schedulingTask}
           dailyTasks={state.dailyData?.tasks || []}
           timelineMode={timelineMode}
+          intervalMinutes={intervalMinutes}
           onClose={closeSchedulingModal}
           onConfirm={handleScheduleConfirm}
         />
@@ -666,7 +706,10 @@ export default function App() {
         }} />
         <RescheduleModal task={reschedulingTask} onClose={closeReschedule} onConfirm={handleReschedule} />
 
+        <BatchRescheduleModal open={batchOpen} tasks={state.dailyData?.tasks || []} onClose={() => setBatchOpen(false)} onConfirm={handleBatchReschedule} />
+
         <PomodoroTimer
+          autoStart={autoStartFocus}
           task={activeTask}
           restoredState={restoredTimerState}
           onSessionStateChange={setRestoredTimerState}

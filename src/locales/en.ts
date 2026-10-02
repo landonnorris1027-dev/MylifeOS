@@ -1,9 +1,11 @@
 const en = {
   backup_desktop_compatible: 'Export for desktop 0.1.3 (v6)',
-  backup_compatibility_hint: 'Full v7 backups include vibration; desktop-compatible v6 omits it. Sharing does not confirm a saved file.',
+  backup_compatibility_hint: 'Full v8 backups include sessions and scheduling precision. v7/v6 exchange backups omit these; v6 also omits vibration. Sharing does not confirm a saved file.',
   share_backup: 'Share full backup',
   jump_current_time: 'Jump to current time',
   focus_saved: 'Focus saved. Start a break?',
+  stop_focus: 'Stop focus',
+  start_focus: 'Start focus',
   start_break: 'Start break',
   close_timer: 'Back to planner',
   vibration_enabled: 'Vibrate when ringing',

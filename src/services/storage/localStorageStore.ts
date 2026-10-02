@@ -95,6 +95,7 @@ export const commitStorageSnapshot = async (entries: Record<string, string>, rec
     // Web Storage atomically replaces one value; legacy keys remain untouched.
     localStorage.setItem(BROWSER_SNAPSHOT, JSON.stringify({ ...previous, ...entries }));
   }
+  window.dispatchEvent(new Event('mylifeos-storage-replaced'));
   window.dispatchEvent(new Event('mylifeos-storage-restored'));
 };
 

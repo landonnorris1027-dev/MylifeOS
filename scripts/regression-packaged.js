@@ -388,6 +388,54 @@ async function main() {
   assert.deepEqual(JSON.parse(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_focus_settings), { ...JSON.parse(atomicEntries.mylifeos_focus_settings), vibrationEnabled: true });
   log('PASS corruption blocks empty overwrite; UI restore archives originals and restores settings');
 
+  // P1-A public UI: original schedule, existing-session routing, precise grids,
+  // atomic batch move, and Ctrl+Z isolation from native text editing.
+  const today = new Date();
+  const todayDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  await fill('input[type=date]', todayDate);
+  const efficiencyNames = ['A', 'B'].map(letter => `Efficiency ${letter} ${Date.now()}`);
+  for (const name of efficiencyNames) {
+    await clickText('Add one-time task'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
+  }
+  const efficiencyTasks = (await readLogs())[todayDate].tasks.filter(t => efficiencyNames.includes(t.name));
+  const efficiencyLogs = await readLogs();
+  efficiencyLogs[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).status = 'scheduled';
+  efficiencyLogs[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime = '09:07';
+  await current.evaluate(`window.electronAPI.sendSync('storage-set-sync', {key:'mylifeos_daily_logs', value:${JSON.stringify(JSON.stringify(efficiencyLogs))}})`);
+  await fill('input[type=date]', day); await fill('input[type=date]', todayDate);
+  for (const interval of [5,15,30]) {
+    await current.evaluate(`(() => { const e = document.querySelector('select'); e.value = '${interval}'; e.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+    await delay(100);
+    assert.ok(await current.evaluate("!!document.querySelector('[data-timeline-time=\"09:07\"]')"));
+  }
+  const focusCard = async name => current.evaluate(`(() => { const card = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(name)})); Array.from(card.querySelectorAll('button')).find(b => b.innerText.trim() === 'Start focus').click(); })()`);
+  await focusCard(efficiencyNames[0]); await until(async () => (await invoke('pomodoro-get-active-timers')).length === 1);
+  const efficiencyTimer = (await invoke('pomodoro-get-active-timers'))[0];
+  assert.equal((await readLogs())[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime, '09:07');
+  await invoke('pomodoro-toggle', {timerId:efficiencyTimer.timerId});
+  await current.evaluate("document.querySelector('[role=dialog] button').click()");
+  await focusCard(efficiencyNames[1]); await delay(200);
+  assert.equal((await invoke('pomodoro-get-active-timers')).length, 1);
+  assert.equal((await invoke('pomodoro-get-active-timers'))[0].timerId, efficiencyTimer.timerId);
+  await clickText('Stop focus');
+  const preciseSessions = await current.evaluate("JSON.parse(window.electronAPI.sendSync('storage-get-sync',{key:'mylifeos_focus_sessions'}) || '[]')");
+  assert.ok(preciseSessions.some(s => s.taskId === efficiencyTasks[0].id && s.result === 'stopped'));
+  for (let round = 0; round < 2; round++) {
+    await clickText('Batch reschedule');
+    await current.evaluate(`Array.from(document.querySelectorAll('[role=dialog] label')).filter(l => ${JSON.stringify(efficiencyNames)}.some(n => l.textContent.includes(n))).forEach(l => l.querySelector('input[type=checkbox]').click())`);
+    await fill('[role=dialog] input[type=date]', day); await clickText('Move selected tasks');
+    await until(async () => (await readLogs())[day].tasks.some(t => t.id === efficiencyTasks[0].id));
+    if (round === 1) {
+      await clickText('Add one-time task'); const beforeEditingUndo = JSON.stringify(await readLogs());
+      await current.evaluate("document.querySelector('input[placeholder=\"e.g. Submit form, call advisor\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
+      assert.equal(JSON.stringify(await readLogs()), beforeEditingUndo);
+      await current.evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))");
+    }
+    await current.evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
+    await until(async () => (await readLogs())[todayDate].tasks.some(t => t.id === efficiencyTasks[0].id));
+  }
+  log('PASS direct focus preserves non-grid schedule; existing paused session; all grids; batch move/undo; text shortcut isolation');
+
   assert.deepEqual(errors, [], 'No renderer errors across the regression run');
   if (process.env.MYLIFEOS_REGRESSION_SCREENSHOT_OUT) {
     await clickText('Profile');

@@ -1,3 +1,4 @@
+import { setActiveTaskIds } from './taskActivity';
 import type { Priority } from '../types';
 import { isAndroid } from './platform';
 import { NativePomodoroManager } from './nativePomodoro';
@@ -67,6 +68,7 @@ class ElectronIPCHandler {
   private isElectron: boolean;
   private nativeTimers: NativePomodoroManager | null;
   private browserTimers: Map<string, BrowserTimer> = new Map();
+  private activity = new Map<string, string>();
   private updateCallbacks: Set<(data: PomodoroUpdateData) => void> = new Set();
 
   constructor() {
@@ -245,6 +247,9 @@ class ElectronIPCHandler {
   }
 
   private notifySubscribers(data: PomodoroUpdateData) {
+    if (data.isFinished || data.stopped) this.activity.delete(data.timerId);
+    else if (data.taskId) this.activity.set(data.timerId, data.taskId);
+    setActiveTaskIds(Array.from(this.activity.values()));
     this.updateCallbacks.forEach((callback) => callback(data));
   }
 
@@ -253,7 +258,10 @@ class ElectronIPCHandler {
     if (this.isElectron) {
       try {
         const mainProcessTimers = await window.electronAPI?.invoke('pomodoro-get-active-timers');
-        if (Array.isArray(mainProcessTimers)) return mainProcessTimers;
+        if (Array.isArray(mainProcessTimers)) {
+          this.activity = new Map(mainProcessTimers.filter(t => t.taskId).map(t => [t.timerId, t.taskId!]));
+          setActiveTaskIds(Array.from(this.activity.values())); return mainProcessTimers;
+        }
         if (failClosed) throw new Error('Invalid timer response from main process');
         return [];
       } catch (e) {

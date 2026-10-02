@@ -10,6 +10,7 @@ import type { StorageStatus } from './storage-contract';
 
 export interface FocusTimer extends PomodoroTimerData {
   sessionId: string;
+  goalId?: string;
   startedAt: number;
   remaining: number;
   endTime: number;
@@ -156,7 +157,10 @@ export class DurableFocusRuntime {
       || typeof data.isFocusMode !== 'boolean') throw new Error('Invalid timer request');
     const existing = this.state.activeTimers.find(t => t.timerId === data.timerId);
     if (existing) return this.sample(existing);
-    const t: FocusTimer = { ...copy(data), sessionId: randomUUID(), startedAt: this.now(),
+    if (this.state.activeTimers.length) throw new Error('An existing session is already running or paused');
+    const entries = this.options.store.snapshot();
+    const task = JSON.parse(entries.mylifeos_daily_logs || '{}')[data.taskDate || '']?.tasks?.find((t: { id: string }) => t.id === data.taskId);
+    const t: FocusTimer = { ...copy(data), goalId: task?.goalId, sessionId: randomUUID(), startedAt: this.now(),
       remaining: data.duration * 1000, endTime: this.now() + data.duration * 1000,
       isActive: true, isFinished: false, elapsed: 0 };
     const next = copy(this.state);
@@ -181,7 +185,7 @@ export class DurableFocusRuntime {
     const task = logs[t.taskDate || '']?.tasks?.find((v: { id: string }) => v.id === t.taskId);
     return { id: t.sessionId, timerId: t.timerId, taskId: t.taskId || null,
       taskDate: t.taskDate || localDate(t.startedAt), taskName: t.taskName || null,
-      taskHabitId: t.taskHabitId, goalId: task?.goalId,
+      taskHabitId: t.taskHabitId, goalId: t.goalId || task?.goalId,
       priority: t.taskPriority, notificationsEnabled: t.notificationsEnabled, plannedSeconds: t.duration,
       actualFocusSeconds: Math.min(t.duration, Math.max(0, this.sample(t).elapsed / 1000)),
       startedAt: t.startedAt, endedAt: Math.max(t.startedAt, this.now()), result, measurement: 'measured' };

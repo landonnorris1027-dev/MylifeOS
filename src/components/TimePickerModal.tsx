@@ -9,11 +9,12 @@ interface TimePickerModalProps {
   task: Task | null;
   dailyTasks: Task[];
   timelineMode: TimelineMode;
+  intervalMinutes?: 5 | 15 | 30;
   onClose: () => void;
   onConfirm: (time: string) => void;
 }
 
-const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, timelineMode, onClose, onConfirm }) => {
+const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, timelineMode, intervalMinutes = 30, onClose, onConfirm }) => {
   const { t } = useLanguage();
   const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
 
@@ -22,10 +23,10 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, tim
   const slotStates = useMemo(() => {
     if (!task) return [];
 
-    return buildTimelineSlotsForMode(timelineMode).map((slot) => {
+    return buildTimelineSlotsForMode(timelineMode, intervalMinutes).map((slot) => {
       const conflicts = getOverlappingTasks(dailyTasks, slot.time, task.durationMinutes);
       const isWithinDay = isTaskWithinDay(slot.time, task.durationMinutes);
-      const isPast = isTaskStartInPastForDate(task.date, slot.time);
+      const isPast = isTaskStartInPastForDate(task.date, slot.time, new Date(), intervalMinutes);
       return {
         ...slot,
         conflicts,
@@ -34,7 +35,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, tim
         isAvailable: isWithinDay && !isPast && conflicts.length === 0,
       };
     });
-  }, [dailyTasks, task, timelineMode]);
+  }, [dailyTasks, task, timelineMode, intervalMinutes]);
 
   if (!task) return null;
 

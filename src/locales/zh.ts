@@ -4,6 +4,8 @@ const zh = {
   share_backup: '分享完整备份',
   jump_current_time: '跳到当前时段',
   focus_saved: '专注记录已保存，是否开始休息？',
+  stop_focus: '停止本次专注',
+  start_focus: '开始专注',
   start_break: '开始休息',
   close_timer: '返回计划',
   vibration_enabled: '响铃时震动',
