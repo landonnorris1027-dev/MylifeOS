@@ -455,12 +455,21 @@ async function main() {
     date: todayDate, status: 'inbox', priority: 'P1', durationMinutes: 2 };
   protectedLogs[todayDate] ||= { date: todayDate, tasks: [] };
   protectedLogs[todayDate].tasks.push(pausedTask);
-  await current.evaluate(`window.electronAPI.sendSync('storage-set-sync',{key:'mylifeos_daily_logs',value:${JSON.stringify(JSON.stringify(protectedLogs))}})`);
   await invoke('storage-flush');
-  await invoke('pomodoro-start', { timerId: 'paused-orphan-timer', duration: 120, isFocusMode: true, notificationsEnabled: false,
-    taskId: pausedTask.id, taskDate: todayDate, taskName: pausedTask.name, taskHabitId: pausedTask.habitId, taskPriority: 'P1', taskDurationMinutes: 2 });
-  await invoke('pomodoro-toggle', { timerId: 'paused-orphan-timer' });
-  await stop(); await launch();
+  await stop();
+  // Seed both files while stopped. Inserting an unprotected orphan in a running
+  // planner legitimately reconciles it before the subsequent start IPC arrives.
+  const protectedEntries = JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8'));
+  protectedEntries.mylifeos_daily_logs = JSON.stringify(protectedLogs);
+  fs.writeFileSync(path.join(profile, 'app-data.json'), JSON.stringify(protectedEntries));
+  fs.writeFileSync(path.join(profile, 'pomodoro-state.json'), JSON.stringify({ activeTimers: [{
+    timerId: 'paused-orphan-timer', sessionId: 'paused-orphan-session', duration: 120,
+    remaining: 120000, endTime: Date.now() + 120000, startedAt: Date.now(), elapsed: 0,
+    isActive: false, isFinished: false, isFocusMode: true, notificationsEnabled: false,
+    taskId: pausedTask.id, taskDate: todayDate, taskName: pausedTask.name,
+    taskHabitId: pausedTask.habitId, taskPriority: 'P1', taskDurationMinutes: 2,
+  }], pendingRecoveries: [], pendingCompletions: [], completedChoices: [] }));
+  await launch();
   assert.equal((await readLogs())[todayDate].tasks.find(t => t.id === pausedTask.id).status, 'inbox');
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
   await invoke('pomodoro-stop', { timerId: 'paused-orphan-timer' });

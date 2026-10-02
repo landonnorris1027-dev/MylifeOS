@@ -16,7 +16,7 @@ for (const target of ['build', 'dist-main']) {
 }
 if (!app.startsWith(path.join(root, 'out', 'windows') + path.sep)) throw Error('Unsafe staging directory');
 // An interrupted or failed new package must not inherit a previous passing report.
-for (const name of ['verification.json', 'performance.json']) fs.rmSync(path.join(output, name), { force: true });
+for (const name of ['verification.json', 'performance.json', 'native-dialog-verification.json']) fs.rmSync(path.join(output, name), { force: true });
 fs.rmSync(app, { recursive: true, force: true });
 fs.mkdirSync(app, { recursive: true });
 for (const name of ['build', 'dist-main', 'assets']) {
