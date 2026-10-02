@@ -43,7 +43,7 @@ export interface PomodoroRecoveryData {
   expiredAt?: number;
 }
 
-export type PomodoroRecoveryAction = 'resume-break' | 'restart-break' | 'dismiss';
+export type PomodoroRecoveryAction = 'resume-break' | 'restart-break' | 'dismiss' | 'complete';
 
 export interface MainTimer {
   timerId: string;

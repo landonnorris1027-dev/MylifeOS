@@ -2,6 +2,7 @@ console.log('--- ELECTRON PROCESS STARTING ---');
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, Tray } from 'electron';
 import fs from 'fs';
+import { DurableFocusRuntime, FocusTimer } from './focus-runtime';
 import path from 'path';
 import { AppDataStore, AppDataStoreFlushResult } from './app-data-store';
 import type { StorageStatus, StorageTransaction } from './storage-contract';
@@ -39,8 +40,7 @@ const TRAY_LABELS = {
 };
 
 let mainWindow: BrowserWindow | null = null;
-const activeTimers = new Map<string, MainTimer>();
-const pendingRecoveries: PomodoroRecoveryData[] = [];
+let focusRuntime: DurableFocusRuntime | null = null;
 let timerStateFilePath = '';
 let appDataFilePath = '';
 let recoveryPointsFilePath = '';
@@ -138,6 +138,7 @@ function broadcastStorageWriteFailure(result: AppDataStoreFlushResult): void {
 
 function getStorageStatus(): StorageStatus {
   const statuses = [appDataStore, recoveryPointsStore].filter((store): store is AppDataStore => !!store).map(store => store.getStatus());
+  if (focusRuntime) statuses.push(focusRuntime.status());
   const worst = statuses.find(s => s.state === 'recovery') || statuses.find(s => s.state === 'error')
     || statuses.find(s => s.state === 'saving') || { state: 'saved' as const, hasPending: false };
   return { ...worst, hasPending: statuses.some(s => s.hasPending) };
@@ -145,7 +146,7 @@ function getStorageStatus(): StorageStatus {
 
 function broadcastStorageStatus(): void {
   const status = getStorageStatus();
-  if (status.state === 'error' || status.state === 'recovery') pauseTimersForStorageFailure();
+  if (status.state === 'error' || status.state === 'recovery') focusRuntime?.pauseForStorageFailure();
   BrowserWindow.getAllWindows().forEach(window => {
     if (!window.isDestroyed()) window.webContents.send('storage-status', status);
   });
@@ -154,7 +155,10 @@ function broadcastStorageStatus(): void {
 function flushPendingStorageWrites(): boolean {
   const results = [appDataStore, recoveryPointsStore].filter((store): store is AppDataStore => !!store)
     .map(store => store.getStatus().hasPending ? store.flush().ok : true);
-  return results.every(Boolean);
+  if (focusRuntime?.status().hasPending || focusRuntime?.status().state === 'error') {
+    try { focusRuntime.retry(); } catch { return false; }
+  }
+  return results.every(Boolean) && !['error', 'recovery'].includes(getStorageStatus().state);
 }
 function ensureWindowStatePath(): string {
   if (!windowStateFilePath) {
@@ -334,372 +338,56 @@ function registerDialogIpc(): void {
   );
 }
 
-function persistActiveTimers(): void {
-  try {
-    const filePath = ensureTimerStatePath();
-    ensureDirectoryForFile(filePath);
-    const payload = {
-      activeTimers: Array.from(activeTimers.values()).map((timer) => toTimerPayload(timer)),
-      pendingRecoveries,
-    };
-    writeTextAtomically(filePath, JSON.stringify(payload, null, 2), fs, isPersistedTimerState);
-  } catch (error) {
-    console.error('[MyLifeOS] Failed to persist timers:', error);
-  }
-}
-
-function queuePendingRecovery(
-  timer: Partial<MainTimer> & { timerId: string; isFocusMode?: boolean; duration?: number; remaining?: number },
-  reason = 'expired_while_offline',
-): void {
-  const recovery: PomodoroRecoveryData = {
-    recoveryId: `${timer.timerId}_recovery`,
-    timerId: timer.timerId,
-    reason,
-    mode: timer.isFocusMode ? 'focus' : 'break',
-    taskId: timer.taskId || null,
-    taskHabitId: timer.taskHabitId || null,
-    taskName: timer.taskName || null,
-    taskDate: timer.taskDate || null,
-    taskPriority: timer.taskPriority || null,
-    taskDurationMinutes: timer.taskDurationMinutes || null,
-    notificationMessages: timer.notificationMessages || null,
-    notificationsEnabled: timer.notificationsEnabled !== false,
-    breakDurationSeconds: timer.breakDurationSeconds || null,
-    originalDuration: timer.duration,
-    remaining: timer.remaining,
-    expiredAt: Date.now(),
-  };
-
-  const existingIndex = pendingRecoveries.findIndex((item) => item.recoveryId === recovery.recoveryId);
-  if (existingIndex >= 0) {
-    pendingRecoveries[existingIndex] = recovery;
-  } else {
-    pendingRecoveries.push(recovery);
-  }
-}
-
-function restorePersistedTimers(): void {
-  try {
-    const filePath = ensureTimerStatePath();
-    type PersistedTimerRecord = Partial<MainTimer> & PersistedTimerSnapshot;
-    const result = readJsonWithBackup(filePath, fs, isPersistedTimerState);
-    if (!result) return;
-    if (result.recoveredFromBackup) {
-      console.warn('[MyLifeOS] Recovered pomodoro state from backup.');
-    }
-    const parsedState = result.value as
-      | PersistedTimerRecord[]
-      | { activeTimers?: PersistedTimerRecord[]; pendingRecoveries?: PomodoroRecoveryData[] };
-    const persistedTimers = Array.isArray(parsedState) ? parsedState : parsedState.activeTimers;
-    const persistedRecoveries = Array.isArray(parsedState) || !Array.isArray(parsedState?.pendingRecoveries)
-      ? []
-      : parsedState.pendingRecoveries;
-    if (!Array.isArray(persistedTimers)) return;
-
-    const now = Date.now();
-
-    pendingRecoveries.splice(0, pendingRecoveries.length, ...(persistedRecoveries ?? []));
-
-    persistedTimers.forEach((timerRecord) => {
-      const restoreState = normalizePersistedTimerForRestore(timerRecord, now);
-
-      if (restoreState.shouldRecover) {
-        queuePendingRecovery({
-          ...timerRecord,
-          timerId: timerRecord.timerId ?? `timer-${now}`,
-          remaining: restoreState.remaining,
-          isFocusMode: Boolean(timerRecord.isFocusMode),
-        });
-        return;
-      }
-
-      const restoredTimer: MainTimer = {
-        timerId: timerRecord.timerId ?? `timer-${now}`,
-        duration: timerRecord.duration ?? 0,
-        remaining: restoreState.remaining,
-        endTime: restoreState.endTime,
-        isActive: restoreState.isActive,
-        isFinished: false,
-        isFocusMode: Boolean(timerRecord.isFocusMode),
-        taskId: timerRecord.taskId || null,
-        taskHabitId: timerRecord.taskHabitId || null,
-        taskName: timerRecord.taskName || null,
-        taskDate: timerRecord.taskDate || null,
-        taskPriority: timerRecord.taskPriority || null,
-        taskDurationMinutes: timerRecord.taskDurationMinutes || null,
-        notificationMessages: timerRecord.notificationMessages || null,
-        notificationsEnabled: timerRecord.notificationsEnabled !== false,
-        breakDurationSeconds: timerRecord.breakDurationSeconds || null,
-        startedAt: timerRecord.startedAt || now,
-        updatedAt: now,
-        intervalId: null,
-      };
-
-      activeTimers.set(restoredTimer.timerId, restoredTimer);
-
-      if (restoredTimer.isActive) {
-        startTicker(restoredTimer);
-      }
-    });
-
-    persistActiveTimers();
-  } catch (error) {
-    console.error('[MyLifeOS] Failed to restore persisted timers:', error);
-  }
-}
-
-function toTimerPayload(timer: MainTimer) {
-  return {
-    timerId: timer.timerId,
-    duration: timer.duration,
-    remaining: timer.remaining,
-    endTime: timer.endTime,
-    elapsed: Math.max(0, timer.duration * 1000 - timer.remaining),
-    isActive: timer.isActive,
-    isFinished: timer.isFinished,
-    isFocusMode: timer.isFocusMode,
-    taskId: timer.taskId || null,
-    taskHabitId: timer.taskHabitId || null,
-    taskName: timer.taskName || null,
-    taskDate: timer.taskDate || null,
-    taskPriority: timer.taskPriority || null,
-    taskDurationMinutes: timer.taskDurationMinutes || null,
-    notificationMessages: timer.notificationMessages || null,
-    notificationsEnabled: timer.notificationsEnabled !== false,
-    breakDurationSeconds: timer.breakDurationSeconds || null,
-    startedAt: timer.startedAt,
-    updatedAt: timer.updatedAt,
-  };
-}
-
-function broadcastTimerUpdate(timer: MainTimer, extra: Record<string, unknown> = {}): void {
-  const payload = {
-    ...toTimerPayload(timer),
-    ...extra,
-  };
-
-  BrowserWindow.getAllWindows().forEach((window) => {
-    if (!window.isDestroyed()) {
-      try {
-        window.webContents.send('pomodoro-update', payload);
-      } catch (error) {
-        console.warn('[MyLifeOS] Failed to broadcast timer update:', error);
-      }
-    }
-  });
-}
-
-function clearTimerInterval(timer: MainTimer): void {
-  if (timer.intervalId) {
-    clearInterval(timer.intervalId);
-    timer.intervalId = null;
-  }
-}
-
-function pauseTimersForStorageFailure(): void {
-  let changed = false;
-  activeTimers.forEach(timer => {
-    if (!timer.isActive) return;
-    timer.remaining = Math.max(1, timer.endTime - Date.now());
-    timer.isActive = false;
-    timer.updatedAt = Date.now();
-    clearTimerInterval(timer);
-    broadcastTimerUpdate(timer);
-    changed = true;
-  });
-  if (changed) persistActiveTimers();
-}
-
-
-function showTimerNotification(timer: MainTimer): void {
-  if (timer.notificationsEnabled === false) return;
-
-  try {
-    const messages: Partial<PomodoroNotificationMessages> = timer.notificationMessages || {};
-    const title = timer.isFocusMode
-      ? messages.focusCompleteTitle || 'Focus session completed'
-      : messages.breakFinishedTitle || 'Break finished';
-    const body = timer.isFocusMode
-      ? messages.focusCompleteBody || `${timer.taskName || 'Your task'} is ready for a break.`
-      : messages.breakFinishedBody || 'Time to get back to work.';
-
-    if (Notification.isSupported()) {
-      new Notification({ title, body }).show();
-    }
-  } catch (error) {
-    console.warn('[MyLifeOS] Failed to show notification:', error);
-  }
-}
-
-function finishTimer(timerId: string): void {
-  const timer = activeTimers.get(timerId);
-  if (!timer) return;
-
-  clearTimerInterval(timer);
-  timer.remaining = 0;
-  timer.endTime = Date.now();
-  timer.updatedAt = Date.now();
-  timer.isActive = false;
-  timer.isFinished = true;
-
-  broadcastTimerUpdate(timer);
-  showTimerNotification(timer);
-  activeTimers.delete(timerId);
-  persistActiveTimers();
-}
-
-function startTicker(timer: MainTimer): void {
-  clearTimerInterval(timer);
-
-  timer.intervalId = setInterval(() => {
-    if (!timer.isActive) return;
-
-    const remaining = Math.max(0, timer.endTime - Date.now());
-    timer.remaining = remaining;
-    timer.updatedAt = Date.now();
-
-    if (remaining <= 0) {
-      finishTimer(timer.timerId);
-      return;
-    }
-
-    broadcastTimerUpdate(timer);
-  }, 250);
-}
-
-function upsertTimer(timerData: PomodoroTimerData): MainTimer {
-  const storageState = getStorageStatus().state;
-  if (storageState === 'error' || storageState === 'recovery') throw new Error('Restore storage before starting a timer');
-  const previous = activeTimers.get(timerData.timerId);
-  if (previous) {
-    clearTimerInterval(previous);
-  }
-
-  const durationMs = timerData.duration * 1000;
-  const timer: MainTimer = {
-    timerId: timerData.timerId,
-    duration: timerData.duration,
-    remaining: durationMs,
-    endTime: Date.now() + durationMs,
-    isActive: true,
-    isFinished: false,
-    isFocusMode: timerData.isFocusMode,
-    notificationsEnabled: timerData.notificationsEnabled !== false,
-    breakDurationSeconds: timerData.breakDurationSeconds || null,
-    taskId: timerData.taskId || null,
-    taskHabitId: timerData.taskHabitId || null,
-    taskName: timerData.taskName || null,
-    taskDate: timerData.taskDate || null,
-    taskPriority: timerData.taskPriority || null,
-    taskDurationMinutes: timerData.taskDurationMinutes || null,
-    notificationMessages: timerData.notificationMessages || null,
-    startedAt: Date.now(),
-    updatedAt: Date.now(),
-    intervalId: null,
-  };
-
-  activeTimers.set(timer.timerId, timer);
-  startTicker(timer);
-  broadcastTimerUpdate(timer);
-  persistActiveTimers();
-
-  return timer;
-}
-
-
-function registerPomodoroIpc(): void {
-  ipcMain.handle('pomodoro-start', async (_event, timerData: PomodoroTimerData) => {
-    return toTimerPayload(upsertTimer(timerData));
-  });
-
-  ipcMain.handle('pomodoro-get-active-timers', async () => {
-    return Array.from(activeTimers.values()).map(toTimerPayload);
-  });
-
-  ipcMain.handle('pomodoro-get-pending-recoveries', async () => {
-    return [...pendingRecoveries];
-  });
-
-  ipcMain.handle(
-    'pomodoro-resolve-recovery',
-    async (_event, { recoveryId, action }: { recoveryId: string; action: PomodoroRecoveryAction }) => {
-      const recoveryIndex = pendingRecoveries.findIndex((item) => item.recoveryId === recoveryId);
-      if (recoveryIndex === -1) {
-        return { ok: false };
-      }
-
-      const recovery = pendingRecoveries[recoveryIndex];
-      pendingRecoveries.splice(recoveryIndex, 1);
-
-      if (action === 'resume-break' || action === 'restart-break') {
-        const breakTimer = upsertTimer({
-          timerId: recovery.timerId.replace(/_break$/, '') + '_break',
-          duration: recovery.breakDurationSeconds || 5 * 60,
-          isFocusMode: false,
-          notificationsEnabled: recovery.notificationsEnabled !== false,
-          breakDurationSeconds: recovery.breakDurationSeconds || undefined,
-          taskId: recovery.taskId || undefined,
-          taskHabitId: recovery.taskHabitId || undefined,
-          taskName: recovery.taskName || undefined,
-          taskDate: recovery.taskDate || undefined,
-          taskPriority: (recovery.taskPriority as PomodoroTimerData['taskPriority']) || undefined,
-          taskDurationMinutes: recovery.taskDurationMinutes || undefined,
-          notificationMessages: recovery.notificationMessages || undefined,
-        });
-
-        persistActiveTimers();
-        return { ok: true, resumedTimer: toTimerPayload(breakTimer) };
-      }
-
-      persistActiveTimers();
-      return { ok: true };
+function getFocusRuntime(): DurableFocusRuntime {
+  if (!focusRuntime) focusRuntime = new DurableFocusRuntime({
+    filePath: ensureTimerStatePath(), store: getAppDataStore(), onChange: broadcastStorageStatus,
+    onUpdate: (timer) => {
+      BrowserWindow.getAllWindows().forEach(window => {
+        if (!window.isDestroyed()) window.webContents.send('pomodoro-update', timer);
+      });
+      if (timer.isFinished) showTimerNotification(timer);
     },
-  );
-
-  ipcMain.on('pomodoro-toggle', (_event, { timerId }: { timerId: string }) => {
-    if (['error', 'recovery'].includes(getStorageStatus().state)) return;
-    const timer = activeTimers.get(timerId);
-    if (!timer) return;
-
-    if (timer.isActive) {
-      timer.remaining = Math.max(0, timer.endTime - Date.now());
-      timer.isActive = false;
-      timer.updatedAt = Date.now();
-      clearTimerInterval(timer);
-    } else {
-      timer.endTime = Date.now() + timer.remaining;
-      timer.isActive = true;
-      timer.updatedAt = Date.now();
-      startTicker(timer);
-    }
-
-    broadcastTimerUpdate(timer);
-    persistActiveTimers();
   });
-
-  ipcMain.on('pomodoro-stop', (_event, { timerId }: { timerId: string }) => {
-    const timer = activeTimers.get(timerId);
-    if (!timer) return;
-
-    clearTimerInterval(timer);
-    timer.isActive = false;
-    timer.updatedAt = Date.now();
-    activeTimers.delete(timerId);
-    persistActiveTimers();
-    broadcastTimerUpdate(timer, { stopped: true });
-  });
+  return focusRuntime;
 }
-
+function showTimerNotification(timer: FocusTimer): void {
+  if (timer.notificationsEnabled === false) return;
+  try {
+    const messages = timer.notificationMessages;
+    if (Notification.isSupported()) new Notification({
+      title: timer.isFocusMode ? messages?.focusCompleteTitle || 'Focus session completed' : messages?.breakFinishedTitle || 'Break finished',
+      body: timer.isFocusMode ? messages?.focusCompleteBody || 'Your focus was saved.' : messages?.breakFinishedBody || 'Time to get back to work.',
+    }).show();
+  } catch (error) { console.warn('[MyLifeOS] Notification failed:', error); }
+}
+function registerPomodoroIpc(): void {
+  ipcMain.handle('pomodoro-start', (_event, data: PomodoroTimerData) => getFocusRuntime().start(data));
+  ipcMain.handle('pomodoro-toggle', (_event, data: { timerId: string }) => getFocusRuntime().toggle(data.timerId));
+  ipcMain.handle('pomodoro-stop', (_event, data: { timerId: string }) => getFocusRuntime().stop(data.timerId));
+  ipcMain.handle('pomodoro-complete', (_event, data: { timerId: string }) => getFocusRuntime().complete(data.timerId));
+  ipcMain.handle('pomodoro-get-active-timers', () => getFocusRuntime().active());
+  ipcMain.handle('pomodoro-get-completed-focus', () => getFocusRuntime().completed());
+  ipcMain.handle('pomodoro-get-pending-recoveries', () => getFocusRuntime().recoveries());
+  ipcMain.handle('pomodoro-pending-state', () => getFocusRuntime().pending());
+  ipcMain.handle('pomodoro-abandon-for-restore', (_event, data: { confirmed: boolean }) => {
+    if (data?.confirmed !== true) throw new Error('Explicit abandonment is required');
+    getFocusRuntime().abandonForRestore();
+  });
+  ipcMain.handle('pomodoro-resolve-recovery', (_event, data: { recoveryId: string; action: PomodoroRecoveryAction }) =>
+    getFocusRuntime().resolve(data.recoveryId, data.action));
+  const ticker = setInterval(() => getFocusRuntime().tick(), 250);
+  app.on('will-quit', () => clearInterval(ticker));
+}
 
 function registerStorageIpc(): void {
+  ipcMain.handle('storage-flush', () => ({ ok: flushPendingStorageWrites(), ...getStorageStatus() }));
   ipcMain.handle('storage-status', () => getStorageStatus());
   ipcMain.handle('storage-retry', () => ({ ok: flushPendingStorageWrites(), ...getStorageStatus() }));
   ipcMain.handle('storage-pending-snapshot', () => getAppDataStore().snapshot(true));
   ipcMain.handle('storage-commit', (_event, payload: StorageTransaction) => {
-    if (activeTimers.size > 0) return { ok: false, error: 'Stop the current timer before restoring a backup.' };
+    if (getFocusRuntime().blocksRestore()) return { ok: false, error: 'Stop the current timer before restoring a backup.' };
     const allowed = new Set(['mylifeos_goals', 'mylifeos_habits', 'mylifeos_daily_logs', LANGUAGE_KEY,
-      'mylifeos_focus_settings', 'mylifeos_profile_settings', 'mylifeos_planner_settings', DESKTOP_SETTINGS_KEY]);
+      'mylifeos_focus_settings', 'mylifeos_focus_sessions', 'mylifeos_profile_settings', 'mylifeos_planner_settings', DESKTOP_SETTINGS_KEY]);
     if (!payload || !payload.entries || typeof payload.entries !== 'object' || Array.isArray(payload.entries)
       || Object.entries(payload.entries).some(([key, value]) => !allowed.has(key) || typeof value !== 'string')
       || !['mylifeos_goals', 'mylifeos_habits', 'mylifeos_daily_logs'].every(key => key in payload.entries)) {
@@ -709,6 +397,7 @@ function registerStorageIpc(): void {
       const recoveryRepair = recoveryPointsStore.commit({ [RECOVERY_POINTS_KEY]: '[]' }, true);
       if (!recoveryRepair.ok) return recoveryRepair;
     }
+    getFocusRuntime().prepareRestore(payload.recover === true);
     const result = getAppDataStore().commit(payload.entries, payload.recover === true);
     if (result.ok) refreshTrayMenu();
     return result;
@@ -865,8 +554,8 @@ if (!gotSingleInstanceLock) {
     }
     getAppDataStore();
     getRecoveryPointsStore();
-    restorePersistedTimers();
-    if (['error', 'recovery'].includes(getStorageStatus().state)) pauseTimersForStorageFailure();
+    try { getFocusRuntime().initialize(); } catch (error) { console.error("[MyLifeOS] Focus replay deferred:", error); }
+    if (['error', 'recovery'].includes(getStorageStatus().state)) focusRuntime?.pauseForStorageFailure();
     registerPomodoroIpc();
     registerStorageIpc();
     registerDialogIpc();

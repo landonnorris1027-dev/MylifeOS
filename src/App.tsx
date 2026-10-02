@@ -671,7 +671,7 @@ export default function App() {
           restoredState={restoredTimerState}
           onSessionStateChange={setRestoredTimerState}
           onClose={closeTimer}
-          onComplete={(task, minutes) => handleTaskComplete(task, minutes, isAndroid())}
+          onComplete={(task, minutes) => handleTaskComplete(task, minutes, isAndroid() || Boolean(window.electronAPI))}
         />
 
         <RecoveryModal

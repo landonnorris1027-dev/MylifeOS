@@ -40,6 +40,11 @@ interface SaveBackupResult {
 }
 
 interface ElectronAPI {
+  invoke(channel: 'pomodoro-abandon-for-restore', payload: { confirmed: boolean }): Promise<void>;
+  invoke(channel: 'storage-flush'): Promise<StorageResult & StorageStatus>;
+  invoke(channel: 'pomodoro-get-completed-focus'): Promise<PomodoroUpdateData[]>;
+  invoke(channel: 'pomodoro-pending-state'): Promise<unknown>;
+  invoke(channel: 'pomodoro-toggle' | 'pomodoro-stop' | 'pomodoro-complete', payload: TimerIdPayload): Promise<PomodoroUpdateData | undefined>;
   invoke(channel: 'storage-status'): Promise<StorageStatus>;
   invoke(channel: 'storage-retry'): Promise<StorageResult & StorageStatus>;
   invoke(channel: 'storage-pending-snapshot'): Promise<Record<string, string>>;

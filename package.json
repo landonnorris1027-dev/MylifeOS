@@ -1,6 +1,6 @@
 {
   "name": "mylifeos",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -45,7 +45,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build && node scripts/build-metadata.js build",
     "typecheck": "tsc --noEmit",
-    "test": "react-scripts test --watchAll=false --passWithNoTests",
+    "test": "react-scripts test --watchAll=false --passWithNoTests --testMatch=**/src/**/*.test.ts --testMatch=**/src/**/*.test.tsx",
     "build:main": "tsc -p tsconfig.main.json && node scripts/build-metadata.js dist-main",
     "check:electron": "tsc --noEmit -p tsconfig.main.json",
     "verify:quality": "npm run typecheck && npm run test && npm run build && npm run build:main",

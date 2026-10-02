@@ -11,7 +11,7 @@ const path = require('path');
 // Anything else (installers, .apk, win-unpacked/, android/, builder-debug.yml,
 // stray copies from other tools) is a stray artifact that would otherwise be
 // packaged into the app and shipped to users.
-const KEEP_ENTRIES = ['index.html', 'manifest.json', 'asset-manifest.json', 'static'];
+const KEEP_ENTRIES = ['index.html', 'manifest.json', 'asset-manifest.json', 'build-info.json', 'static'];
 
 const buildDir = path.resolve(__dirname, '..', 'build');
 

@@ -85,7 +85,7 @@ describe('P1 task execution loop', () => {
     expect(initializeDay('2026-04-25').tasks.map((task) => task.habitId)).not.toContain(workdays.id);
     expect(initializeDay('2026-05-01').tasks.map((task) => task.habitId)).not.toContain(workdays.id);
     const backup = JSON.parse(getAllDataJSON());
-    expect(backup.schemaVersion).toBe(7);
+    expect(backup.schemaVersion).toBe(8);
     expect(backup.habits.find((habit: { id: string }) => habit.id === workdays.id).weekdays).toEqual([1, 2, 3, 4, 5]);
     localStorage.clear();
     expect((await importDataJSON(JSON.stringify(backup))).ok).toBe(true);

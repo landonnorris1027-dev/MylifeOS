@@ -55,7 +55,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const android = isAndroid();
   const managed = isElectron || android;
   const closePanel = async () => {
-    if (android && focusSaved) {
+    if (managed && focusSaved && mode === 'focus') {
       try { await electronIPC.stopPomodoro(currentTimerIdRef.current); }
       catch { setTimerError(t('storage_write_failed')); return; }
     }
@@ -335,7 +335,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       if (task && completedFocusSecondsRef.current === null) {
         completedFocusSecondsRef.current = task.durationMinutes * 60;
       }
-      if (android && task) {
+      if (managed && task) {
         const minutes = Math.max(1, Math.round((completedFocusSecondsRef.current ?? task.durationMinutes * 60) / 60));
         const saved = await onComplete(task, minutes);
         if (saved === false) { setTimerError(t('storage_write_failed')); return; }
@@ -365,7 +365,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
 
     onSessionStateChange(null);
 
-    if (android) { onClose(); return; }
+    if (managed) { onClose(); return; }
     if (task) {
       const actualFocusSeconds = completedFocusSecondsRef.current ?? task.durationMinutes * 60;
       const actualFocusMinutes = Math.max(1, Math.round(actualFocusSeconds / 60));
@@ -402,7 +402,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
 
   const markEarlyComplete = async () => {
     if (mode !== 'focus') return;
-    if (android) {
+    if (managed) {
       if (!hasStarted || focusSaved) return;
       try { await electronIPC.completePomodoro(currentTimerIdRef.current); }
       catch (error) { setTimerError(t('storage_write_failed')); }
@@ -497,7 +497,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
           </div>
         </div>
 
-        {android && focusSaved && !isBreak ? <div className="space-y-3">
+        {managed && focusSaved && !isBreak ? <div className="space-y-3">
           <p role="status" className="font-semibold text-green-700">{t('focus_saved')}</p>
           <button className="min-h-[48px] w-full rounded-xl bg-emerald-600 px-4 text-white" onClick={() => void startTimer('break')}>{t('start_break')}</button>
           <button className="min-h-[48px] w-full rounded-xl border bg-white px-4" onClick={() => void closePanel()}>{t('close_timer')}</button>

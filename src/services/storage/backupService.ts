@@ -1,3 +1,5 @@
+import { FocusSession, validateFocusSessions } from '../../main/focus-session';
+import { getStorageItem } from './localStorageStore';
 import { DailyData, Goal, Habit, Priority, Task, TaskStatus } from '../../types';
 import { DATA_SCHEMA_VERSION, KEYS, commitStorageSnapshot } from './localStorageStore';
 import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSettings } from './backupSettings';
@@ -12,6 +14,7 @@ interface BackupPayloadV2 {
   habits: Habit[];
   dailyLogs: Record<string, DailyData>;
   settings?: BackupSettings;
+  focusSessions?: FocusSession[];
 }
 
 interface LegacyBackupPayloadV1 {
@@ -286,6 +289,7 @@ const normalizeBackupPayload = (
     .map((habit) => sanitizeHabit(habit, seenHabitIds, goalIds))
     .filter((habit): habit is Habit => habit !== null);
   const { dailyLogs, filteredTaskCount } = sanitizeDailyLogs(raw.dailyLogs, goalIds);
+  const focusSessions = schemaVersion >= 8 ? validateFocusSessions(raw.focusSessions) : [];
   const timestamp = typeof raw.timestamp === 'string' ? raw.timestamp : new Date().toISOString();
 
   return {
@@ -296,6 +300,7 @@ const normalizeBackupPayload = (
       habits,
       dailyLogs,
       settings,
+      focusSessions,
     },
     migratedFromVersion: schemaVersion < DATA_SCHEMA_VERSION ? schemaVersion : null,
     filteredGoalCount: rawGoals.length - goals.length,
@@ -359,6 +364,7 @@ export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, Dail
       habits,
       dailyLogs,
       settings,
+      focusSessions: validateFocusSessions(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS) || '[]')),
     },
     null,
     2,
@@ -379,6 +385,7 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
 
     // Preserve the verified snapshot exactly; normal day initialization reconciles habits later.
     await commitStorageSnapshot({
+      [KEYS.FOCUS_SESSIONS]: JSON.stringify(data.focusSessions || []),
       [KEYS.GOALS]: JSON.stringify(data.goals || []),
       [KEYS.HABITS]: JSON.stringify(data.habits),
       [KEYS.DAILY_LOGS]: JSON.stringify(data.dailyLogs),
@@ -402,7 +409,15 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
 export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
   const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
   payload.schemaVersion = 6;
+  delete payload.focusSessions;
+  delete payload.settings.planner.intervalMinutes;
   delete payload.settings.focus.vibrationEnabled;
+  return JSON.stringify(payload, null, 2);
+};
+
+export const exportAndroidCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
+  const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
+  payload.schemaVersion = 7; delete payload.focusSessions; delete payload.settings.planner.intervalMinutes;
   return JSON.stringify(payload, null, 2);
 };
 

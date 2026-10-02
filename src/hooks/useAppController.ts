@@ -361,6 +361,15 @@ export const useAppController = () => {
           return;
         }
         if (activeTimers.length === 0) {
+          const completed = typeof electronIPC.getCompletedFocus === 'function' ? (await electronIPC.getCompletedFocus()).slice(-1)[0] : undefined;
+          if (completed?.taskId && completed.taskDate) {
+            const task = findStoredTimerTask(completed.taskId, completed.taskDate);
+            if (task?.status === 'completed') {
+              dispatch({ type: 'SET_TIMER_SESSION', restoredState: { timerId: completed.timerId, taskId: task.id, taskName: task.name, taskDate: task.date, taskDurationMinutes: task.durationMinutes, taskPriority: task.priority, mode: 'focus', remainingSeconds: 0, isActive: false, focusCompleted: true } });
+              dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
+              return;
+            }
+          }
           const recoveries = await electronIPC.getPendingRecoveries();
           if (recoveries.length > 0) {
             dispatch({ type: 'OPEN_RECOVERY_PROMPT', recovery: recoveries[0] });
@@ -678,11 +687,11 @@ export const useAppController = () => {
     try {
       const completedMinutes = actualFocusMinutes ?? task.actualFocusMinutes ?? task.durationMinutes;
       const stored = findStoredTimerTask(task.id, task.date) || task;
-      if (stored.status !== 'completed' || stored.actualFocusMinutes !== completedMinutes) {
+      if (!window.electronAPI && (stored.status !== 'completed' || stored.actualFocusMinutes !== completedMinutes)) {
         updateTask({ ...stored, status: 'completed', actualFocusMinutes: completedMinutes });
       }
       await flushStorageWrites();
-      if (!keepOpen || !isAndroid()) dispatch({ type: 'CLOSE_TIMER' });
+      if (!keepOpen) dispatch({ type: 'CLOSE_TIMER' });
       dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
       const completedDay = initializeDay(task.date);
       const visibleTasks = completedDay.tasks.filter((item) => item.status !== 'deleted');
@@ -692,7 +701,7 @@ export const useAppController = () => {
         : 0;
 
       loadData(state.selectedDate);
-      dispatch({
+      if (!keepOpen) dispatch({
         type: 'OPEN_ALERT',
         title: t('completion_summary_title'),
         tone: 'success',
@@ -794,10 +803,7 @@ export const useAppController = () => {
       pendingRecovery.mode === 'focus' ? 'resume-break' : 'restart-break',
     );
 
-    if (!result?.ok || !result.resumedTimer || !task) {
-      dispatch({ type: 'CLEAR_RECOVERY_PROMPT' });
-      return;
-    }
+    if (!result?.ok || !result.resumedTimer || !task) return;
 
     dispatch({ type: 'CLEAR_RECOVERY_PROMPT' });
     dispatch({
@@ -824,7 +830,8 @@ export const useAppController = () => {
     if (!pendingRecovery) return;
 
     const task = buildTaskFromRecovery(pendingRecovery);
-    await electronIPC.resolveRecovery(pendingRecovery.recoveryId, 'dismiss');
+    const result = await electronIPC.resolveRecovery(pendingRecovery.recoveryId, 'complete');
+    if (!result.ok) return;
     dispatch({ type: 'CLEAR_RECOVERY_PROMPT' });
 
     if (task) {
@@ -836,7 +843,8 @@ export const useAppController = () => {
     const pendingRecovery = state.recoveryPrompt.pending;
     if (!pendingRecovery) return;
 
-    await electronIPC.resolveRecovery(pendingRecovery.recoveryId, 'dismiss');
+    const result = await electronIPC.resolveRecovery(pendingRecovery.recoveryId, 'dismiss');
+    if (!result.ok) return;
     dispatch({ type: 'CLEAR_RECOVERY_PROMPT' });
   }, [state.recoveryPrompt.pending]);
 

@@ -303,7 +303,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
     });
   };
 
-  const handleBackup = async (desktopCompatible = false, share = false) => {
+  const handleBackup = async (desktopCompatible: boolean | 'android' = false, share = false) => {
     const filename = `mylifeos_backup_${formatDateLocal(new Date())}.json`;
 
     try {
@@ -931,7 +931,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => void handleBackup(true)}>{t('backup_desktop_compatible')}</button>
+              <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => setConfirmConfig({ isOpen: true, message: 'v6 Windows 0.1.3：此备份不携带会话记录、排期精度及振动设置。请另存完整 v8 备份。', onConfirm: () => { setConfirmConfig(c => ({ ...c, isOpen: false })); void handleBackup(true); } })}>{t('backup_desktop_compatible')}</button>
+              <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => setConfirmConfig({ isOpen: true, message: 'v7 Android 0.1.4：此备份不携带会话记录及排期精度。请另存完整 v8 备份。', onConfirm: () => { setConfirmConfig(c => ({ ...c, isOpen: false })); void handleBackup('android'); } })}>导出 Android v7 兼容备份</button>
               {isAndroid() && <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => void handleBackup(false, true)}>{t('share_backup')}</button>}
             </div>
             <p className="mt-2 text-xs text-gray-500">{t('backup_compatibility_hint')}</p>

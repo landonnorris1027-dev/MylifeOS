@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { FOCUS_SESSIONS_KEY, validateFocusSessions } from './focus-session';
 import { randomUUID } from 'crypto';
 import type { StorageStatus } from './storage-contract';
 import { DurableFileSystem, readJsonWithBackup, writeTextAtomically } from './durable-file';
@@ -33,6 +34,7 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
   const positive = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v > 0;
   const priority = (v: unknown) => v === 'P1' || v === 'P2' || v === 'P3';
   try {
+    if (record[FOCUS_SESSIONS_KEY] !== undefined) validateFocusSessions(JSON.parse(record[FOCUS_SESSIONS_KEY]));
     for (const key of ['mylifeos_goals', 'mylifeos_habits', 'mylifeos_recovery_points']) {
       if (record[key] === undefined) continue;
       const entries: unknown = JSON.parse(record[key]);

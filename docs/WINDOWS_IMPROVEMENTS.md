@@ -38,3 +38,5 @@ or claim code signing, visible Windows toast, OS disk-full or power-cut tests pa
 
 - Preparation: dedicated branch/worktree; baseline audited with renderer/main type checks
   and 22 suites / 143 tests passing. Existing executable and shortcuts remain untouched.
+
+- P0: durable main-process focus transitions/outbox, precise sessions and v8/v7/v6 backups; 23 suites / 153 tests, renderer/main type checks and production builds passed. Packaged acceptance is recorded with the candidate artifact.

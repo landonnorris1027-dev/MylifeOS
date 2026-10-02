@@ -20,6 +20,8 @@ export interface PomodoroUpdateData {
   isFinished: boolean;
   suppressCompletionAlert?: boolean;
   completionPersisted?: boolean;
+  sessionId?: string;
+  actualFocusSeconds?: number;
   isActive?: boolean;
   stopped?: boolean;
   isFocusMode?: boolean;
@@ -187,7 +189,7 @@ class ElectronIPCHandler {
   async togglePomodoro(timerId: string): Promise<void> {
     if (this.nativeTimers) return this.nativeTimers.toggle(timerId);
     if (this.isElectron) {
-      window.electronAPI?.send('pomodoro-toggle', { timerId });
+      await window.electronAPI?.invoke('pomodoro-toggle', { timerId });
       return;
     }
 
@@ -226,7 +228,7 @@ class ElectronIPCHandler {
   async stopPomodoro(timerId: string): Promise<void> {
     if (this.nativeTimers) return this.nativeTimers.stop(timerId);
     if (this.isElectron) {
-      window.electronAPI?.send('pomodoro-stop', { timerId });
+      await window.electronAPI?.invoke('pomodoro-stop', { timerId });
       return;
     }
 
@@ -290,6 +292,10 @@ class ElectronIPCHandler {
     }));
   }
 
+  async getCompletedFocus(): Promise<PomodoroUpdateData[]> {
+    return this.isElectron ? window.electronAPI!.invoke('pomodoro-get-completed-focus') : [];
+  }
+
   async getPendingRecoveries(): Promise<PomodoroRecoveryData[]> {
     if (!this.isElectron) return [];
 
@@ -340,6 +346,7 @@ class ElectronIPCHandler {
   }
 
   async completePomodoro(timerId: string): Promise<void> {
+    if (this.isElectron) { await window.electronAPI!.invoke('pomodoro-complete', { timerId }); return; }
     if (!this.nativeTimers) throw new Error('Native completion is unavailable');
     await this.nativeTimers.complete(timerId);
   }

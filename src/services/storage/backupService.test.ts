@@ -1,10 +1,26 @@
-import { exportBackupJSON, exportDesktopCompatibleBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
+import { exportBackupJSON, exportDesktopCompatibleBackupJSON, exportAndroidCompatibleBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
 import { KEYS, getStorageItem, setStorageItem } from './localStorageStore';
 import { saveFocusSettings, getFocusSettings } from '../focusSettings';
 
 describe('complete snapshot backups', () => {
   beforeEach(() => { localStorage.clear(); });
   afterEach(() => { jest.restoreAllMocks(); delete window.electronAPI; });
+
+  it('preserves precise v8 sessions, rejects invalid records, and omits them in both compatibility formats', async () => {
+    const session = { id: 's', timerId: 't', taskId: null, taskDate: '2026-10-02', taskName: 'Deleted task', plannedSeconds: 120, actualFocusSeconds: 1.5, startedAt: 1000, endedAt: 2500, result: 'stopped', measurement: 'measured' };
+    setStorageItem(KEYS.FOCUS_SESSIONS, JSON.stringify([session]));
+    const full = JSON.parse(exportBackupJSON([], {}));
+    expect(full.focusSessions).toEqual([session]);
+    for (const invalid of [[session, session], [{ ...session, actualFocusSeconds: -1 }], [{ ...session, endedAt: 0 }]]) {
+      expect(previewImportBackupJSON(JSON.stringify({ ...full, focusSessions: invalid })).ok).toBe(false);
+    }
+    localStorage.clear(); expect((await importBackupJSON(JSON.stringify(full))).ok).toBe(true);
+    expect(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS)!)).toEqual([session]);
+    for (const compatible of [exportDesktopCompatibleBackupJSON([], {}), exportAndroidCompatibleBackupJSON([], {})]) {
+      expect(JSON.parse(compatible)).not.toHaveProperty('focusSessions');
+      expect(previewImportBackupJSON(compatible).ok).toBe(true);
+    }
+  });
 
   it('round-trips all preferences, goals and tasks as a single snapshot', async () => {
     setStorageItem(KEYS.LANGUAGE, 'en');
@@ -40,7 +56,7 @@ describe('complete snapshot backups', () => {
     expect((await importBackupJSON(JSON.stringify(compatible))).ok).toBe(true);
     expect(getFocusSettings().vibrationEnabled).toBe(false);
     const full = JSON.parse(exportBackupJSON([], {}));
-    expect(full.schemaVersion).toBe(7);
+    expect(full.schemaVersion).toBe(8);
     expect(full.settings.focus.vibrationEnabled).toBe(false);
     delete full.settings.focus.vibrationEnabled;
     expect(previewImportBackupJSON(JSON.stringify(full)).ok).toBe(false);

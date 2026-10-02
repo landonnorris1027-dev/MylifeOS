@@ -117,7 +117,7 @@ async function main() {
     const legacyTimers = await invoke('pomodoro-get-active-timers');
     assert.equal(legacyTimers.length, 1);
     assert.equal(legacyTimers[0].isActive, false);
-    await current.evaluate(`window.electronAPI.send('pomodoro-stop', {timerId:${JSON.stringify(legacyTimers[0].timerId)}})`);
+    await current.evaluate(`window.electronAPI.invoke('pomodoro-stop', {timerId:${JSON.stringify(legacyTimers[0].timerId)}})`);
     await stop();
     await launch();
     log('PASS previous Electron version data and paused timer compatibility');
@@ -247,7 +247,7 @@ async function main() {
     taskId: task.id, taskName: task.name, taskDate: day, taskPriority: 'P1', taskDurationMinutes: 25, breakDurationSeconds: 10 };
   await invoke('pomodoro-start', timer);
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, true);
-  await current.evaluate("window.electronAPI.send('pomodoro-toggle', {timerId:'upgrade-timer'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-toggle', {timerId:'upgrade-timer'})");
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
   if (process.env.MYLIFEOS_REGRESSION_FIXTURE_OUT) {
     fs.mkdirSync(process.env.MYLIFEOS_REGRESSION_FIXTURE_OUT, { recursive: true });
@@ -259,9 +259,9 @@ async function main() {
   await launch();
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
   assert.ok(await current.evaluate("document.body.textContent.includes('Focus Mode')"), 'Paused timer should reopen in renderer');
-  await current.evaluate("window.electronAPI.send('pomodoro-toggle', {timerId:'upgrade-timer'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-toggle', {timerId:'upgrade-timer'})");
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, true);
-  await current.evaluate("window.electronAPI.send('pomodoro-stop', {timerId:'upgrade-timer'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-stop', {timerId:'upgrade-timer'})");
   assert.equal((await invoke('pomodoro-get-active-timers')).length, 0);
   log('PASS timer start, pause, persisted recovery, resume and stop');
 
@@ -271,6 +271,7 @@ async function main() {
   await until(() => current.evaluate('window.__finished'));
   await current.evaluate('window.__unsubscribe()');
   assert.equal((await invoke('pomodoro-get-active-timers')).length, 0);
+  await invoke('pomodoro-stop', {timerId: 'upgrade-finish'});
   log('PASS completion event and notification-enabled timer path (visual delivery not asserted)');
 
   await invoke('pomodoro-start', { ...timer, timerId: 'upgrade-offline', duration: 1 });
@@ -345,7 +346,7 @@ async function main() {
   assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).p0_pending_probe, 'retry-me');
   injectingStorageFailure = false;
   assert.equal((await invoke('pomodoro-get-active-timers')).find(timer => timer.timerId === 'p0-break-guard').isActive, false);
-  await current.evaluate("window.electronAPI.send('pomodoro-stop', {timerId:'p0-break-guard'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-stop', {timerId:'p0-break-guard'})");
   await until(async () => !(await invoke('pomodoro-get-active-timers')).some(timer => timer.timerId === 'p0-break-guard'));
   log('PASS real write failure, durable UI rollback, pending snapshot and retry');
 

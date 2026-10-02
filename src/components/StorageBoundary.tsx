@@ -67,6 +67,8 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       if (snapshot[key] !== undefined) settings[name as keyof typeof settings] = name === 'language' ? snapshot[key] : JSON.parse(snapshot[key]);
     });
     const backup = JSON.parse(exportBackupJSON(JSON.parse(snapshot[KEYS.HABITS] || '[]'), JSON.parse(snapshot[KEYS.DAILY_LOGS] || '{}'), JSON.parse(snapshot[KEYS.GOALS] || '[]'), settings));
+    backup.focusSessions = JSON.parse(snapshot[KEYS.FOCUS_SESSIONS] || '[]');
+    if (window.electronAPI) backup.unsavedTimerState = await window.electronAPI.invoke('pomodoro-pending-state');
     if (isAndroid()) backup.unsavedTimerOperation = getNativeTimerPending();
     const json = JSON.stringify(backup, null, 2);
     const path = await saveJSONFile(json, `mylifeos_unsaved_${Date.now()}.json`);
@@ -96,11 +98,10 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
         {(recovery || failed) && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
           if (isAndroid()) await stopNativeForRecovery();
           else {
-            const timers = await electronIPC.getActiveTimers(true);
-            for (const timer of timers) await electronIPC.stopPomodoro(timer.timerId);
+            await window.electronAPI!.invoke('pomodoro-abandon-for-restore', { confirmed: true });
           }
           setMessage(zh ? '计时器已停止，可继续恢复。' : 'Timers stopped. You can now restore.');
-        })}>{zh ? '停止当前计时器' : 'Stop current timers'}</button>}
+        })}>{zh ? '放弃会话并保留归档' : 'Abandon sessions and retain archive'}</button>}
         {recovery && <label className={buttonClass}>{zh ? '选择恢复备份' : 'Choose recovery backup'}
           <input aria-label={zh ? '选择恢复备份' : 'Choose recovery backup'} type="file" accept=".json" disabled={busy} onChange={event => {
             const file = event.target.files?.[0]; event.target.value = '';

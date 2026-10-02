@@ -1,5 +1,5 @@
 import { DailyData, Goal, Habit, Priority, Task } from '../types';
-import { exportBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
+import { exportBackupJSON, exportAndroidCompatibleBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
 import { flushStorageWrites } from './storage/localStorageStore';
 import { formatDateLocal, generateId, getTodayStr, parseDateLocal } from './storage/dateUtils';
 import { getAllDailyLogs, getCompletedMinutesByDate, getDailyLogByDate, saveAllDailyLogs, saveDailyLog } from './storage/dailyLogRepository';
@@ -71,8 +71,8 @@ export const searchTasks = (filters: TaskSearchFilters): Task[] => {
     .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name));
 };
 
-export const getAllDataJSON = (desktopCompatible = false) => {
-  return (desktopCompatible ? exportDesktopCompatibleBackupJSON : exportBackupJSON)(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
+export const getAllDataJSON = (desktopCompatible: boolean | 'android' = false) => {
+  return (desktopCompatible === 'android' ? exportAndroidCompatibleBackupJSON : desktopCompatible ? exportDesktopCompatibleBackupJSON : exportBackupJSON)(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
 };
 
 export const importDataJSON = async (jsonStr: string): Promise<ImportDataResult> => {

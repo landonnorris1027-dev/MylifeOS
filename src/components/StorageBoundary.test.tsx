@@ -20,6 +20,7 @@ describe('desktop save state UI', () => {
     durableLabel = 'Current durable task';
     invoke = jest.fn(async channel => {
       if (channel === 'storage-status') return status;
+      if (channel === 'pomodoro-pending-state') return null;
       if (channel === 'storage-pending-snapshot') return {
         mylifeos_habits: '[]', mylifeos_daily_logs: '{}', mylifeos_goals: '[{"id":"pending","name":"Pending goal"}]', mylifeos_lang: 'en',
       };
@@ -66,7 +67,7 @@ describe('desktop save state UI', () => {
     await act(async () => Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Export pending data')!.click());
     const json = JSON.parse((platformFiles.saveJSONFile as jest.Mock).mock.calls[0][0]);
     expect(json.goals[0].id).toBe('pending');
-    expect(json.schemaVersion).toBe(7);
+    expect(json.schemaVersion).toBe(8);
   });
 
   it('never mounts business UI over unreadable data', async () => {

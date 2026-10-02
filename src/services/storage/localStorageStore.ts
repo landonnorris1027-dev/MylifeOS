@@ -2,6 +2,7 @@ import { isAndroid } from '../platform';
 import { commitNativeEntries, flushNativeWrites, getNativeItem, setNativeItem } from '../nativeRuntime';
 
 export const KEYS = {
+  FOCUS_SESSIONS: 'mylifeos_focus_sessions',
   HABITS: 'mylifeos_habits',
   GOALS: 'mylifeos_goals',
   DAILY_LOGS: 'mylifeos_daily_logs',
@@ -14,7 +15,7 @@ export const KEYS = {
 } as const;
 
 // v6 adds weekday rules; v7 includes the device's vibration preference.
-export const DATA_SCHEMA_VERSION = 7;
+export const DATA_SCHEMA_VERSION = 8;
 const BROWSER_SNAPSHOT = 'mylifeos_business_snapshot';
 let desktopReadOnly = false;
 export const setStorageReadOnly = (value: boolean) => { desktopReadOnly = value; };
@@ -73,6 +74,10 @@ export const setStorageItem = (key: string, value: string): Promise<void> => {
 
 export const flushStorageWrites = async (): Promise<void> => {
   if (isAndroid()) await flushNativeWrites();
+  else if (hasDesktopStorage()) {
+    const result = await window.electronAPI!.invoke('storage-flush');
+    if (!result?.ok) throw new StorageWriteError(result?.error || 'Desktop flush failed');
+  }
 };
 
 export const commitStorageSnapshot = async (entries: Record<string, string>, recover = false): Promise<void> => {
