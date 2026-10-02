@@ -49,4 +49,27 @@ describe('desktop async storage boundary', () => {
     changeExternally(); await expect(adapter.set('probe', 'local edit')).rejects.toThrow();
     expect({ ...pendingCompletion, ...adapter.pendingOverrides() }).toEqual({ ...pendingCompletion, probe: 'local edit' });
   });
+  it('dispatches both rapid edits before the first acknowledgement and waits for both on quit', async () => {
+    const { adapter, bridge } = await setup();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const original = bridge.write;
+    vi.mocked(bridge.write).mockImplementationOnce(async request => { await gate; return original(request); });
+    const first = adapter.set('one', 'first'), second = adapter.set('two', 'second');
+    expect(bridge.write).toHaveBeenCalledTimes(2);
+    let finished = false;
+    const closing = adapter.prepareQuit().then(() => { finished = true; });
+    await Promise.resolve(); expect(finished).toBe(false);
+    expect(() => adapter.set('late', 'edit')).toThrow('closing');
+    release(); await Promise.all([first, second, closing]);
+    expect(adapter.status().state).toBe('saved');
+  });
+  it('blocks quit when a renderer CAS conflict remains although main storage is saved', async () => {
+    const { adapter, changeExternally } = await setup(); changeExternally();
+    await expect(adapter.set('probe', 'local')).rejects.toThrow();
+    await expect(adapter.prepareQuit()).rejects.toThrow('Revision conflict');
+    expect(adapter.pendingOverrides()).toEqual({ probe: 'local' });
+    adapter.cancelQuit(); await adapter.discardLocalCandidate();
+    await expect(adapter.prepareQuit()).resolves.toBeUndefined();
+  });
 });

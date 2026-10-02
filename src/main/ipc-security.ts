@@ -1,6 +1,7 @@
 import path from 'path';
 import { pathToFileURL } from 'url';
 import { isAllowedDevServerUrl } from './electron-window-target';
+import { isTaskDate } from './focus-session';
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 240) => typeof v === 'string' && v.length > 0 && v.length <= max && !/[\x00-\x1f]/.test(v);
 export function isTrustedRendererUrl(url: string, appRoot: string, startUrl = ''): boolean {
@@ -16,6 +17,8 @@ export function validateIpcRequest(channel: string, payload: unknown): void {
   if (['storage-read-all', 'storage-flush', 'storage-status', 'storage-retry', 'storage-pending-snapshot', 'app-info',
     'pomodoro-get-active-timers', 'pomodoro-get-completed-focus', 'pomodoro-get-pending-recoveries', 'pomodoro-pending-state'].includes(channel)) valid = payload === undefined;
   else if (['pomodoro-toggle', 'pomodoro-stop', 'pomodoro-complete'].includes(channel)) valid = object(payload) && text(payload.timerId);
+  else if (channel === 'storage-quit-ready') valid = object(payload) && Number.isSafeInteger(payload.requestId)
+    && Number(payload.requestId) > 0 && typeof payload.ok === 'boolean';
   else if (channel === 'pomodoro-abandon-for-restore') valid = object(payload) && payload.confirmed === true;
   else if (channel === 'pomodoro-resolve-recovery') valid = object(payload) && text(payload.recoveryId)
     && ['complete', 'resume-break', 'restart-break', 'dismiss'].includes(String(payload.action));
@@ -23,7 +26,8 @@ export function validateIpcRequest(channel: string, payload: unknown): void {
     valid = text(payload.timerId) && typeof payload.duration === 'number' && Number.isFinite(payload.duration)
       && payload.duration > 0 && payload.duration <= 86400 && typeof payload.isFocusMode === 'boolean'
       && ['notificationsEnabled', 'soundEnabled', 'vibrationEnabled'].every(key => payload[key] === undefined || typeof payload[key] === 'boolean')
-      && ['taskId', 'taskHabitId', 'taskName', 'taskDate'].every(key => payload[key] === undefined || text(payload[key], key === 'taskName' ? 2000 : 240))
+      && ['taskId', 'taskHabitId', 'taskName'].every(key => payload[key] === undefined || text(payload[key], key === 'taskName' ? 2000 : 240))
+      && (payload.taskDate === undefined || isTaskDate(payload.taskDate))
       && (payload.taskPriority === undefined || ['P1', 'P2', 'P3'].includes(String(payload.taskPriority)))
       && (payload.taskDurationMinutes === undefined || typeof payload.taskDurationMinutes === 'number' && Number.isInteger(payload.taskDurationMinutes) && payload.taskDurationMinutes > 0 && payload.taskDurationMinutes <= 1440)
       && (payload.breakDurationSeconds === undefined || typeof payload.breakDurationSeconds === 'number' && Number.isFinite(payload.breakDurationSeconds) && payload.breakDurationSeconds > 0 && payload.breakDurationSeconds <= 86400)

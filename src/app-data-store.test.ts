@@ -368,6 +368,32 @@ describe('AppDataStore', () => {
 
     expect(store.get('a')).toBe('durable-backup');
     expect(logger.error).toHaveBeenCalled();
+    expect(Array.from(fakeFs.files).some(([name, bytes]) => name.startsWith(FILE_PATH + '.corrupt-') && bytes === '{"a":')).toBe(true);
+  });
+
+  it('blocks backup repair when source archival cannot be flushed', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: '{corrupt', [FILE_PATH + '.bak']: JSON.stringify({ a: 'backup' }) });
+    fakeFs.fsyncSync.mockImplementationOnce(() => { throw Error('archive flush failed'); });
+    const store = createStore(fakeFs, createFakeScheduler());
+    expect(store.getStatus().state).toBe('recovery');
+    expect(() => store.set('a', 'replacement')).toThrow('archive flush failed');
+    expect(store.flush().ok).toBe(false);
+    expect(fakeFs.files.get(FILE_PATH)).toBe('{corrupt');
+  });
+  it('retries required archival before saving a pending candidate after rollback failure', () => {
+    const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: 'old' }), [FILE_PATH + '.bak']: JSON.stringify({ a: 'backup' }) });
+    const store = createStore(fakeFs, createFakeScheduler()); store.set('a', 'candidate');
+    fakeFs.files.set(FILE_PATH, '{damaged');
+    fakeFs.writeFileSync.mockImplementationOnce(() => { throw Error('write failed'); });
+    const originalCopy = fakeFs.copyFileSync.getMockImplementation()!;
+    fakeFs.copyFileSync.mockImplementation(() => { throw Error('archive failed'); });
+    expect(store.flush().ok).toBe(false);
+    expect(store.flush()).toMatchObject({ ok: false, error: 'archive failed' });
+    expect(fakeFs.files.get(FILE_PATH)).toBe('{damaged');
+    fakeFs.copyFileSync.mockImplementation(originalCopy);
+    expect(store.flush().ok).toBe(true);
+    expect(JSON.parse(fakeFs.files.get(FILE_PATH)!)).toEqual({ a: 'candidate' });
+    expect(Array.from(fakeFs.files).some(([name, bytes]) => name.startsWith(FILE_PATH + '.corrupt-') && bytes === '{damaged')).toBe(true);
   });
 
   it('does not replace a valid backup with a corrupted primary before an interrupted repair', () => {

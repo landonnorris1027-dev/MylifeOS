@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { AppDataStore } from './main/app-data-store';
-import { DurableFocusRuntime } from './main/focus-runtime';
+import { DurableFocusRuntime, isFocusState } from './main/focus-runtime';
 import { FOCUS_SESSIONS_KEY } from './main/focus-session';
 
 describe('durable focus operations', () => {
@@ -104,5 +104,47 @@ describe('durable focus operations', () => {
     fs.rmdirSync(file + '.tmp');
     runtime.retry();
     expect(runtime.active()[0].isActive).toBe(false);
+  });
+
+  it.each([{ sessionId: 42 }, { startedAt: 'broken' }, { taskDate: '2026-02-30' }, { duration: -60 }, { remaining: -1 }])
+    ('uses a valid timer backup when supplied metadata is corrupt: %j', corruption => {
+      const { runtime, filePath, reload, store } = setup();
+      const original = runtime.start(timer); runtime.toggle(timer.timerId);
+      const valid = fs.readFileSync(filePath, 'utf8');
+      fs.writeFileSync(filePath + '.bak', valid);
+      const invalid = JSON.parse(valid); Object.assign(invalid.activeTimers[0], corruption);
+      fs.writeFileSync(filePath, JSON.stringify(invalid));
+      const restored = reload(); restored.initialize(); restored.complete(timer.timerId);
+      const archive = fs.readdirSync(root).find(name => name.startsWith('pomodoro-state.json.corrupt-'))!;
+      expect(JSON.parse(fs.readFileSync(path.join(root, archive), 'utf8'))).toEqual(invalid);
+      expect(restored.status().state).toBe('saved');
+      expect(JSON.parse(store.get(FOCUS_SESSIONS_KEY)!)[0].id).toBe(original.sessionId);
+    });
+
+  it('restores missing legacy metadata without manufacturing a daily task', () => {
+    const { filePath, reload, store } = setup();
+    fs.writeFileSync(filePath, JSON.stringify([{ timerId: 'legacy', remaining: 60000, isActive: false }]));
+    const restored = reload(); restored.initialize(); restored.complete('legacy');
+    expect(JSON.parse(store.get(FOCUS_SESSIONS_KEY)!)[0]).toMatchObject({ taskId: null, plannedSeconds: 60 });
+    expect(JSON.parse(store.get('mylifeos_daily_logs')!)[timer.taskDate].tasks).toHaveLength(1);
+    expect(isFocusState({ activeTimers: [], pendingRecoveries: [{ recoveryId: 'r', timerId: 't', reason: 'expired', mode: 'focus', taskDate: 'bad' }] })).toBe(false);
+  });
+  it('completes legacy timers with nullable task metadata', () => {
+    const { filePath, reload, store } = setup();
+    fs.writeFileSync(filePath, JSON.stringify([{ timerId: 'legacy', duration: 60, remaining: 60000, isActive: false,
+      taskId: null, taskName: null, taskDate: null, taskHabitId: null, taskPriority: null, taskDurationMinutes: null, notificationMessages: null }]));
+    const restored = reload(); restored.initialize(); restored.complete('legacy');
+    expect(restored.status().state).toBe('saved');
+    expect(JSON.parse(store.get(FOCUS_SESSIONS_KEY)!)[0]).toMatchObject({ taskId: null, actualFocusSeconds: 0 });
+  });
+  it('does not overwrite a corrupt timer primary when archival fails despite a valid backup', () => {
+    const { filePath, reload } = setup();
+    fs.writeFileSync(filePath, '{corrupt');
+    fs.writeFileSync(filePath + '.bak', JSON.stringify([{ timerId: 'legacy', duration: 60, remaining: 60000, isActive: false }]));
+    vi.spyOn(fs, 'copyFileSync').mockImplementationOnce(() => { throw Error('archive denied'); });
+    const restored = reload(); restored.initialize();
+    expect(restored.status().state).toBe('recovery');
+    expect(() => restored.start(timer)).toThrow('archive denied');
+    expect(fs.readFileSync(filePath, 'utf8')).toBe('{corrupt');
   });
 });

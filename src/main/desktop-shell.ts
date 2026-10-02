@@ -237,10 +237,11 @@ function createWindow(): void {
   mainWindow.on('close', (event) => {
     // Closing hides the window into the tray unless the user disabled it or
     // quit from the tray menu / app.quit().
-    if (!options.isQuitting() && isMinimizeToTrayEnabled()) {
+    if (!options.isQuitting()) {
       event.preventDefault();
       flushWindowState();
-      mainWindow?.hide();
+      if (isMinimizeToTrayEnabled()) mainWindow?.hide();
+      else app.quit(); // Keep the renderer alive until the main write queue drains.
     }
   });
 

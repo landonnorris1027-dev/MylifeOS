@@ -48,6 +48,11 @@ let quitPromptOpen = false;
 const writeQueue = new WriteQueue();
 let sentRevision = -1;
 let drainingQuit = false;
+let rendererQuitReady = false;
+let rendererQuitFailed = false;
+let retryRendererQuit = false;
+let quitRequestId = 0;
+let quitAcknowledgement: { id: number; resolve: (ok: boolean) => void } | null = null;
 const diagnostics = new Diagnostics(path.join(app.getPath('userData'), 'diagnostics'));
 function buildInfo(): BuildInfo { return JSON.parse(fs.readFileSync(path.join(__dirname, 'build-info.json'), 'utf8')); }
 process.on('uncaughtExceptionMonitor', error => diagnostics.record('uncaught-error', { code: error.name }));
@@ -266,6 +271,10 @@ function registerPomodoroIpc(): void {
 }
 
 function registerStorageIpc(): void {
+  safeHandle('storage-quit-ready', (_event, payload: { requestId: number; ok: boolean }) => {
+    if (quitAcknowledgement?.id === payload.requestId) quitAcknowledgement.resolve(payload.ok);
+    return { ok: true };
+  });
   safeHandle('app-info', () => buildInfo());
   safeHandle('storage-read-all', () => {
     const entries = getAppDataStore().snapshot();
@@ -380,6 +389,24 @@ if (!gotSingleInstanceLock) {
   });
 
   app.on('before-quit', (event) => {
+    if (!discardOnQuit && !rendererQuitReady && !rendererQuitFailed && shell.window && !shell.window.isDestroyed()) {
+      event.preventDefault();
+      if (!drainingQuit) {
+        drainingQuit = true;
+        const requestId = ++quitRequestId;
+        const acknowledgement = new Promise<boolean>(resolve => { quitAcknowledgement = { id: requestId, resolve }; });
+        const timeout = setTimeout(() => quitAcknowledgement?.id === requestId && quitAcknowledgement.resolve(false), 10000);
+        shell.window.webContents.send('storage-prepare-quit', { requestId, retry: retryRendererQuit });
+        retryRendererQuit = false;
+        void acknowledgement.then(async ok => {
+          clearTimeout(timeout); quitAcknowledgement = null;
+          await writeQueue.drain();
+          rendererQuitReady = ok; rendererQuitFailed = !ok;
+          drainingQuit = false; app.quit();
+        });
+      }
+      return;
+    }
     if (writeQueue.pending) {
       event.preventDefault();
       if (!drainingQuit) {
@@ -388,7 +415,7 @@ if (!gotSingleInstanceLock) {
       }
       return;
     }
-    if (!discardOnQuit && !flushPendingStorageWrites()) {
+    if (!discardOnQuit && (rendererQuitFailed || !flushPendingStorageWrites())) {
       event.preventDefault();
       isQuitting = false;
       if (quitPromptOpen) return;
@@ -403,9 +430,14 @@ if (!gotSingleInstanceLock) {
         defaultId: 0, cancelId: 0,
       }).then(({ response }) => {
         quitPromptOpen = false;
+        rendererQuitReady = false; rendererQuitFailed = false;
         if (response === 2) { discardOnQuit = true; app.quit(); }
-        else if (response === 1) app.quit();
-      }).catch(() => { quitPromptOpen = false; });
+        else if (response === 1) { retryRendererQuit = true; app.quit(); }
+        else shell.window?.webContents.send('storage-quit-cancelled');
+      }).catch(() => {
+        quitPromptOpen = false; rendererQuitReady = false; rendererQuitFailed = false;
+        shell.window?.webContents.send('storage-quit-cancelled');
+      });
       return;
     }
     isQuitting = true;

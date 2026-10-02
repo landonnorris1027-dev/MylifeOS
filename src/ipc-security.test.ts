@@ -14,6 +14,9 @@ describe('desktop IPC boundaries', () => {
   it.each([
     ['pomodoro-start', { timerId: 'x', duration: Infinity, isFocusMode: true }],
     ['pomodoro-start', { timerId: 'x', duration: 60, isFocusMode: true, notificationsEnabled: 'yes' }],
+    ['pomodoro-start', { timerId: 'x', duration: 60, isFocusMode: true, taskDate: 'bad' }],
+    ['pomodoro-start', { timerId: 'x', duration: 60, isFocusMode: true, taskDate: '2026-02-30' }],
+    ['storage-quit-ready', { requestId: 'old', ok: true }],
     ['pomodoro-stop', null], ['storage-write', { key: '__proto__', value: '{}' }],
     ['pomodoro-resolve-recovery', { recoveryId: 'x', action: 'delete-all' }],
     ['dialog-save-backup', { content: '{}', filename: '../backup.json' }],

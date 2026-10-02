@@ -12,6 +12,7 @@ const validInvokeChannels = new Set<string>([
   'storage-flush',
   'storage-read-all',
   'storage-write',
+  'storage-quit-ready',
   'pomodoro-get-active-timers',
   'pomodoro-get-pending-recoveries',
   'pomodoro-resolve-recovery',
@@ -29,6 +30,8 @@ const validSendChannels = new Set<string>([
 
 const validOnChannels = new Set<string>([
   'storage-changed',
+  'storage-prepare-quit',
+  'storage-quit-cancelled',
   'pomodoro-update',
   'storage-write-error',
   'storage-status',

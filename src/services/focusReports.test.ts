@@ -23,4 +23,10 @@ describe('precise focus reporting', () => {
     expect(report.days[0]).toMatchObject({ plannedSeconds: 3000, deviationSeconds: -2908.5 });
     expect(report.tasks[0].review).toBe('Reviewed');
   });
+  it('keeps prior legacy investment separate when an undo-requeued task receives a new measured session', () => {
+    const date = '2026-09-28';
+    const task: Task = { id: 'task', name: 'Requeued', date, priority: 'P1', status: 'inbox', durationMinutes: 25, historicalFocusMinutes: 20 };
+    const report = summarizeFocus({ [date]: { date, tasks: [task] } }, [session('new')], date, date);
+    expect(report.historicalSeconds).toBe(1200); expect(report.measuredSeconds).toBe(91.5);
+  });
 });

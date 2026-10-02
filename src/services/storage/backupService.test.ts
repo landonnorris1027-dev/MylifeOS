@@ -32,6 +32,29 @@ describe('complete snapshot backups', () => {
     }
   });
 
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('imports v%i backups with independent task history and no invented focus sessions', async schemaVersion => {
+    const date = '2026-10-02';
+    const task = { id: 'old', name: 'History', priority: 'P1', status: 'completed', date, durationMinutes: 25, origin: 'manual' };
+    const backup = JSON.parse(exportBackupJSON([], { [date]: { date, tasks: [task as import('../../types').Task] } }));
+    backup.schemaVersion = schemaVersion;
+    if (schemaVersion < 8) delete backup.focusSessions;
+    if (schemaVersion < 5) delete backup.settings;
+    expect((await importBackupJSON(JSON.stringify(backup))).ok).toBe(true);
+    expect(JSON.parse(getStorageItem(KEYS.DAILY_LOGS)!)[date].tasks[0].id).toBe('old');
+    expect(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS) || '[]')).toEqual([]);
+  });
+  it('round-trips retained legacy history in v8 and explicitly omits it in exchange exports', async () => {
+    const date = '2026-10-02';
+    const task = { id: 'requeued', name: 'Old completion', date, priority: 'P1', status: 'inbox', durationMinutes: 25, historicalFocusMinutes: 20 } as import('../../types').Task;
+    const logs = { [date]: { date, tasks: [task] } };
+    expect((await importBackupJSON(exportBackupJSON([], logs))).ok).toBe(true);
+    expect(JSON.parse(getStorageItem(KEYS.DAILY_LOGS)!)[date].tasks[0].historicalFocusMinutes).toBe(20);
+    for (const json of [exportAndroidCompatibleBackupJSON([], logs), exportDesktopCompatibleBackupJSON([], logs)]) {
+      expect(JSON.parse(json).dailyLogs[date].tasks[0]).not.toHaveProperty('historicalFocusMinutes');
+    }
+    expect(task.historicalFocusMinutes).toBe(20);
+  });
+
   it('round-trips all preferences, goals and tasks as a single snapshot', async () => {
     setStorageItem(KEYS.LANGUAGE, 'en');
     saveFocusSettings({ soundEnabled: false, notificationsEnabled: false, breakDurationMinutes: 15 });

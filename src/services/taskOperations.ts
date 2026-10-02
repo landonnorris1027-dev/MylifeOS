@@ -5,6 +5,7 @@ import { formatDateLocal, parseDateLocal } from './storage/dateUtils';
 import { hasSchedulingConflict, isTaskWithinDay } from './scheduling';
 import { createAutomaticRecoveryPoint } from './storage/recoveryPointService';
 import { assertTaskInactive } from './taskActivity';
+import { getFocusSessions } from './focusReports';
 
 type Position = Pick<Task, 'date' | 'status' | 'startTime'>;
 interface Change { before: Task; after: Task; }
@@ -44,7 +45,12 @@ export class TaskOperations {
     if (task.status === 'deleted' || (next.status !== 'deleted' && !['inbox', 'scheduled'].includes(task.status))) throw new Error('Only unfinished tasks can change position');
     if (next.status === 'scheduled' && (!next.startTime || !isTaskWithinDay(next.startTime, task.durationMinutes)
       || hasSchedulingConflict(getAllDailyLogs()[next.date]?.tasks || [], next.startTime, task.durationMinutes, task.id))) throw new Error('Scheduling conflict');
-    await this.persist([{ before: task, after: { ...task, ...next } }], label);
+    const after = { ...task, ...next };
+    if (task.status === 'completed' && next.status === 'deleted' && !task.historicalFocusMinutes
+      && !getFocusSessions().some(session => session.taskId === task.id && session.taskDate === task.date)) {
+      after.historicalFocusMinutes = task.actualFocusMinutes ?? task.durationMinutes;
+    }
+    await this.persist([{ before: task, after }], label);
   }
   async reschedule(tasks: Task[], targetDate: string): Promise<void> {
     if (!tasks.length || new Set(tasks.map(t => t.id)).size !== tasks.length
@@ -75,7 +81,7 @@ export class TaskOperations {
         logs[after.date].tasks = logs[after.date].tasks.filter(t => t.id !== after.id);
         const day = logs[before.date] || { date: before.date, tasks: [] };
         const restored = { ...current, ...position(before) };
-        if (restored.status === 'scheduled' && restored.startTime
+        if (['scheduled', 'completed'].includes(restored.status) && restored.startTime
           && hasSchedulingConflict(day.tasks, restored.startTime, restored.durationMinutes)) {
           restored.status = 'inbox'; restored.startTime = undefined; result = 'inbox';
         }

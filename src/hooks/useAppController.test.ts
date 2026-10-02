@@ -10,6 +10,7 @@ import type { PomodoroRecoveryData } from '../services/electronIPC';
 import type { TimerSessionSnapshot } from '../components/PomodoroTimer';
 import type { DailyData, Task } from '../types';
 import { setStorageReadOnly } from '../services/storage/localStorageStore';
+import { savePlannerSettings } from '../services/plannerSettings';
 
 vi.mock('../services/electronIPC', () => ({
   electronIPC: {
@@ -147,6 +148,34 @@ describe('useAppController scheduling guards', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it.each([5, 15] as const)('counts remaining capacity using %i-minute precision at 10:02', async intervalMinutes => {
+    vi.setSystemTime(new Date(2026, 3, 22, 10, 2));
+    savePlannerSettings({ intervalMinutes, timelineMode: 'fullDay' });
+    await act(async () => {
+      root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+      await drainMicrotasks();
+    });
+    await act(async () => { controller?.actions.selectDate('2026-04-22'); });
+    expect(controller?.state.dayLoadSummary.freeTimelineMinutes).toBe(1440 - (intervalMinutes === 5 ? 605 : 615));
+  });
+
+  it('clears an acknowledged standalone recovery and opens a break panel without creating a daily task', async () => {
+    const legacy = { recoveryId: 'legacy', timerId: 'legacy-focus', reason: 'expired_while_offline', mode: 'focus' as const };
+    (electronIPC.getPendingRecoveries as Mock).mockResolvedValue([legacy]);
+    (electronIPC.resolveRecovery as Mock).mockResolvedValue({ ok: true, resumedTimer: { timerId: 'legacy-focus_break', duration: 300, remaining: 300000, isActive: true, isFocusMode: false } });
+    await act(async () => {
+      root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+      await drainMicrotasks();
+    });
+    expect(controller?.state.pendingRecovery?.recoveryId).toBe('legacy');
+    await act(async () => { await controller?.actions.handleRecoveryResumeBreak(); });
+    expect(controller?.state.pendingRecovery).toBeNull();
+    expect(controller?.state.restoredTimerState).toMatchObject({ timerId: 'legacy-focus', mode: 'break', isActive: true });
+    expect(controller?.state.activeTask?.name).toBe('休息时间');
+    expect(getDailyData('2026-04-22')?.tasks || []).toHaveLength(0);
+    await act(async () => { await controller?.actions.openCurrentSession(); });
   });
 
   it('shows persisted tasks without reconciling habits while storage is read-only', async () => {

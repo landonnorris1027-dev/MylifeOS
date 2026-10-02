@@ -1,6 +1,9 @@
 const zh = {
   backup_desktop_compatible: '导出桌面 0.1.3 兼容备份（v6）',
-  backup_compatibility_hint: '完整 v8 备份包含会话与排期精度；v7/v6 不携带这些字段，v6 还不携带振动偏好。分享不等于文件已保存。',
+  backup_android_compatible: '导出 Android 0.1.4 兼容备份（v7）',
+  backup_desktop_warning: 'v6 Windows 0.1.3：此备份不携带会话记录、排期精度、撤销保留的历史时长及振动设置。请另存完整 v8 备份。',
+  backup_android_warning: 'v7 Android 0.1.4：此备份不携带会话记录、排期精度及撤销保留的历史时长。请另存完整 v8 备份。',
+  backup_compatibility_hint: '完整 v8 备份包含会话、排期精度与撤销保留的历史时长；v7/v6 不携带这些字段，v6 还不携带振动偏好。分享不等于文件已保存。',
   share_backup: '分享完整备份',
   jump_current_time: '跳到当前时段',
   orphan_focus_saved: '原任务已缺失，专注会话已独立保存，未重建任务。',

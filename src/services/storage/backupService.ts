@@ -158,6 +158,7 @@ const sanitizeTask = (
     !isValidStatus(value.status) ||
     !isPositiveInteger(value.durationMinutes) ||
     (value.actualFocusMinutes !== undefined && !isPositiveInteger(value.actualFocusMinutes)) ||
+    (value.historicalFocusMinutes !== undefined && !isPositiveInteger(value.historicalFocusMinutes)) ||
     !isValidDateString(taskDate) ||
     taskDate !== fallbackDate ||
     (value.startTime !== undefined && !isValidTimeString(value.startTime))
@@ -185,6 +186,7 @@ const sanitizeTask = (
     startTime: typeof value.startTime === 'string' ? value.startTime : undefined,
     durationMinutes: value.durationMinutes,
     actualFocusMinutes: typeof value.actualFocusMinutes === 'number' ? value.actualFocusMinutes : undefined,
+    historicalFocusMinutes: typeof value.historicalFocusMinutes === 'number' ? value.historicalFocusMinutes : undefined,
     note,
     review,
   };
@@ -412,18 +414,23 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
 };
 
 /** Explicit exchange format for desktop 0.1.3; vibration stays on the receiving device. */
+const omitRetainedHistory = (payload: BackupPayloadV2) => {
+  for (const day of Object.values(payload.dailyLogs)) for (const task of day.tasks) delete task.historicalFocusMinutes;
+};
 export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
   const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
   payload.schemaVersion = 6;
   delete payload.focusSessions;
   delete payload.settings.planner.intervalMinutes;
   delete payload.settings.focus.vibrationEnabled;
+  omitRetainedHistory(payload);
   return JSON.stringify(payload, null, 2);
 };
 
 export const exportAndroidCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
   const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
   payload.schemaVersion = 7; delete payload.focusSessions; delete payload.settings.planner.intervalMinutes;
+  omitRetainedHistory(payload);
   return JSON.stringify(payload, null, 2);
 };
 

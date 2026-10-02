@@ -21,6 +21,7 @@ export class DesktopStorageAdapter implements StorageAdapter {
   private server: StorageStatus = { state: 'saved', hasPending: false };
   private failing: Promise<void> | null = null;
   private localRevision = 0;
+  private closing = false;
   ready = false;
   constructor(private readonly bridge: DesktopBridge) {}
   revision() { return this.localRevision; }
@@ -67,17 +68,20 @@ export class DesktopStorageAdapter implements StorageAdapter {
     try { await this.failing; } finally { this.failing = null; }
   }
   set(key: string, value: string): Promise<void> {
+    if (this.closing) throw Error('Application is closing');
     if (this.failure || ['error', 'recovery'].includes(this.server.state)) throw Error(this.failure || 'Desktop storage is read-only');
     const request = { key, value, expectedValue: this.get(key) };
     this.entries[key] = value; this.localRevision++; this.writes.push(request); this.publish();
-    const operation = this.tail.then(async () => {
-      if (this.failure) throw Error(this.failure);
+    // Dispatch immediately: ordering belongs to the main queue, so native quit
+    // never races an accepted edit waiting for a previous renderer reply.
+    const operation = (async () => {
       const result = await this.bridge.write(request);
       if (!result.ok) throw Error(result.error || 'Desktop write rejected');
       this.writes = this.writes.filter(item => item !== request);
       this.server = { state: 'saving', hasPending: true }; this.publish();
-    });
-    this.tail = operation.catch(async error => { await this.fail(error instanceof Error ? error.message : String(error)); });
+    })();
+    const acknowledged = operation.catch(async error => { await this.fail(error instanceof Error ? error.message : String(error)); });
+    this.tail = Promise.all([this.tail, acknowledged]).then(() => undefined);
     // Many ordinary callers deliberately use delayed saving. Retain failures in status.
     void operation.catch(() => undefined);
     return operation;
@@ -114,6 +118,11 @@ export class DesktopStorageAdapter implements StorageAdapter {
     await this.reload(); this.publish();
   }
   async settle() { await this.tail; }
+  async prepareQuit(retry = false) {
+    this.closing = true;
+    if (retry) await this.retry(); else await this.flush();
+  }
+  cancelQuit() { this.closing = false; }
   async restoreCompleted() {
     await this.tail;
     this.failure = null; this.candidate = null; this.writes = []; this.server = await this.bridge.status();
@@ -138,4 +147,13 @@ export async function bootstrapDesktopStorage() {
     subscribe: callback => api.on('storage-status', callback), subscribeChanges: callback => api.on('storage-changed', callback),
   });
   await adapter.initialize();
+  const initialized = adapter;
+  api.on('storage-prepare-quit', (request: { requestId: number; retry: boolean }) => {
+    void (async () => {
+      let ok = false;
+      try { await initialized.prepareQuit(request.retry); ok = true; } catch { /* Main keeps the window open for retry/export. */ }
+      await api.invoke('storage-quit-ready', { requestId: request.requestId, ok });
+    })().catch(() => initialized.cancelQuit());
+  });
+  api.on('storage-quit-cancelled', () => initialized.cancelQuit());
 }

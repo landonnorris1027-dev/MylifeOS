@@ -35,9 +35,9 @@ export function summarizeFocus(logs: Record<string, DailyData>, sessions: FocusS
     report.tasks.push(...data.tasks);
     for (const task of data.tasks) {
       if (task.status !== 'deleted') day(date).plannedSeconds += task.durationMinutes * 60;
-      if ((task.status === 'completed' || task.status === 'deleted' && task.actualFocusMinutes)
-        && !recordedTasks.has(date + ':' + task.id)) {
-        const seconds = (task.actualFocusMinutes ?? task.durationMinutes) * 60;
+      if (task.historicalFocusMinutes || ((task.status === 'completed' || task.status === 'deleted' && task.actualFocusMinutes)
+        && !recordedTasks.has(date + ':' + task.id))) {
+        const seconds = (task.historicalFocusMinutes ?? task.actualFocusMinutes ?? task.durationMinutes) * 60;
         report.historicalSeconds += seconds; day(date).historicalSeconds += seconds;
       }
     }

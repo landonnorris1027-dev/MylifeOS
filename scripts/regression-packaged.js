@@ -80,6 +80,7 @@ async function until(check, timeout = 10000) {
   throw new Error(`Condition timed out: ${String(check)}`);
 }
 async function clickText(text) {
+  await until(() => current.evaluate(`Array.from(document.querySelectorAll('button')).some(b => b.innerText.trim() === ${JSON.stringify(text)} && !b.disabled)`));
   await current.evaluate(`(() => { const b = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === ${JSON.stringify(text)} && !b.disabled); if (!b) throw Error('Missing button: ' + ${JSON.stringify(text)}); b.click(); })()`);
   await delay(150);
 }

@@ -43,6 +43,9 @@ interface ElectronAPI {
   invoke(channel: 'app-info'): Promise<import('./main/build-info').BuildInfo>;
   invoke(channel: 'storage-read-all'): Promise<import('./services/storage/desktopStorageAdapter').DesktopSnapshot>;
   invoke(channel: 'storage-write', payload: import('./services/storage/desktopStorageAdapter').DesktopWrite): Promise<StorageResult>;
+  invoke(channel: 'storage-quit-ready', payload: { requestId: number; ok: boolean }): Promise<StorageResult>;
+  on(channel: 'storage-prepare-quit', callback: (data: { requestId: number; retry: boolean }) => void): () => void;
+  on(channel: 'storage-quit-cancelled', callback: () => void): () => void;
   on(channel: 'storage-changed', callback: (data: { revision: number }) => void): () => void;
   invoke(channel: 'pomodoro-abandon-for-restore', payload: { confirmed: boolean }): Promise<void>;
   invoke(channel: 'storage-flush'): Promise<StorageResult & StorageStatus>;

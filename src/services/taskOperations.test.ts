@@ -5,6 +5,7 @@ import { getPlannerSettings, savePlannerSettings } from './plannerSettings';
 import { buildTimelineSlotsForMode, isTaskStartInPastForDate } from './scheduling';
 import { reconcileDayTasks } from './storage/taskPlanner';
 import { Task } from '../types';
+import { getFocusTotals } from './focusReports';
 const task = (id: string, extra: Partial<Task> = {}): Task => ({ id, name: id, priority: 'P1', status: 'inbox', date: '2026-10-02', durationMinutes: 25, origin: 'manual', ...extra });
 const seed = (tasks: Task[]) => saveAllDailyLogs({ '2026-10-02': { date: '2026-10-02', tasks } });
 describe('task operation boundaries', () => {
@@ -34,6 +35,16 @@ describe('task operation boundaries', () => {
     await ops.change(a, { date: a.date, status: 'scheduled', startTime: '10:00' }, 'schedule');
     const logs = getAllDailyLogs(); logs[a.date].tasks[0].status = 'completed'; saveAllDailyLogs(logs);
     await expect(ops.undo()).rejects.toThrow('later task change'); expect(ops.count).toBe(1);
+  });
+  it.each([20, undefined])('restores a completed task to inbox while retaining its historical %s-minute basis', async actualFocusMinutes => {
+    const completed = task('completed', { status: 'completed', startTime: '09:00', actualFocusMinutes }); seed([completed]);
+    const history = getFocusTotals().historicalSeconds;
+    const ops = new TaskOperations(); await ops.change(completed, { date: completed.date, status: 'deleted', startTime: completed.startTime }, 'delete');
+    const logs = getAllDailyLogs(); logs[completed.date].tasks.push(task('new', { status: 'scheduled', startTime: '09:00' })); saveAllDailyLogs(logs);
+    expect(await ops.undo()).toBe('inbox');
+    expect(getAllDailyLogs()[completed.date].tasks.find(t => t.id === completed.id)).toMatchObject({ status: 'inbox', historicalFocusMinutes: actualFocusMinutes ?? 25 });
+    expect(getAllDailyLogs()[completed.date].tasks.find(t => t.id === completed.id)?.startTime).toBeUndefined();
+    expect(getFocusTotals().historicalSeconds).toBe(history);
   });
   it('limits history to 20 operations within one runtime', async () => {
     let a = task('a'); seed([a]); const ops = new TaskOperations();

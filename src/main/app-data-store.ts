@@ -1,9 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { FOCUS_SESSIONS_KEY, validateFocusSessions } from './focus-session';
-import { randomUUID } from 'crypto';
 import type { StorageStatus } from './storage-contract';
-import { DurableFileSystem, readJsonWithBackup, writeTextAtomically } from './durable-file';
+import { DurableFileSystem, readJsonWithBackup, writeTextAtomically, archiveCorruptFile } from './durable-file';
 
 type FileSystemLike = DurableFileSystem;
 
@@ -55,7 +54,8 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
         || typeof day.date !== 'string' || day.tasks.some(task => !object(task) || typeof task.name !== 'string'
           || !text(task.id) || !positive(task.durationMinutes) || !priority(task.priority)
           || !['inbox', 'scheduled', 'completed', 'deleted'].includes(String(task.status))
-          || typeof task.date !== 'string' || (task.actualFocusMinutes !== undefined && (typeof task.actualFocusMinutes !== 'number' || !Number.isFinite(task.actualFocusMinutes) || task.actualFocusMinutes < 0))))) return false;
+          || typeof task.date !== 'string' || (task.historicalFocusMinutes !== undefined && !positive(task.historicalFocusMinutes))
+          || (task.actualFocusMinutes !== undefined && !positive(task.actualFocusMinutes))))) return false;
     }
     for (const key of ['mylifeos_focus_settings', 'mylifeos_profile_settings', 'mylifeos_planner_settings', 'mylifeos_desktop_settings']) {
       if (record[key] === undefined) continue;
@@ -97,6 +97,7 @@ export class AppDataStore {
   private dirty = false;
   private failedSnapshot: Map<string, string> | null = null;
   private recoveryRequired = false;
+  private archiveRequired = false;
   private lastError: string | undefined;
   private readonly onStatusChange?: () => void;
 
@@ -133,6 +134,9 @@ export class AppDataStore {
         return;
       }
       if (result.recoveredFromBackup) {
+        this.archiveRequired = this.fs.existsSync(this.filePath);
+        if (this.archiveRequired) archiveCorruptFile(this.filePath, this.fs);
+        this.archiveRequired = false;
         this.logger.error('[MyLifeOS] Recovered app data store from the last complete backup.');
       }
       if (!isAppDataRecord(result.value)) return;
@@ -191,6 +195,15 @@ export class AppDataStore {
     }
 
     if (this.recoveryRequired && !this.failedSnapshot) return { ok: false, error: this.lastError };
+    if (this.archiveRequired) {
+      try {
+        if (this.fs.existsSync(this.filePath)) archiveCorruptFile(this.filePath, this.fs);
+        this.archiveRequired = false;
+      } catch (error) {
+        this.lastError = error instanceof Error ? error.message : 'Recovery archive failed';
+        this.onStatusChange?.(); return { ok: false, error: this.lastError };
+      }
+    }
     if (this.failedSnapshot) {
       this.revisionNumber++;
       this.recoveryRequired = false;
@@ -264,15 +277,12 @@ export class AppDataStore {
     try {
       if (this.recoveryRequired) {
         // Preserve the original bytes before allowing an explicit recovery.
-        const suffix = `.corrupt-${randomUUID()}`;
         for (const source of [this.filePath, `${this.filePath}.bak`]) {
           if (!this.fs.existsSync(source)) continue;
-          const archive = `${source}${suffix}`;
-          this.fs.copyFileSync(source, archive);
-          const descriptor = this.fs.openSync(archive, 'r+');
-          try { this.fs.fsyncSync(descriptor); } finally { this.fs.closeSync(descriptor); }
+          archiveCorruptFile(source, this.fs);
         }
         this.recoveryRequired = false;
+        this.archiveRequired = false;
       }
       Object.entries(entries).forEach(([key, value]) => this.cache.set(key, value));
       this.revisionNumber++;

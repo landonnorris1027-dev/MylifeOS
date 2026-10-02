@@ -26,6 +26,36 @@ async function childMain() {
   const sender = BrowserWindow.getAllWindows()[0].webContents;
   const trustedEvent = { sender, senderFrame: sender.mainFrame };
   const call = (channel, payload) => handlers.get(channel)(trustedEvent, payload);
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (await sender.executeJavaScript("!!Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '中文')")) break;
+    await delay(100);
+    if (attempt === 79) throw Error('Native verification renderer did not initialize');
+  }
+  if (mode === 'queued-close') {
+    app.on('will-quit', () => {
+      const saved = JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8'));
+      assert.equal(saved.mylifeos_lang, 'zh');
+      assert.equal(JSON.parse(saved.mylifeos_planner_settings).timelineMode, 'fullDay');
+      fs.writeFileSync(path.join(profile, 'verified.json'), JSON.stringify({ mode, rendererQueuedEdits: 'saved before close' }));
+    });
+    await sender.executeJavaScript("(() => { const buttons = Array.from(document.querySelectorAll('button')); const full = buttons.find(b => b.innerText.trim() === '24h'); const language = buttons.find(b => b.innerText.trim() === '中文'); if (!full || !language) throw Error('Rapid edit controls missing'); full.click(); language.click(); })()");
+    BrowserWindow.getAllWindows()[0].close();
+    return;
+  }
+  if (mode === 'renderer-conflict') {
+    await sender.executeJavaScript("(() => { const language = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === '中文'); window.electronAPI.sendSync('storage-set-sync', {key:'mylifeos_lang', value:'external'}); language.click(); })()");
+    await delay(600);
+    assert.equal((await call('storage-status')).state, 'saved');
+    app.quit(); await delay(600);
+    assert.equal(prompts, 1, 'Healthy main storage must not allow a renderer conflict to exit silently');
+    assert.equal(BrowserWindow.getAllWindows()[0].isDestroyed(), false);
+    app.on('will-quit', () => {
+      assert.equal(prompts, 2);
+      assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_lang, 'external');
+      fs.writeFileSync(path.join(profile, 'verified.json'), JSON.stringify({ mode, rendererConflict: 'return then explicit discard' }));
+    });
+    choice = 2; app.quit(); return;
+  }
   const initialSnapshot = await call('storage-read-all');
   assert.equal(initialSnapshot.entries.mylifeos_recovery_points, undefined);
   assert.equal((await call('storage-write', { key: 'mylifeos_recovery_points', value: '[]', expectedValue: null })).ok, true);
@@ -72,9 +102,13 @@ async function childMain() {
 
 async function parentMain() {
   const { killTree, waitForProcessExit, removeDir } = require('./smoke-packaged');
-  for (const mode of ['retry', 'discard']) {
+  for (const mode of ['retry', 'discard', 'queued-close', 'renderer-conflict']) {
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mylifeos-p0-native-'));
     assert.equal(path.dirname(profile), path.resolve(os.tmpdir()));
+    fs.writeFileSync(path.join(profile, 'app-data.json'), JSON.stringify({
+      mylifeos_lang: 'en', mylifeos_desktop_settings: JSON.stringify({ minimizeToTray: false }),
+      mylifeos_planner_settings: JSON.stringify({ timelineMode: 'daytime', intervalMinutes: 15 }),
+    }));
     const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
     const child = spawn(process.execPath, [path.join(root, 'node_modules/electron/cli.js'), __filename,
       '--p0-child', '--p0-profile', profile, '--p0-mode', mode], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -89,7 +123,7 @@ async function parentMain() {
       });
       assert.equal(code, 0, output);
       assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'verified.json'), 'utf8')).mode, mode);
-      console.log(`[p0-native] PASS dialog save/cancel/failure; quit return/${mode}`);
+      console.log(`[p0-native] PASS ${mode}: native main/renderer shutdown and durable data`);
     } catch (error) {
       console.error(output); throw error;
     } finally {

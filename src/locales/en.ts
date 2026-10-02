@@ -1,6 +1,9 @@
 const en = {
   backup_desktop_compatible: 'Export for desktop 0.1.3 (v6)',
-  backup_compatibility_hint: 'Full v8 backups include sessions and scheduling precision. v7/v6 exchange backups omit these; v6 also omits vibration. Sharing does not confirm a saved file.',
+  backup_android_compatible: 'Export for Android 0.1.4 (v7)',
+  backup_desktop_warning: 'Windows 0.1.3 v6 omits session records, scheduling precision, retained historical time and vibration preferences. Keep a separate full v8 backup.',
+  backup_android_warning: 'Android 0.1.4 v7 omits session records, scheduling precision and retained historical time. Keep a separate full v8 backup.',
+  backup_compatibility_hint: 'Full v8 backups include sessions, scheduling precision and historical time retained by undo. v7/v6 omit these; v6 also omits vibration. Sharing does not confirm a saved file.',
   share_backup: 'Share full backup',
   jump_current_time: 'Jump to current time',
   orphan_focus_saved: 'The original task is missing. Your focus session was saved independently.',

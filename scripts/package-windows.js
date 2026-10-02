@@ -15,6 +15,8 @@ for (const target of ['build', 'dist-main']) {
   }
 }
 if (!app.startsWith(path.join(root, 'out', 'windows') + path.sep)) throw Error('Unsafe staging directory');
+// An interrupted or failed new package must not inherit a previous passing report.
+for (const name of ['verification.json', 'performance.json']) fs.rmSync(path.join(output, name), { force: true });
 fs.rmSync(app, { recursive: true, force: true });
 fs.mkdirSync(app, { recursive: true });
 for (const name of ['build', 'dist-main', 'assets']) {
@@ -45,6 +47,6 @@ fs.writeFileSync(path.join(output, 'verification.json'), JSON.stringify({
   verificationFiles: ['smoke-packaged.js', 'regression-packaged.js'], installerBytes: fs.statSync(path.join(output, installer)).size,
   installerSha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(output, installer))).digest('hex'),
   archiveBytes, packagedChecks: 'passed',
-  openGates: ['code signing', 'visible Windows toast', 'OS disk exhaustion', 'power-cut durability'],
+  openGates: ['isolated NSIS installation', 'Windows lock/sleep/wake', 'code signing', 'visible Windows toast', 'OS disk exhaustion', 'power-cut durability'],
 }, null, 2));
 console.log('Verified Windows payload:', exe);

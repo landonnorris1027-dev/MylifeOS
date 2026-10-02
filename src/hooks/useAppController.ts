@@ -308,6 +308,17 @@ export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | nu
   };
 };
 
+/** Panel context for orphan/legacy sessions; this never inserts a daily task. */
+export const buildTimerDisplayTask = (timer: PomodoroUpdateData, fallbackName: string): Task => {
+  const stored = timer.taskId && timer.taskDate ? findStoredTimerTask(timer.taskId, timer.taskDate) : null;
+  return stored || {
+    id: timer.taskId || timer.timerId, date: timer.taskDate || getTodayStr(),
+    name: timer.taskName || fallbackName, priority: isPriority(timer.taskPriority) ? timer.taskPriority : 'P2',
+    habitId: getTimerTaskHabitId(timer) || undefined, origin: timer.taskHabitId ? 'habit' : 'manual',
+    status: 'scheduled', durationMinutes: timer.taskDurationMinutes || Math.max(1, Math.ceil(timer.duration / 60)),
+  };
+};
+
 export const useAppController = () => {
   const { t } = useLanguage();
   const [state, dispatch] = useReducer(appControllerReducer, initialState);
@@ -394,22 +405,18 @@ export const useAppController = () => {
         }
 
         const timer = activeTimers.find((item: PomodoroUpdateData) => !!item.taskId) || activeTimers[0];
-        if (!timer?.taskId || !timer.taskName || !timer.taskDate || !isPriority(timer.taskPriority) || !timer.taskDurationMinutes) {
-          return;
-        }
-
-        const timerHabitId = getTimerTaskHabitId(timer);
-        const storedTask = findStoredTimerTask(timer.taskId, timer.taskDate);
+        if (!timer) return;
+        const displayTask = buildTimerDisplayTask(timer, t(timer.isFocusMode ? 'focus_mode' : 'break_task_name'));
 
         const restoredState: TimerSessionSnapshot = {
           timerId: timer.timerId.replace(/_break$/, ''),
-          taskId: timer.taskId,
-          taskHabitId: timerHabitId || undefined,
-          taskName: timer.taskName,
-          taskPriority: timer.taskPriority,
-          taskDate: timer.taskDate,
-          taskStartTime: storedTask?.startTime,
-          taskDurationMinutes: timer.taskDurationMinutes,
+          taskId: displayTask.id,
+          taskHabitId: displayTask.habitId,
+          taskName: displayTask.name,
+          taskPriority: displayTask.priority,
+          taskDate: displayTask.date,
+          taskStartTime: displayTask.startTime,
+          taskDurationMinutes: displayTask.durationMinutes,
           mode: timer.isFocusMode ? 'focus' : 'break',
           remainingSeconds: Math.max(0, Math.ceil(timer.remaining / 1000)),
           isActive: Boolean(timer.isActive),
@@ -824,27 +831,30 @@ export const useAppController = () => {
       pendingRecovery.mode === 'focus' ? 'resume-break' : 'restart-break',
     );
 
-    if (!result?.ok || !result.resumedTimer || !task) return;
+    if (!result?.ok) return;
 
     dispatch({ type: 'CLEAR_RECOVERY_PROMPT' });
+    if (!result.resumedTimer) return;
+    const displayTask = task || buildTimerDisplayTask(result.resumedTimer, t('break_task_name'));
     dispatch({
       type: 'SET_TIMER_SESSION',
       restoredState: {
         timerId: result.resumedTimer.timerId.replace(/_break$/, ''),
-        taskId: task.id,
-        taskHabitId: task.habitId,
-        taskName: task.name,
-        taskPriority: task.priority,
-        taskDate: task.date,
-        taskStartTime: task.startTime,
-        taskDurationMinutes: task.durationMinutes,
+        taskId: displayTask.id,
+        taskHabitId: displayTask.habitId,
+        taskName: displayTask.name,
+        taskPriority: displayTask.priority,
+        taskDate: displayTask.date,
+        taskStartTime: displayTask.startTime,
+        taskDurationMinutes: displayTask.durationMinutes,
         mode: 'break',
         remainingSeconds: Math.max(0, Math.ceil(result.resumedTimer.remaining / 1000)),
         isActive: Boolean(result.resumedTimer.isActive),
       },
     });
-    dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
-  }, [state.recoveryPrompt.pending]);
+    // displayTask is only panel context; orphan recovery never creates a task.
+    dispatch({ type: 'OPEN_TIMER_FOR_TASK', task: displayTask });
+  }, [state.recoveryPrompt.pending, t]);
 
   const handleRecoveryCompleteTask = useCallback(async () => {
     const pendingRecovery = state.recoveryPrompt.pending;
@@ -924,7 +934,7 @@ export const useAppController = () => {
     const completed = visibleTasks.filter((task) => task.status === 'completed');
     const timelineTasks = [...scheduled, ...completed];
     const freeSlots = buildTimelineSlotsForMode(state.timelineMode, state.intervalMinutes).filter((slot) => (
-      !isTaskStartInPastForDate(state.selectedDate, slot.time) &&
+      !isTaskStartInPastForDate(state.selectedDate, slot.time, new Date(), state.intervalMinutes) &&
       isTaskWithinDay(slot.time, state.intervalMinutes) &&
       !hasSchedulingConflict(timelineTasks, slot.time, state.intervalMinutes)
     ));
@@ -958,13 +968,12 @@ export const useAppController = () => {
   const openCurrentSession = useCallback(async () => {
     try {
       const timer = (await electronIPC.getActiveTimers(true))[0] || (typeof electronIPC.getCompletedFocus === 'function' ? (await electronIPC.getCompletedFocus()).slice(-1)[0] : undefined);
-      if (!timer?.taskId || !timer.taskDate || !timer.taskName || !isPriority(timer.taskPriority)) return;
-      const stored = findStoredTimerTask(timer.taskId, timer.taskDate);
-      const task: Task = stored || { id: timer.taskId, date: timer.taskDate, name: timer.taskName, priority: timer.taskPriority, status: 'inbox', durationMinutes: timer.taskDurationMinutes || Math.max(1, Math.round(timer.duration / 60)) };
+      if (!timer) return;
+      const task = buildTimerDisplayTask(timer, t(timer.isFocusMode ? 'focus_mode' : 'break_task_name'));
       dispatch({ type: 'SET_TIMER_SESSION', restoredState: { timerId: timer.timerId.replace(/_break$/, ''), taskId: task.id, taskDate: task.date, taskName: task.name, taskPriority: task.priority, taskDurationMinutes: task.durationMinutes, taskStartTime: task.startTime, mode: timer.isFocusMode ? 'focus' : 'break', remainingSeconds: Math.ceil(timer.remaining / 1000), isActive: Boolean(timer.isActive), focusCompleted: Boolean(timer.completionPersisted) } });
       dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
     } catch (error) { reportStorageError(error); }
-  }, [reportStorageError]);
+  }, [reportStorageError, t]);
   const handleDirectFocus = useCallback(async (task: Task) => {
     if (task.date !== getTodayStr() || !['inbox', 'scheduled'].includes(task.status)) return;
     try {

@@ -81,10 +81,16 @@ async function measure(count) {
   } finally { client?.close(); killTree(child.pid); waitForProcessExit(child.pid); removeDir(profile); }
 }
 (async () => {
+  const output = path.dirname(path.dirname(exe));
+  fs.rmSync(path.join(output, 'performance.json'), { force: true });
+  const verification = JSON.parse(fs.readFileSync(path.join(output, 'verification.json'), 'utf8'));
   const measurements = [];
   for (const count of [10000, 50000, 100000]) { const result = await measure(count); measurements.push(result);
     console.log(JSON.stringify({ count, coldSearchMs: result.coldSearchMs, searchP95: result.warmSearch.p95, switchP95: result.daySwitch.p95 })); }
-  const report = { generatedAt: new Date().toISOString(), machine: { platform: os.platform(), release: os.release(), cpu: os.cpus()[0].model,
+  const report = { generatedAt: new Date().toISOString(), sourceCommit: verification.sourceCommit, version: verification.version,
+    installerSha256: verification.installerSha256,
+    appAsarSha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(path.dirname(exe), 'resources', 'app.asar'))).digest('hex'),
+    machine: { platform: os.platform(), release: os.release(), cpu: os.cpus()[0].model,
     cores: os.cpus().length, totalMemoryBytes: os.totalmem() }, exeSHA256: crypto.createHash('sha256').update(fs.readFileSync(exe)).digest('hex'),
     method: 'Fixed 100 tasks/day; cold + 40 warm searches across three queries; 40 alternating day changes; event through two animation frames. All samples retained.', measurements };
   fs.writeFileSync(path.join(path.dirname(path.dirname(exe)), 'performance.json'), JSON.stringify(report, null, 2));

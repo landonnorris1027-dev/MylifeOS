@@ -21,6 +21,7 @@ The implementation follows the user-approved plan in this chat, in separate comm
 Complete backups become v8. Import v1–v7 without inventing sessions; explicit v7 Android
 0.1.4 and v6 Windows 0.1.3 exchange exports explain omitted session/precision fields.
 Task.actualFocusMinutes stays a positive rounded integer; sessions store precise seconds.
+Task.historicalFocusMinutes separately preserves legacy history across conflict fallback during undo; v8 retains it and v7/v6 exports explicitly omit it.
 Restore requires no active or pending sessions, pre-operation backup and preserved corrupt
 originals. Completion/recovery must not consume records before durable success.
 

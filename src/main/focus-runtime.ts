@@ -1,10 +1,10 @@
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { AppDataStore } from './app-data-store';
-import { readJsonWithBackup, writeTextAtomically } from './durable-file';
+import { readJsonWithBackup, writeTextAtomically, archiveCorruptFile } from './durable-file';
 import { isPersistedTimerState } from './persisted-state-validation';
 import { normalizePersistedTimerForRestore } from './electron-timer-restore';
-import { FocusSession, FOCUS_SESSIONS_KEY, validateFocusSessions } from './focus-session';
+import { FocusSession, FOCUS_SESSIONS_KEY, validateFocusSessions, isSessionId, isSessionTimestamp, isTaskDate } from './focus-session';
 import type { PomodoroTimerData, PomodoroRecoveryData, PomodoroRecoveryAction } from './types';
 import type { StorageStatus } from './storage-contract';
 
@@ -40,14 +40,41 @@ const localDate = (timestamp: number) => {
   const d = new Date(timestamp);
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
 };
+/** Missing metadata is supported for legacy files; supplied metadata must be usable. */
+function isTimerMetadata(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const t = value as Record<string, unknown>;
+  const optional = (key: string, validate: (v: unknown) => boolean, nullable = false) =>
+    t[key] === undefined || nullable && t[key] === null || validate(t[key]);
+  const seconds = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 86400;
+  return optional('sessionId', isSessionId) && optional('timerId', isSessionId)
+    && ['startedAt', 'endTime', 'expiredAt'].every(key => optional(key, isSessionTimestamp))
+    && ['duration', 'originalDuration'].every(key => optional(key, seconds))
+    && optional('remaining', v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 86400000)
+    && ['taskId', 'taskHabitId'].every(key => optional(key, isSessionId, true))
+    && optional('goalId', isSessionId)
+    && optional('taskDate', isTaskDate, true)
+    && optional('taskName', v => typeof v === 'string' && v.length <= 2000, true)
+    && optional('taskPriority', v => ['P1', 'P2', 'P3'].includes(String(v)), true)
+    && optional('taskDurationMinutes', v => typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 1440, true)
+    && optional('breakDurationSeconds', seconds, true)
+    && ['isActive', 'isFinished', 'isFocusMode', 'notificationsEnabled', 'soundEnabled', 'vibrationEnabled', 'completionPersisted', 'stopped', 'taskMissing']
+      .every(key => optional(key, v => typeof v === 'boolean'))
+    && optional('actualFocusSeconds', v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= Number(t.duration))
+    && optional('notificationMessages', v => !!v && typeof v === 'object' && !Array.isArray(v)
+      && Object.values(v).every(message => typeof message === 'string' && message.length <= 2000), true);
+}
 export function isFocusState(value: unknown): boolean {
   if (!isPersistedTimerState(value)) return false;
-  if (Array.isArray(value)) return true;
+  if (Array.isArray(value)) return value.every(isTimerMetadata);
   const state = value as Partial<FocusState>;
   try {
+    if (!state.activeTimers?.every(isTimerMetadata)
+      || (state.pendingRecoveries !== undefined && !state.pendingRecoveries.every(isTimerMetadata))) return false;
     if (state.pendingCompletions !== undefined) validateFocusSessions(state.pendingCompletions);
     return state.completedChoices === undefined || (Array.isArray(state.completedChoices)
-      && state.completedChoices.every(t => t.completionPersisted === true && typeof t.timerId === 'string'));
+      && state.completedChoices.every(t => isTimerMetadata(t) && t.completionPersisted === true
+        && isSessionId(t.sessionId) && isSessionTimestamp(t.startedAt) && isTaskDate(t.taskDate)));
   } catch { return false; }
 }
 
@@ -66,6 +93,14 @@ export class DurableFocusRuntime {
       if (this.recovery) this.error = 'Timer state and backup are unreadable; preserve or restore timer state before continuing.';
       return;
     }
+    if (result.recoveredFromBackup && fs.existsSync(options.filePath)) {
+      try { archiveCorruptFile(options.filePath); }
+      catch (error) {
+        this.recovery = true;
+        this.error = error instanceof Error ? error.message : 'Unable to archive damaged timer state';
+        return;
+      }
+    }
     const raw: Partial<FocusState> = Array.isArray(result.value) ? { activeTimers: result.value } : result.value as Partial<FocusState>;
     this.state.pendingRecoveries = copy(raw.pendingRecoveries || []);
     this.state.pendingCompletions = copy(raw.pendingCompletions || []);
@@ -74,7 +109,7 @@ export class DurableFocusRuntime {
       const restore = normalizePersistedTimerForRestore(old, this.now());
       const duration = old.duration || (old.taskDurationMinutes || 0) * 60 || Math.max(1, Math.ceil(restore.remaining / 1000));
       const t = { ...old, duration, timerId: old.timerId || randomUUID(), sessionId: old.sessionId || randomUUID(),
-        startedAt: old.startedAt || this.now(), ...restore, isFinished: false,
+        startedAt: old.startedAt ?? this.now(), ...restore, isFocusMode: old.isFocusMode ?? true, isFinished: false,
         elapsed: Math.max(0, duration * 1000 - restore.remaining) } as FocusTimer;
       if (restore.shouldRecover) {
         this.state.pendingRecoveries.push({ ...t, recoveryId: t.sessionId + '_recovery',
@@ -102,10 +137,7 @@ export class DurableFocusRuntime {
   private archiveUnreadableSources(): void {
     for (const source of [this.options.filePath, this.options.filePath + '.bak']) {
       if (!fs.existsSync(source)) continue;
-      const archive = source + '.corrupt-' + randomUUID();
-      fs.copyFileSync(source, archive);
-      const descriptor = fs.openSync(archive, 'r+');
-      try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
+      archiveCorruptFile(source);
     }
   }
   abandonForRestore(): void {
@@ -156,7 +188,7 @@ export class DurableFocusRuntime {
     this.ensureWritable();
     if (!data || typeof data.timerId !== 'string' || !data.timerId || data.timerId.length > 240
       || !Number.isFinite(data.duration) || data.duration <= 0 || data.duration > 86400
-      || typeof data.isFocusMode !== 'boolean') throw new Error('Invalid timer request');
+      || typeof data.isFocusMode !== 'boolean' || !isTimerMetadata(data)) throw new Error('Invalid timer request');
     const existing = this.state.activeTimers.find(t => t.timerId === data.timerId);
     if (existing) return this.sample(existing);
     if (this.state.activeTimers.length) throw new Error('An existing session is already running or paused');
@@ -188,7 +220,7 @@ export class DurableFocusRuntime {
     return { id: t.sessionId, timerId: t.timerId, taskId: t.taskId || null,
       taskDate: t.taskDate || localDate(t.startedAt), taskName: t.taskName || null,
       taskHabitId: t.taskHabitId, goalId: t.goalId || task?.goalId,
-      priority: t.taskPriority, notificationsEnabled: t.notificationsEnabled, plannedSeconds: t.duration,
+      priority: t.taskPriority || undefined, notificationsEnabled: t.notificationsEnabled, plannedSeconds: t.duration,
       actualFocusSeconds: Math.min(t.duration, Math.max(0, this.sample(t).elapsed / 1000)),
       startedAt: t.startedAt, endedAt: Math.max(t.startedAt, this.now()), result, measurement: 'measured' };
   }
