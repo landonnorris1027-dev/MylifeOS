@@ -44,8 +44,9 @@ describe('electronIPC startPomodoro', () => {
     await expect(electronIPC.startPomodoro(timerData)).rejects.toThrow('main process unavailable');
 
     expect(invoke).toHaveBeenCalledWith('pomodoro-start', timerData);
-    expect(send).toHaveBeenCalledWith('pomodoro-stop', { timerId: timerData.timerId });
-    expect(mainProcessTimerActive).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    // Main process retains the candidate; the renderer must not discard retry evidence.
+    expect(mainProcessTimerActive).toBe(true);
     expect(jest.getTimerCount()).toBe(0);
     expect(update).not.toHaveBeenCalled();
   });

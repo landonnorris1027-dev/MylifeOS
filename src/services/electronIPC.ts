@@ -87,16 +87,7 @@ class ElectronIPCHandler {
   async startPomodoro(timerData: PomodoroTimerData): Promise<PomodoroUpdateData> {
     if (this.nativeTimers) return this.nativeTimers.start(timerData);
     if (this.isElectron) {
-      try {
-        return await window.electronAPI!.invoke('pomodoro-start', timerData);
-      } catch (error) {
-        try {
-          window.electronAPI!.send('pomodoro-stop', { timerId: timerData.timerId });
-        } catch (cleanupError) {
-          console.warn('Failed to clean up a timer after desktop start failed:', cleanupError);
-        }
-        throw error;
-      }
+      return window.electronAPI!.invoke('pomodoro-start', timerData);
     }
 
     return this.startBrowserTimer(timerData);

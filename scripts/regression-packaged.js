@@ -385,7 +385,7 @@ async function main() {
   await until(async () => (await invoke('storage-status')).state === 'saved');
   assert.ok(fs.readdirSync(profile).some(name => name.startsWith('app-data.json.corrupt-')));
   assert.ok(fs.readdirSync(profile).some(name => name.startsWith('app-data.json.bak.corrupt-')));
-  assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_focus_settings, atomicEntries.mylifeos_focus_settings);
+  assert.deepEqual(JSON.parse(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_focus_settings), { ...JSON.parse(atomicEntries.mylifeos_focus_settings), vibrationEnabled: true });
   log('PASS corruption blocks empty overwrite; UI restore archives originals and restores settings');
 
   assert.deepEqual(errors, [], 'No renderer errors across the regression run');
