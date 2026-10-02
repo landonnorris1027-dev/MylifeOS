@@ -91,7 +91,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       `}
     >
       <div className="flex flex-col gap-2 min-w-0">
-        <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="task-heading flex items-start justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {task.status === 'completed' ? (
               <CheckCircle2 size={16} className={`${styles.text} opacity-60 flex-shrink-0`} />
@@ -111,7 +111,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
 
           <div
-              className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
+              className="task-actions flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
               onClick={stopEvent}
             >
               {onEditReview && (

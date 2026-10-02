@@ -25,7 +25,8 @@ export const validateBackupSettings = (value: unknown): BackupSettings => {
     let valid = false;
     switch (key) {
       case 'language': valid = v === 'zh' || v === 'en'; break;
-      case 'focus': valid = object(v) && typeof v.soundEnabled === 'boolean' && typeof v.notificationsEnabled === 'boolean' && typeof v.breakDurationMinutes === 'number' && [3, 5, 10, 15].includes(v.breakDurationMinutes); break;
+      case 'focus': valid = object(v) && typeof v.soundEnabled === 'boolean' && typeof v.notificationsEnabled === 'boolean' && typeof v.breakDurationMinutes === 'number' && [3, 5, 10, 15].includes(v.breakDurationMinutes)
+        && (v.vibrationEnabled === undefined || typeof v.vibrationEnabled === 'boolean'); break;
       case 'planner': valid = object(v) && (v.timelineMode === 'daytime' || v.timelineMode === 'fullDay'); break;
       case 'profile': valid = object(v) && typeof v.weeklyTargetMinutes === 'number' && Number.isInteger(v.weeklyTargetMinutes) && v.weeklyTargetMinutes >= 60 && v.weeklyTargetMinutes <= 4800; break;
       case 'desktop': valid = object(v) && typeof v.minimizeToTray === 'boolean'; break;

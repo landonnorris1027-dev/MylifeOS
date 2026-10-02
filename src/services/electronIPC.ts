@@ -1,4 +1,7 @@
 import type { Priority } from '../types';
+import { isAndroid } from './platform';
+import { NativePomodoroManager } from './nativePomodoro';
+import { setNativeTimerVisible } from './nativeReminder';
 import type {
   PomodoroNotificationMessages,
   PomodoroRecoveryAction,
@@ -15,6 +18,8 @@ export interface PomodoroUpdateData {
   endTime: number;
   elapsed: number;
   isFinished: boolean;
+  suppressCompletionAlert?: boolean;
+  completionPersisted?: boolean;
   isActive?: boolean;
   stopped?: boolean;
   isFocusMode?: boolean;
@@ -58,11 +63,13 @@ interface BrowserTimer {
 
 class ElectronIPCHandler {
   private isElectron: boolean;
+  private nativeTimers: NativePomodoroManager | null;
   private browserTimers: Map<string, BrowserTimer> = new Map();
   private updateCallbacks: Set<(data: PomodoroUpdateData) => void> = new Set();
 
   constructor() {
     this.isElectron = typeof window !== 'undefined' && typeof window.electronAPI !== 'undefined';
+    this.nativeTimers = isAndroid() ? new NativePomodoroManager(data => this.notifySubscribers(data)) : null;
 
     if (this.isElectron) {
       try {
@@ -76,6 +83,7 @@ class ElectronIPCHandler {
   }
 
   async startPomodoro(timerData: PomodoroTimerData): Promise<PomodoroUpdateData> {
+    if (this.nativeTimers) return this.nativeTimers.start(timerData);
     if (this.isElectron) {
       try {
         return await window.electronAPI!.invoke('pomodoro-start', timerData);
@@ -176,7 +184,8 @@ class ElectronIPCHandler {
     return payload;
   }
 
-  togglePomodoro(timerId: string): void {
+  async togglePomodoro(timerId: string): Promise<void> {
+    if (this.nativeTimers) return this.nativeTimers.toggle(timerId);
     if (this.isElectron) {
       window.electronAPI?.send('pomodoro-toggle', { timerId });
       return;
@@ -214,7 +223,8 @@ class ElectronIPCHandler {
     });
   }
 
-  stopPomodoro(timerId: string): void {
+  async stopPomodoro(timerId: string): Promise<void> {
+    if (this.nativeTimers) return this.nativeTimers.stop(timerId);
     if (this.isElectron) {
       window.electronAPI?.send('pomodoro-stop', { timerId });
       return;
@@ -246,6 +256,7 @@ class ElectronIPCHandler {
   }
 
   async getActiveTimers(failClosed = false): Promise<PomodoroUpdateData[]> {
+    if (this.nativeTimers) return this.nativeTimers.getActiveTimers();
     if (this.isElectron) {
       try {
         const mainProcessTimers = await window.electronAPI?.invoke('pomodoro-get-active-timers');
@@ -306,8 +317,10 @@ class ElectronIPCHandler {
 
   onPomodoroUpdate(callback: (data: PomodoroUpdateData) => void): () => void {
     this.updateCallbacks.add(callback);
+    if (this.nativeTimers) void setNativeTimerVisible(true).catch(() => undefined);
     return () => {
       this.updateCallbacks.delete(callback);
+      if (this.nativeTimers && this.updateCallbacks.size === 0) void setNativeTimerVisible(false).catch(() => undefined);
     };
   }
 
@@ -324,6 +337,11 @@ class ElectronIPCHandler {
 
   getIsElectron(): boolean {
     return this.isElectron;
+  }
+
+  async completePomodoro(timerId: string): Promise<void> {
+    if (!this.nativeTimers) throw new Error('Native completion is unavailable');
+    await this.nativeTimers.complete(timerId);
   }
 }
 

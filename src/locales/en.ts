@@ -1,4 +1,12 @@
 const en = {
+  backup_desktop_compatible: 'Export for desktop 0.1.3 (v6)',
+  backup_compatibility_hint: 'Full v7 backups include vibration; desktop-compatible v6 omits it. Sharing does not confirm a saved file.',
+  share_backup: 'Share full backup',
+  jump_current_time: 'Jump to current time',
+  focus_saved: 'Focus saved. Start a break?',
+  start_break: 'Start break',
+  close_timer: 'Back to planner',
+  vibration_enabled: 'Vibrate when ringing',
   import_summary_extended: '{goals} goals, {tasks} tasks, {settings} setting groups; {filteredGoals} invalid goals filtered.',
   app_title: 'MyLifeOS',
   app_subtitle: 'Daily focus planning system',

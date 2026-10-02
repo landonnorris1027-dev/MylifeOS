@@ -1,3 +1,6 @@
+import { isAndroid } from '../platform';
+import { commitNativeEntries, flushNativeWrites, getNativeItem, setNativeItem } from '../nativeRuntime';
+
 export const KEYS = {
   HABITS: 'mylifeos_habits',
   GOALS: 'mylifeos_goals',
@@ -12,7 +15,7 @@ export const KEYS = {
 
 // v6 adds weekday rules. Older releases must reject, rather than silently
 // convert a weekday habit back into a daily habit on import.
-export const DATA_SCHEMA_VERSION = 6;
+export const DATA_SCHEMA_VERSION = 7;
 const BROWSER_SNAPSHOT = 'mylifeos_business_snapshot';
 let desktopReadOnly = false;
 export const setStorageReadOnly = (value: boolean) => { desktopReadOnly = value; };
@@ -39,6 +42,7 @@ const hasDesktopStorage = () => {
 };
 
 export const getStorageItem = (key: string): string | null => {
+  if (isAndroid()) return getNativeItem(key);
   if (hasDesktopStorage()) {
     try {
       return window.electronAPI?.sendSync('storage-get-sync', { key }) ?? null;
@@ -51,23 +55,31 @@ export const getStorageItem = (key: string): string | null => {
   return snapshot ? snapshot[key] ?? null : localStorage.getItem(key);
 };
 
-export const setStorageItem = (key: string, value: string) => {
+export const setStorageItem = (key: string, value: string): Promise<void> => {
   if (desktopReadOnly) throw new StorageWriteError('Storage is read-only until retry or recovery succeeds');
+  if (isAndroid()) return setNativeItem(key, value);
   if (hasDesktopStorage()) {
     const result = window.electronAPI?.sendSync('storage-set-sync', { key, value });
     if (!result?.ok) {
       throw new StorageWriteError(result?.error || `Failed to write desktop storage key: ${key}`);
     }
-    return;
+    return Promise.resolve();
   }
 
   const snapshot = usesSnapshot(key) ? readBrowserSnapshot() : null;
   if (snapshot) localStorage.setItem(BROWSER_SNAPSHOT, JSON.stringify({ ...snapshot, [key]: value }));
   else localStorage.setItem(key, value);
+  return Promise.resolve();
+};
+
+export const flushStorageWrites = async (): Promise<void> => {
+  if (isAndroid()) await flushNativeWrites();
 };
 
 export const commitStorageSnapshot = async (entries: Record<string, string>, recover = false): Promise<void> => {
-  if (hasDesktopStorage()) {
+  if (isAndroid()) {
+    await commitNativeEntries(entries, recover);
+  } else if (hasDesktopStorage()) {
     const result = await window.electronAPI!.invoke('storage-commit', { entries, recover });
     if (!result?.ok) throw new StorageWriteError(result?.error || 'Snapshot commit failed');
   } else {

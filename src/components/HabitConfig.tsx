@@ -23,7 +23,10 @@ import { FocusSettings, getFocusSettings, saveFocusSettings } from '../services/
 import { ProfileSettings, getProfileSettings, saveProfileSettings } from '../services/profileSettings';
 import { DesktopSettings, getDesktopSettings, saveDesktopSettings } from '../services/desktopSettings';
 import { PlannerSettings, getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
-import { saveJSONFile } from '../services/platformFiles';
+import { saveJSONFile, shareJSONFile } from '../services/platformFiles';
+import { isAndroid } from '../services/platform';
+import { flushStorageWrites } from '../services/storage/localStorageStore';
+import AndroidReminderSettings from './AndroidReminderSettings';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PrioritySelector from './PrioritySelector';
@@ -300,11 +303,13 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
     });
   };
 
-  const handleBackup = async () => {
-    const json = getAllDataJSON();
+  const handleBackup = async (desktopCompatible = false, share = false) => {
     const filename = `mylifeos_backup_${formatDateLocal(new Date())}.json`;
 
     try {
+      await flushStorageWrites();
+      const json = getAllDataJSON(desktopCompatible);
+      if (share) { await shareJSONFile(json, filename); return; }
       const savedPath = await saveJSONFile(json, filename);
       if (savedPath) {
         setAlertConfig({ isOpen: true, message: t('backup_saved_to', { path: savedPath }), tone: 'success' });
@@ -398,6 +403,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   };
 
   const downloadPreRestoreBackup = async () => {
+    await flushStorageWrites();
     const filename = `mylifeos_pre_restore_${formatBackupTimestamp(new Date())}.json`;
     return saveJSONFile(getAllDataJSON(), filename);
   };
@@ -777,14 +783,14 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
 
           </>}
           {section === 'settings' && <>
-          <nav aria-label={t('settings_title')} className="grid grid-cols-5 gap-1 text-center text-[11px]">
+            <nav aria-label={t('settings_title')} className={`grid ${isAndroid() ? 'grid-cols-4' : 'grid-cols-5'} gap-1 text-center text-[11px]`}>
             {([
               ['#settings-profile', 'profile_settings_title'],
               ['#settings-focus', 'focus_preferences'],
               ['#settings-planner', 'planner_settings_title'],
               ['#settings-desktop', 'desktop_section_title'],
               ['#settings-data', 'data_management'],
-            ] as const).map(([href, key]) => (
+              ] as const).filter(([href]) => !isAndroid() || href !== '#settings-desktop').map(([href, key]) => (
               <a key={href} href={href} className="rounded-lg bg-gray-100 px-1 py-2 text-gray-700 hover:bg-gray-200 focus-visible:ring-2">{t(key)}</a>
             ))}
           </nav>
@@ -840,7 +846,15 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
               </label>
 
               {/* Desktop Section */}
-              <div className="border-t border-gray-100 pt-6">
+              {isAndroid() && <>
+                <label className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <span className="text-sm font-medium text-gray-700">{t('vibration_enabled')}</span>
+                  <input type="checkbox" checked={focusSettings.vibrationEnabled !== false}
+                    onChange={event => handleFocusSettingsChange({ vibrationEnabled: event.target.checked })} />
+                </label>
+                <AndroidReminderSettings />
+              </>}
+              <div className={`border-t border-gray-100 pt-6 ${isAndroid() ? 'hidden' : ''}`}>
                 <label id="settings-desktop" className="mb-3 block scroll-mt-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
                   {t('desktop_section_title')}
                 </label>
@@ -892,7 +906,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={handleBackup}
+                onClick={() => void handleBackup()}
                 className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <Download size={14} />
@@ -916,6 +930,11 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
               />
             </div>
 
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => void handleBackup(true)}>{t('backup_desktop_compatible')}</button>
+              {isAndroid() && <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => void handleBackup(false, true)}>{t('share_backup')}</button>}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">{t('backup_compatibility_hint')}</p>
             {recoveryPoints.length > 0 && (
               <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
                 <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">

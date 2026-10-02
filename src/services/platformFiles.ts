@@ -1,3 +1,8 @@
+import { isAndroid } from './platform';
+import { NativeStorage } from './nativeRuntime';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
 interface SaveBackupResult {
   ok: boolean;
   canceled?: boolean;
@@ -33,10 +38,16 @@ const downloadJSONInBrowser = (json: string, filename: string) => {
  * Saves a JSON backup.
  *
  * On Electron this opens the native save dialog so the user picks the target
- * path; in the browser (and on Android) it falls back to a blob download.
+ * path; Android uses the system document picker and browsers use a blob download.
  * Returns the chosen path, or null when the user canceled the dialog.
  */
 export const saveJSONFile = async (json: string, filename: string): Promise<string | null> => {
+  if (isAndroid()) {
+    const result = await NativeStorage.saveDocument({ content: json, filename });
+    if (result.canceled) return null;
+    if (!result.uri) throw new Error('Backup document was not saved');
+    return result.uri;
+  }
   if (hasElectronDialog()) {
     try {
       const result = await window.electronAPI!.invoke('dialog-save-backup', { filename, content: json });
@@ -57,6 +68,14 @@ export const saveJSONFile = async (json: string, filename: string): Promise<stri
 
   downloadJSONInBrowser(json, filename);
   return filename;
+};
+
+/** Sharing does not acknowledge durable export. Keep its cache file for later readers. */
+export const shareJSONFile = async (json: string, filename: string): Promise<void> => {
+  if (!isAndroid()) { downloadJSONInBrowser(json, filename); return; }
+  await Filesystem.writeFile({ path: `mylifeos-share/${filename}`, data: json, directory: Directory.Cache, encoding: Encoding.UTF8, recursive: true });
+  const { uri } = await Filesystem.getUri({ path: `mylifeos-share/${filename}`, directory: Directory.Cache });
+  await Share.share({ title: filename, files: [uri], dialogTitle: filename });
 };
 
 export type { SaveBackupResult };

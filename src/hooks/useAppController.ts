@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TimerSessionSnapshot } from '../components/PomodoroTimer';
+import { getCompletedNativeFocus } from '../services/nativeRuntime';
 import { PomodoroRecoveryData, PomodoroUpdateData, electronIPC } from '../services/electronIPC';
 import {
   addGoal,
@@ -29,7 +30,8 @@ import {
 } from '../services/scheduling';
 import { getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
 import { DailyData, Task, isPriority } from '../types';
-import { isStorageReadOnly } from '../services/storage/localStorageStore';
+import { flushStorageWrites, isStorageReadOnly } from '../services/storage/localStorageStore';
+import { isAndroid } from '../services/platform';
 
 export type ViewMode = 'planner' | 'profile';
 
@@ -275,9 +277,7 @@ const isRestoredSessionAlive = async (snapshot: TimerSessionSnapshot): Promise<b
     return timers.some((timer) => (
       timer.timerId === snapshot.timerId || timer.timerId === `${snapshot.timerId}_break`
     ));
-  } catch {
-    return false;
-  }
+    } catch (error) { throw error; }
 };
 
 export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | null => {
@@ -347,6 +347,21 @@ export const useAppController = () => {
     const restorePomodoroState = async () => {
       try {
         const activeTimers = await electronIPC.getActiveTimers();
+        if (isAndroid() && activeTimers.length === 0) {
+          const completed = getCompletedNativeFocus().slice(-1)[0];
+          if (completed) {
+            const task = findStoredTimerTask(completed.taskId, completed.taskDate);
+            if (task && task.status === 'completed') {
+              dispatch({ type: 'SET_TIMER_SESSION', restoredState: {
+                timerId: completed.timerId, taskId: task.id, taskName: task.name, taskDate: task.date,
+                taskDurationMinutes: task.durationMinutes, taskPriority: task.priority, mode: 'focus',
+                remainingSeconds: 0, isActive: false, focusCompleted: true,
+              } });
+              dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
+            }
+          }
+          return;
+        }
         if (activeTimers.length === 0) {
           const recoveries = await electronIPC.getPendingRecoveries();
           if (recoveries.length > 0) {
@@ -399,6 +414,9 @@ export const useAppController = () => {
     };
 
     void restorePomodoroState();
+    const restoreCompleted = () => { void restorePomodoroState(); };
+    window.addEventListener('mylifeos-focus-completed', restoreCompleted);
+    return () => window.removeEventListener('mylifeos-focus-completed', restoreCompleted);
   }, []);
 
   const setView = useCallback((view: ViewMode) => {
@@ -466,6 +484,7 @@ export const useAppController = () => {
         return false;
       }
       rescheduleManualTask(task.id, task.date, date);
+      await flushStorageWrites();
       dispatch({ type: 'SET_SELECTED_DATE', date });
       loadData(date);
       return true;
@@ -547,8 +566,8 @@ export const useAppController = () => {
       }
 
       dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
-    })();
-  }, [reopenExistingTimer, state.timerPanel.restoredState]);
+    })().catch(reportStorageError);
+  }, [reopenExistingTimer, state.timerPanel.restoredState, reportStorageError]);
 
   const closeSchedulingModal = useCallback(() => {
     dispatch({ type: 'SET_SCHEDULING_TASK', task: null });
@@ -657,11 +676,15 @@ export const useAppController = () => {
     dispatch({ type: 'CLOSE_TIMER' });
   }, []);
 
-  const handleTaskComplete = useCallback((task: Task, actualFocusMinutes?: number) => {
+  const handleTaskComplete = useCallback(async (task: Task, actualFocusMinutes?: number, keepOpen = false): Promise<boolean> => {
     try {
       const completedMinutes = actualFocusMinutes ?? task.actualFocusMinutes ?? task.durationMinutes;
-      updateTask({ ...task, status: 'completed', actualFocusMinutes: completedMinutes });
-      dispatch({ type: 'CLOSE_TIMER' });
+      const stored = findStoredTimerTask(task.id, task.date) || task;
+      if (stored.status !== 'completed' || stored.actualFocusMinutes !== completedMinutes) {
+        updateTask({ ...stored, status: 'completed', actualFocusMinutes: completedMinutes });
+      }
+      await flushStorageWrites();
+      if (!keepOpen || !isAndroid()) dispatch({ type: 'CLOSE_TIMER' });
       dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
       const completedDay = initializeDay(task.date);
       const visibleTasks = completedDay.tasks.filter((item) => item.status !== 'deleted');
@@ -683,8 +706,10 @@ export const useAppController = () => {
           rate: completionRate,
         }),
       });
+      return true;
     } catch (error) {
       reportStorageError(error);
+      return false;
     }
   }, [loadData, reportStorageError, state.selectedDate, t]);
 
@@ -805,7 +830,7 @@ export const useAppController = () => {
     dispatch({ type: 'CLEAR_RECOVERY_PROMPT' });
 
     if (task) {
-      handleTaskComplete(task);
+      await handleTaskComplete(task);
     }
   }, [handleTaskComplete, state.recoveryPrompt.pending]);
 

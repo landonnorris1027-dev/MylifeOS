@@ -1,4 +1,12 @@
 const zh = {
+  backup_desktop_compatible: '导出桌面 0.1.3 兼容备份（v6）',
+  backup_compatibility_hint: '完整备份 v7 包含震动偏好；桌面兼容 v6 不携带震动偏好。分享不等于文件已保存。',
+  share_backup: '分享完整备份',
+  jump_current_time: '跳到当前时段',
+  focus_saved: '专注记录已保存，是否开始休息？',
+  start_break: '开始休息',
+  close_timer: '返回计划',
+  vibration_enabled: '响铃时震动',
   import_summary_extended: '目标 {goals} 个，任务 {tasks} 条，设置 {settings} 组；过滤无效目标 {filteredGoals} 个。',
   app_title: 'MyLifeOS',
   app_subtitle: '每日专注规划系统',

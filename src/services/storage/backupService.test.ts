@@ -1,4 +1,4 @@
-import { exportBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
+import { exportBackupJSON, exportDesktopCompatibleBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
 import { KEYS, getStorageItem, setStorageItem } from './localStorageStore';
 import { saveFocusSettings, getFocusSettings } from '../focusSettings';
 
@@ -15,7 +15,7 @@ describe('complete snapshot backups', () => {
     localStorage.clear();
     expect((await importBackupJSON(json)).ok).toBe(true);
     expect(getStorageItem(KEYS.LANGUAGE)).toBe('en');
-    expect(getFocusSettings()).toEqual({ soundEnabled: false, notificationsEnabled: false, breakDurationMinutes: 15 });
+    expect(getFocusSettings()).toEqual({ soundEnabled: false, notificationsEnabled: false, breakDurationMinutes: 15, vibrationEnabled: true });
     expect(JSON.parse(getStorageItem(KEYS.GOALS)!)).toEqual([{ id: 'g', name: 'Goal' }]);
     expect(JSON.parse(exportBackupJSON([], {})).settings).toEqual(JSON.parse(json).settings);
   });
@@ -30,6 +30,20 @@ describe('complete snapshot backups', () => {
     const invalid = JSON.parse(exportBackupJSON([], {}));
     invalid.settings.focus.breakDurationMinutes = -1;
     expect(previewImportBackupJSON(JSON.stringify(invalid)).ok).toBe(false);
+  });
+
+  it('exports v6 without vibration and preserves the receiving device preference', async () => {
+    saveFocusSettings({ ...getFocusSettings(), vibrationEnabled: false });
+    const compatible = JSON.parse(exportDesktopCompatibleBackupJSON([], {}));
+    expect(compatible.schemaVersion).toBe(6);
+    expect(compatible.settings.focus).not.toHaveProperty('vibrationEnabled');
+    expect((await importBackupJSON(JSON.stringify(compatible))).ok).toBe(true);
+    expect(getFocusSettings().vibrationEnabled).toBe(false);
+    const full = JSON.parse(exportBackupJSON([], {}));
+    expect(full.schemaVersion).toBe(7);
+    expect(full.settings.focus.vibrationEnabled).toBe(false);
+    delete full.settings.focus.vibrationEnabled;
+    expect(previewImportBackupJSON(JSON.stringify(full)).ok).toBe(false);
   });
 
   it('leaves every previous key intact when the browser snapshot write fails', async () => {

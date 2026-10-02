@@ -1,7 +1,7 @@
 import { DailyData, Goal, Habit } from '../../types';
 import { ImportDataResult, exportBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
 import { formatDateLocal } from './dateUtils';
-import { DATA_SCHEMA_VERSION, KEYS, getStorageItem, safeParse, setStorageItem } from './localStorageStore';
+import { DATA_SCHEMA_VERSION, KEYS, flushStorageWrites, getStorageItem, safeParse, setStorageItem } from './localStorageStore';
 
 export type RecoveryPointReason = 'auto-daily' | 'pre-import' | 'pre-recovery-restore';
 
@@ -125,7 +125,7 @@ export const restoreRecoveryPoint = async (id: string): Promise<ImportDataResult
 
   const preview = previewImportBackupJSON(point.backupJson);
   if (!preview.ok) return preview;
-  try { createRecoveryPoint('pre-recovery-restore', { force: true }); }
+  try { createRecoveryPoint('pre-recovery-restore', { force: true }); await flushStorageWrites(); }
   catch (error) { return { ...preview, ok: false, message: error instanceof Error ? error.message : 'Recovery point creation failed' }; }
   return importBackupJSON(point.backupJson);
 };

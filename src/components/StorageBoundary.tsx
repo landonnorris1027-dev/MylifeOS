@@ -5,6 +5,10 @@ import { exportBackupJSON, importBackupJSON, previewImportBackupJSON } from '../
 import { readBackupSettings, SETTING_KEYS } from '../services/storage/backupSettings';
 import { KEYS, setStorageReadOnly } from '../services/storage/localStorageStore';
 import { saveJSONFile } from '../services/platformFiles';
+import { hasManagedStorage, storageBridge } from '../services/storageBridge';
+import { electronIPC } from '../services/electronIPC';
+import { isAndroid } from '../services/platform';
+import { refreshNativeTimers } from '../services/nativeRuntime';
 
 /** Owns the desktop save state outside the application that may need reloading. */
 export default function StorageBoundary({ children }: { children: React.ReactNode }) {
@@ -13,15 +17,20 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
   const [status, setStatus] = useState<StorageStatus>({ state: 'saving', hasPending: false });
   const [generation, setGeneration] = useState(0);
   const [message, setMessage] = useState('');
+  const [reminderError, setReminderError] = useState('');
   const [busy, setBusy] = useState(false);
   const [candidate, setCandidate] = useState<{ json: string; summary: string } | null>(null);
   const previous = useRef<StorageStatus['state']>('saving');
   const ready = useRef(false);
-  const [initialized, setInitialized] = useState(!window.electronAPI);
+  const [initialized, setInitialized] = useState(!hasManagedStorage());
+  useEffect(() => {
+    const failed = (event: Event) => setReminderError(String((event as CustomEvent).detail));
+    window.addEventListener('mylifeos-reminder-error', failed);
+    return () => window.removeEventListener('mylifeos-reminder-error', failed);
+  }, []);
 
   useEffect(() => {
-    const api = window.electronAPI;
-    if (!api) return;
+    if (!hasManagedStorage()) return;
     let disposed = false;
     let receivedEvent = false;
     const update = (next: StorageStatus) => {
@@ -38,13 +47,13 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       setStatus(next);
       setInitialized(true);
     };
-    const unsubscribe = api.on('storage-status', next => { receivedEvent = true; update(next); });
-    api.invoke('storage-status').then(next => { if (!receivedEvent) update(next); })
+    const unsubscribe = storageBridge.subscribe(next => { receivedEvent = true; update(next); });
+    storageBridge.status().then(next => { if (!receivedEvent) update(next); })
       .catch(error => update({ state: 'recovery', hasPending: false, error: String(error) }));
     return () => { disposed = true; unsubscribe(); setStorageReadOnly(false); };
   }, []);
 
-  if (!window.electronAPI) return <>{children}</>;
+  if (!hasManagedStorage()) return <>{children}</>;
   const run = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true); setMessage('');
@@ -52,7 +61,7 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
     finally { setBusy(false); }
   };
   const exportPending = async () => {
-    const snapshot = await window.electronAPI!.invoke('storage-pending-snapshot');
+    const snapshot = await storageBridge.pending();
     const settings = readBackupSettings();
     Object.entries(SETTING_KEYS).forEach(([name, key]) => {
       if (snapshot[key] !== undefined) settings[name as keyof typeof settings] = name === 'language' ? snapshot[key] : JSON.parse(snapshot[key]);
@@ -77,15 +86,13 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       {(failed || recovery) && <div className="mt-2 flex flex-wrap items-center gap-2">
         {status.hasPending && <>
           <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
-            const result = await window.electronAPI!.invoke('storage-retry');
-            if (!result.ok) throw new Error(result.error || 'Save failed');
+            await storageBridge.retry();
           })}>{zh ? '重试保存' : 'Retry saving'}</button>
           <button className={buttonClass} disabled={busy} onClick={() => void run(exportPending)}>{zh ? '导出待保存数据' : 'Export pending data'}</button>
         </>}
-        {recovery && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
-          const timers = await window.electronAPI!.invoke('pomodoro-get-active-timers');
-          timers.forEach(timer => window.electronAPI!.send('pomodoro-stop', { timerId: timer.timerId }));
-          await window.electronAPI!.invoke('pomodoro-get-active-timers');
+        {(recovery || failed) && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
+          const timers = isAndroid() ? (await refreshNativeTimers(true)).filter(session => session.state !== 'completed') : await electronIPC.getActiveTimers(true);
+          for (const timer of timers) await electronIPC.stopPomodoro(timer.timerId);
           setMessage(zh ? '计时器已停止，可继续恢复。' : 'Timers stopped. You can now restore.');
         })}>{zh ? '停止当前计时器' : 'Stop current timers'}</button>}
         {recovery && <label className={buttonClass}>{zh ? '选择恢复备份' : 'Choose recovery backup'}
@@ -113,6 +120,7 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
         <button className={buttonClass} disabled={busy} onClick={() => setCandidate(null)}>{zh ? '取消' : 'Cancel'}</button>
       </div>}
       {message && <p role="alert">{message}</p>}
+      {reminderError && <p role="alert">{zh ? '提醒设置失败，请到应用设置检查：' : 'Reminder failed; check application settings: '}{reminderError}</p>}
     </section>
     {initialized && !recovery && <fieldset key={generation} disabled={failed || busy}
       ref={element => { if (element) { if (failed || busy) element.setAttribute('inert', ''); else element.removeAttribute('inert'); } }}

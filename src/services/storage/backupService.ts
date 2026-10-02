@@ -1,6 +1,9 @@
 import { DailyData, Goal, Habit, Priority, Task, TaskStatus } from '../../types';
 import { DATA_SCHEMA_VERSION, KEYS, commitStorageSnapshot } from './localStorageStore';
 import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSettings } from './backupSettings';
+import { getFocusSettings } from '../focusSettings';
+import { isAndroid } from '../platform';
+import { flushNativeWrites, refreshNativeTimers } from '../nativeRuntime';
 
 interface BackupPayloadV2 {
   schemaVersion: number;
@@ -263,6 +266,12 @@ const normalizeBackupPayload = (
   }
   const settings = raw.settings === undefined ? undefined : validateBackupSettings(raw.settings);
   if (schemaVersion >= 5 && (!settings || Object.keys(settings).length !== 5)) throw new Error('Incomplete backup settings');
+  if (settings?.focus) {
+    const focus = settings.focus as Record<string, unknown>;
+    if (schemaVersion >= 7 && typeof focus.vibrationEnabled !== 'boolean') throw new Error('Incomplete vibration preference');
+    settings.focus = { ...focus, vibrationEnabled: typeof focus.vibrationEnabled === 'boolean'
+      ? focus.vibrationEnabled : getFocusSettings().vibrationEnabled !== false };
+  }
 
   const rawGoals = Array.isArray(raw.goals) ? raw.goals : [];
   const seenGoalIds = new Set<string>();
@@ -361,6 +370,12 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
     const parsed = JSON.parse(jsonStr) as BackupPayloadV2 | LegacyBackupPayloadV1;
     const normalized = normalizeBackupPayload(parsed);
     const data = normalized.payload;
+    if (isAndroid() && !recover) {
+      await flushNativeWrites();
+      if ((await refreshNativeTimers()).some(session => session.state !== 'completed')) {
+        throw new Error('请先结束当前专注或休息，再导入或恢复。 / Finish the current session before restoring.');
+      }
+    }
 
     // Preserve the verified snapshot exactly; normal day initialization reconciles habits later.
     await commitStorageSnapshot({
@@ -381,6 +396,14 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
     console.error('Import failed', e);
     return buildImportFailureResult(e);
   }
+};
+
+/** Explicit exchange format for desktop 0.1.3; vibration stays on the receiving device. */
+export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
+  const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
+  payload.schemaVersion = 6;
+  delete payload.settings.focus.vibrationEnabled;
+  return JSON.stringify(payload, null, 2);
 };
 
 export const previewImportBackupJSON = (jsonStr: string): ImportDataResult => {

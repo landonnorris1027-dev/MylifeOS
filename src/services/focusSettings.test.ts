@@ -22,6 +22,7 @@ describe('focus settings', () => {
       soundEnabled: false,
       notificationsEnabled: false,
       breakDurationMinutes: 10,
+      vibrationEnabled: true,
     });
     expect(getFocusSettings()).toEqual(saved);
   });
@@ -37,6 +38,7 @@ describe('focus settings', () => {
       soundEnabled: false,
       notificationsEnabled: true,
       breakDurationMinutes: DEFAULT_FOCUS_SETTINGS.breakDurationMinutes,
+      vibrationEnabled: true,
     });
   });
 });

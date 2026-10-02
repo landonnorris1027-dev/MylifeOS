@@ -5,14 +5,16 @@ import './index.css';
 import { LanguageProvider } from './contexts/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import StorageBoundary from './components/StorageBoundary';
+import { isAndroid } from './services/platform';
+import { bootstrapNativeStorage } from './services/nativeRuntime';
+import { KEYS } from './services/storage/localStorageStore';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
+const render = () => ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <LanguageProvider>
       <ErrorBoundary
@@ -26,3 +28,6 @@ root.render(
     </LanguageProvider>
   </React.StrictMode>
 );
+
+if (isAndroid()) void bootstrapNativeStorage(Object.values(KEYS)).then(render);
+else render();

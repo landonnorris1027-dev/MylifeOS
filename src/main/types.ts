@@ -12,6 +12,8 @@ export interface PomodoroTimerData {
   duration: number;
   isFocusMode: boolean;
   notificationsEnabled?: boolean;
+  vibrationEnabled?: boolean;
+  soundEnabled?: boolean;
   breakDurationSeconds?: number;
   taskId?: string;
   taskHabitId?: string;
