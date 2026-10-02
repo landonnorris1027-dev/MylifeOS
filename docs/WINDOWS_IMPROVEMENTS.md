@@ -51,13 +51,18 @@ or claim code signing, visible Windows toast, OS disk-full or power-cut tests pa
 - P1-B candidate 0.1.7 passed all packaged regressions including measured/historical statistics and calendar-week review.
 - P2 implementation: Vite 8.3.2 / Vitest 5.0.3 (Node 22.12 baseline), all original tests migrated; revision/raw-value caches, asynchronous ordinary IPC with conflict-safe retry, serialized mutations/quit drain, split window/tray and preferences modules, adapter contracts, CSP/navigation/source validation, bounded redacted diagnostics, build information and stale-build checks. Windows CI produces local candidate artifacts with publish disabled. Native dialog choices, installation, screen lock/sleep, visible notification and destructive OS fault tests are separate acceptance gates.
 
+- Final candidate 0.1.8, source `fdd76f5`: 29 suites / 209 tests, renderer/main type checks and production builds passed; fresh and real-0.1.3-fixture packaged regressions passed. Four main/renderer native shutdown scenarios passed (dialog choices stubbed). app.asar is 601,086 bytes, installer 120,523,177 bytes; candidate identity/hashes and exact acceptance boundaries are recorded in [WINDOWS_VALIDATION](WINDOWS_VALIDATION.md).
+- Final 10k/50k/100k fixed fixtures: warm search P95 74.4/73.6/89.4 ms; day switch P95 33.3/40.9/42.0 ms. All samples, correctness checks and artifact hashes are retained in `out/windows/0.1.8/performance.json`.
+- Android compile verification passed on the same source: 209 shared tests, 10 JVM tests, lint (0 errors / 19 warnings), debug/instrumentation APK compilation. No device installation or instrumentation execution.
+- Actual Windows save was assisted by the user; saved synthetic JSON bytes were verified and preserved. The user requested skipping the cancel-dialog step; it is unverified and will not be retried. Interactive verification now opens one explicitly selected case per invocation.
+
 ## Reproducible commands
 
 - `npm run verify:quality`: renderer type check, all unit tests, production frontend and main process.
 - `npm run electron:build`: quality, cleanup, standalone Windows staging, installer and disposable-profile packaged regressions. Output: `out/windows/<version>/`.
 - `MYLIFEOS_SMOKE_EXE=<absolute candidate exe> node scripts/benchmark-windows.js`: 10k/50k/100k fixtures, cold and 40 repeated searches, 40 day switches, machine details and all timing samples.
 - `npm run verify:native` and `npm run verify:p0-native`: isolated Windows shell and save/quit paths (OS save-dialog choices stubbed).
-- `MYLIFEOS_SMOKE_EXE=<absolute candidate exe> node scripts/verify-native-dialog.js`: interactive actual Windows save/cancel dialogs using a disposable profile. Save to the printed test destination, then cancel the second dialog; verified bytes and packaged source identity are recorded in `native-dialog-verification.json`.
+- `MYLIFEOS_SMOKE_EXE=<absolute candidate exe> node scripts/verify-native-dialog.js`: optional interactive actual Windows save case using a disposable profile; save to the printed test destination. Set `MYLIFEOS_DIALOG_CASE=cancel` only when explicitly requesting the separate cancel case. Each invocation opens one dialog and records only that case in `native-dialog-<case>-verification.json`; neither case is being rerun for this delivery. `MYLIFEOS_DIALOG_CONTROLLED=1` waits for the printed marker path before opening it.
 - `JAVA_HOME=<JDK21> ANDROID_HOME=<SDK> npm run android:verify:compile`: shared checks, Capacitor sync, native unit tests/lint and debug/instrumentation APK compilation. Never installs or runs on a phone; Android native version remains 0.1.4/code4.
 
 Vite uses relative resources and legacy chunks for file:// and the existing Android browser targets. Toolchain references: https://vite.dev/guide/ and https://vitest.dev/guide/.
