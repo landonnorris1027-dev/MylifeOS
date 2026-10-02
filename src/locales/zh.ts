@@ -1,6 +1,6 @@
 const zh = {
   backup_desktop_compatible: '导出桌面 0.1.3 兼容备份（v6）',
-  backup_compatibility_hint: '完整备份 v7 包含震动偏好；桌面兼容 v6 不携带震动偏好。分享不等于文件已保存。',
+  backup_compatibility_hint: '完整 v8 备份包含会话与排期精度；v7/v6 不携带这些字段，v6 还不携带振动偏好。分享不等于文件已保存。',
   share_backup: '分享完整备份',
   jump_current_time: '跳到当前时段',
   focus_saved: '专注记录已保存，是否开始休息？',

@@ -43,3 +43,6 @@ or claim code signing, visible Windows toast, OS disk-full or power-cut tests pa
 
 - P0 candidate 0.1.5: all packaged regressions passed; app.asar 3,132,413 bytes; installer 121,024,247 bytes; SHA-256 34b204d4676af8addee94625dabf3015c8ae93a48739b5bb94f2c23291a2afc3. Isolated window/tray/second-instance and native save/quit paths passed (save-dialog choices stubbed; visual dialog acceptance remains separate).
 - P1-A: direct focus, precision, batch operations and task-scoped undo; 24 suites / 160 tests plus renderer/main type checks and production builds passed. Candidate regression includes all three grids, preserved 09:07 schedule, paused-session routing, batch undo and text shortcut isolation.
+
+- P1-A candidate 0.1.6 passed the complete packaged regression, including direct focus, original non-grid schedule, paused-session routing, batch move/undo and input shortcut isolation.
+- P1-B: measured seconds, stopped sessions, separate historical estimates, local calendar week/rolling periods, goal snapshots, plan deviation and weekly review. Android keeps its existing statistics view. 25 suites / 163 tests and both type checks/production builds passed.
