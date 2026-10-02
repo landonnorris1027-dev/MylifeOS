@@ -1,3 +1,4 @@
+import { bootstrapDesktopStorage } from './services/storage/desktopStorageAdapter';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -30,4 +31,5 @@ const render = () => ReactDOM.createRoot(rootElement).render(
 );
 
 if (isAndroid()) void bootstrapNativeStorage(Object.values(KEYS)).then(render);
+else if (window.electronAPI) void bootstrapDesktopStorage().then(render, render);
 else render();

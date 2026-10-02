@@ -49,7 +49,7 @@ npm ci
 npm start
 ```
 
-保持终端进程运行，打开 [http://localhost:3000](http://localhost:3000)。`public/index.html` 是空的源码模板，双击它不会加载 React 应用，因此会显示白屏。
+保持终端进程运行，打开 [http://localhost:3000](http://localhost:3000)。`index.html` 是空的源码模板，双击它不会加载 React 应用，因此会显示白屏。
 
 网页数据绑定浏览器和站点地址；`localhost` 与 `127.0.0.1` 的数据也可能不同。使用固定地址访问，变更浏览器或地址前先备份。清除站点数据会移除网页数据；关闭或刷新页面不能视为原生会话仍在后台运行。
 
@@ -76,7 +76,7 @@ npm start
 
 ### Windows 与网页
 
-当前计时界面在专注结束后先进入休息流程，随后写入任务完成记录。Windows 由 Electron 主进程计时；未结束会话保存在 `pomodoro-state.json`，离线已到期会话在下次启动时提示处理。网页使用页面计时，不具备 Windows/Android 原生后台能力。
+Windows 0.1.8 在专注完成记录保存成功后才显示“开始休息 / 返回计划”。Windows 由 Electron 主进程计时；未结束会话保存在 `pomodoro-state.json`，离线已到期会话在下次启动时提示处理。网页使用页面计时，不具备 Windows/Android 原生后台能力。
 
 ## 4. 安卓提醒设置
 
@@ -152,7 +152,7 @@ Windows/网页有键盘时：`Ctrl+1` 计划、`Ctrl+2` 画像、`Ctrl+K` 搜索
 
 ### 双击 index.html 后白屏
 
-在项目目录运行 `npm start`，访问 `http://localhost:3000`。不要直接打开 `public/index.html`。
+在项目目录运行 `npm start`，访问 `http://localhost:3000`。不要直接打开 `index.html`。
 
 ### Windows 启动脚本执行后没有窗口
 
@@ -179,3 +179,13 @@ Windows 检查系统托盘；Android 可从最近任务或应用图标返回。�
 `b2164cb` 安卓 0.1.4 构建通过 143 项共享测试、10 项原生 JVM 测试，Release Lint 为 0 错误、19 警告，证书指纹与旧 APK 一致。仪器测试已编译但未执行；Android 7/13/16、实际覆盖升级、锁屏/重启/省电/静音/振动以及 360–430dp、键盘和系统返回完整流程仍待设备验收。
 
 详见[验证记录与边界](docs/android/VALIDATION.md)和[安卓构建说明](docs/android/IMPLEMENTATION.md)。本轮使用说明更新不重建 APK；产物的源码提交以 `out/android/verification.json` 为准。
+
+## Windows 0.1.8 候选版
+
+候选程序位于 `out/windows/0.1.8/win-unpacked/MyLifeOS.exe`。日常切换前，先导出完整 v8 备份，并保留旧程序和对应 v6 兼容备份；本轮没有改动现有快捷方式。
+
+当天待办可直接开始专注，无需先安排时间。计时运行或暂停时无法删除/改期。精度下拉框提供 5/15/30 分钟，切换不会移动旧的非整刻排期。批量改期仅接受未完成临时任务，任何一项不合格会整批中止。Ctrl+Z 撤销本次运行内最近任务操作，Ctrl+J 打开当前会话；输入框和弹窗内快捷键不干扰编辑。
+
+画像中实际投入按会话秒数计算，历史估算另列；本周、近七天、计划偏差、目标分布与周复盘可分别查看。跨午夜会话归属原任务日期，历史任务缺失也保留会话。
+
+完整 v8 包含会话和排期精度；Android 0.1.4 使用 v7 交换，Windows 0.1.3 使用 v6。兼容导出不会携带新版会话/精度。导入/恢复前须结束或明确放弃活动、待提交会话，并完成操作前备份。

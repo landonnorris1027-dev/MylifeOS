@@ -3,6 +3,7 @@ const en = {
   backup_compatibility_hint: 'Full v8 backups include sessions and scheduling precision. v7/v6 exchange backups omit these; v6 also omits vibration. Sharing does not confirm a saved file.',
   share_backup: 'Share full backup',
   jump_current_time: 'Jump to current time',
+  orphan_focus_saved: 'The original task is missing. Your focus session was saved independently.',
   focus_saved: 'Focus saved. Start a break?',
   stop_focus: 'Stop focus',
   start_focus: 'Start focus',

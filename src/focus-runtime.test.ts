@@ -8,7 +8,7 @@ import { FOCUS_SESSIONS_KEY } from './main/focus-session';
 describe('durable focus operations', () => {
   let root: string;
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'mylifeos-focus-')); });
-  afterEach(() => { jest.restoreAllMocks(); fs.rmSync(root, { recursive: true, force: true }); });
+  afterEach(() => { vi.restoreAllMocks(); fs.rmSync(root, { recursive: true, force: true }); });
 
   const timer = { timerId: 'focus', duration: 120, isFocusMode: true, taskId: 'task', taskDate: '2026-10-02', taskName: 'Study', taskPriority: 'P1' as const };
   const setup = () => {
@@ -62,14 +62,14 @@ describe('durable focus operations', () => {
   it('keeps the outbox if cleanup fails after the business transaction committed', () => {
     const { runtime, store, filePath, advance, reload } = setup(); runtime.start(timer); advance(1000);
     const write = fs.writeFileSync;
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string, options: unknown) => {
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, data: string, options: unknown) => {
       if (String(file) === filePath + '.tmp' && JSON.parse(data).pendingCompletions.length === 0) throw Error('cleanup blocked');
       return write(file, data, options as fs.WriteFileOptions);
     }) as typeof fs.writeFileSync);
     expect(() => runtime.complete(timer.timerId)).toThrow('cleanup blocked');
     expect(JSON.parse(store.get(FOCUS_SESSIONS_KEY)!)).toHaveLength(1);
     expect(JSON.parse(fs.readFileSync(filePath, 'utf8')).pendingCompletions).toHaveLength(1);
-    jest.restoreAllMocks(); const restored = reload(); restored.initialize();
+    vi.restoreAllMocks(); const restored = reload(); restored.initialize();
     expect(JSON.parse(store.get(FOCUS_SESSIONS_KEY)!)).toHaveLength(1);
     expect(restored.pending()).toBeNull();
   });

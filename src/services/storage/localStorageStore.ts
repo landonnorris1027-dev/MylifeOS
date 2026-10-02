@@ -1,3 +1,4 @@
+import { getDesktopStorage } from './desktopStorageAdapter';
 import { isAndroid } from '../platform';
 import { commitNativeEntries, flushNativeWrites, getNativeItem, setNativeItem } from '../nativeRuntime';
 
@@ -43,6 +44,7 @@ const hasDesktopStorage = () => {
 
 export const getStorageItem = (key: string): string | null => {
   if (isAndroid()) return getNativeItem(key);
+  if (getDesktopStorage()?.ready) return getDesktopStorage()!.get(key);
   if (hasDesktopStorage()) {
     try {
       return window.electronAPI?.sendSync('storage-get-sync', { key }) ?? null;
@@ -58,6 +60,7 @@ export const getStorageItem = (key: string): string | null => {
 export const setStorageItem = (key: string, value: string): Promise<void> => {
   if (desktopReadOnly) throw new StorageWriteError('Storage is read-only until retry or recovery succeeds');
   if (isAndroid()) return setNativeItem(key, value);
+  if (getDesktopStorage()?.ready) return getDesktopStorage()!.set(key, value);
   if (hasDesktopStorage()) {
     const result = window.electronAPI?.sendSync('storage-set-sync', { key, value });
     if (!result?.ok) {
@@ -74,6 +77,7 @@ export const setStorageItem = (key: string, value: string): Promise<void> => {
 
 export const flushStorageWrites = async (): Promise<void> => {
   if (isAndroid()) await flushNativeWrites();
+  else if (getDesktopStorage()?.ready) await getDesktopStorage()!.flush();
   else if (hasDesktopStorage()) {
     const result = await window.electronAPI!.invoke('storage-flush');
     if (!result?.ok) throw new StorageWriteError(result?.error || 'Desktop flush failed');
@@ -84,8 +88,10 @@ export const commitStorageSnapshot = async (entries: Record<string, string>, rec
   if (isAndroid()) {
     await commitNativeEntries(entries, recover);
   } else if (hasDesktopStorage()) {
+    if (getDesktopStorage()?.ready) { if (recover) await getDesktopStorage()!.settle(); else await getDesktopStorage()!.flush(); }
     const result = await window.electronAPI!.invoke('storage-commit', { entries, recover });
     if (!result?.ok) throw new StorageWriteError(result?.error || 'Snapshot commit failed');
+    if (getDesktopStorage()?.ready) await getDesktopStorage()!.restoreCompleted();
   } else {
     const previous: Record<string, string> = {};
     Object.values(KEYS).filter(usesSnapshot).forEach(key => {

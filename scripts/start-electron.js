@@ -1,6 +1,23 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { execFileSync } = require('child_process');
+const { metadata } = require('./build-metadata');
+const root = path.resolve(__dirname, '..');
+const expected = metadata();
+const targets = ['build', 'dist-main'];
+const stale = targets.some(target => {
+  try { const info = JSON.parse(fs.readFileSync(path.join(root, target, 'build-info.json'), 'utf8'));
+    return info.fingerprint !== expected.fingerprint || info.sourceCommit !== expected.sourceCommit;
+  } catch { return true; }
+});
+if (stale || !fs.existsSync(path.join(root, 'build/index.html')) || !fs.existsSync(path.join(root, 'dist-main/electron.js'))) {
+  console.log('[Launcher] Rebuilding both frontend and main process from the current source.');
+  for (const args of [['node_modules/vite/bin/vite.js', 'build'], ['scripts/build-metadata.js', 'build'],
+    ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.main.json'], ['scripts/build-metadata.js', 'dist-main']]) {
+    execFileSync(process.execPath, args, { cwd: root, stdio: 'inherit' });
+  }
+}
 
 // 核心修复逻辑：不再依赖系统的 .cmd 关联，而是直接使用 node 运行 electron 的入口文件
 // 这样可以彻底避免“在 VS Code 中打开文件”或“spawn UNKNOWN”错误
@@ -24,7 +41,7 @@ const env = { ...process.env };
 const child = spawn(process.execPath, spawnArgs, { 
   stdio: 'inherit', 
   shell: false, // 禁用 shell 以提高稳定性
-  env
+  env, cwd: root, windowsHide: true
 });
 
 child.on('exit', (code, signal) => {

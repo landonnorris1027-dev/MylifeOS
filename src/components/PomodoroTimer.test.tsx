@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import PomodoroTimer from './PomodoroTimer';
@@ -8,8 +9,8 @@ import type { PomodoroUpdateData } from '../services/electronIPC';
 import type { Task } from '../types';
 import { isAndroid } from '../services/platform';
 import * as localStorageStore from '../services/storage/localStorageStore';
-const mockIsAndroid = isAndroid as jest.Mock;
-jest.mock('../services/platform', () => ({ isAndroid: jest.fn(() => false) }));
+const mockIsAndroid = isAndroid as Mock;
+vi.mock('../services/platform', () => ({ isAndroid: vi.fn(() => false) }));
 
 describe('PomodoroTimer task completion', () => {
   let container: HTMLDivElement;
@@ -41,20 +42,20 @@ describe('PomodoroTimer task completion', () => {
       root.unmount();
     });
     container.remove();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('completes the task immediately when the user marks it done early', async () => {
-    const onComplete = jest.fn();
+    const onComplete = vi.fn();
 
     await act(async () => {
       root.render(
         <LanguageProvider>
           <PomodoroTimer
             task={task}
-            onClose={jest.fn()}
+            onClose={vi.fn()}
             onComplete={onComplete}
-            onSessionStateChange={jest.fn()}
+            onSessionStateChange={vi.fn()}
           />
         </LanguageProvider>,
       );
@@ -72,10 +73,10 @@ describe('PomodoroTimer task completion', () => {
 
   it('direct focus starts a managed session while preserving the original non-grid schedule', async () => {
     const scheduled = { ...task, startTime: '09:07' };
-    jest.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
-    const start = jest.spyOn(electronIPC, 'startPomodoro').mockImplementation(async data => ({ ...data, remaining: data.duration * 1000, endTime: Date.now() + data.duration * 1000, elapsed: 0, isFinished: false, isActive: true }));
-    const onComplete = jest.fn();
-    await act(async () => root.render(<React.StrictMode><LanguageProvider><PomodoroTimer autoStart task={scheduled} onClose={jest.fn()} onComplete={onComplete} onSessionStateChange={jest.fn()} /></LanguageProvider></React.StrictMode>));
+    vi.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
+    const start = vi.spyOn(electronIPC, 'startPomodoro').mockImplementation(async data => ({ ...data, remaining: data.duration * 1000, endTime: Date.now() + data.duration * 1000, elapsed: 0, isFinished: false, isActive: true }));
+    const onComplete = vi.fn();
+    await act(async () => root.render(<React.StrictMode><LanguageProvider><PomodoroTimer autoStart task={scheduled} onClose={vi.fn()} onComplete={onComplete} onSessionStateChange={vi.fn()} /></LanguageProvider></React.StrictMode>));
     expect(start).toHaveBeenCalledTimes(1);
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ taskId: scheduled.id, taskDate: scheduled.date, duration: 1500 }));
     expect(scheduled.startTime).toBe('09:07');
@@ -83,14 +84,14 @@ describe('PomodoroTimer task completion', () => {
   });
 
   it('shows a retryable error and clears session state when a desktop timer fails to start', async () => {
-    const onSessionStateChange = jest.fn();
+    const onSessionStateChange = vi.fn();
     let handleUpdate: ((update: PomodoroUpdateData) => void) | undefined;
-    jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    jest.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
-    const startPomodoro = jest.spyOn(electronIPC, 'startPomodoro').mockRejectedValue(new Error('main process unavailable'));
-    jest.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation((callback) => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
+    const startPomodoro = vi.spyOn(electronIPC, 'startPomodoro').mockRejectedValue(new Error('main process unavailable'));
+    vi.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation((callback) => {
       handleUpdate = callback;
-      return jest.fn();
+      return vi.fn();
     });
 
     await act(async () => {
@@ -98,8 +99,8 @@ describe('PomodoroTimer task completion', () => {
         <LanguageProvider>
           <PomodoroTimer
             task={task}
-            onClose={jest.fn()}
-            onComplete={jest.fn()}
+            onClose={vi.fn()}
+            onComplete={vi.fn()}
             onSessionStateChange={onSessionStateChange}
           />
         </LanguageProvider>,
@@ -152,19 +153,19 @@ describe('PomodoroTimer task completion', () => {
 
   it('offers an Android break only after focus completion has been saved', async () => {
     mockIsAndroid.mockReturnValue(true);
-    jest.spyOn(localStorageStore, 'getStorageItem').mockImplementation(key => localStorage.getItem(key));
+    vi.spyOn(localStorageStore, 'getStorageItem').mockImplementation(key => localStorage.getItem(key));
     let update: ((data: PomodoroUpdateData) => void) | undefined;
-    jest.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation(callback => { update = callback; return jest.fn(); });
-    const start = jest.spyOn(electronIPC, 'startPomodoro').mockImplementation(async payload => ({
+    vi.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation(callback => { update = callback; return vi.fn(); });
+    const start = vi.spyOn(electronIPC, 'startPomodoro').mockImplementation(async payload => ({
       ...payload, remaining: payload.duration * 1000, endTime: Date.now() + payload.duration * 1000,
       elapsed: 0, isFinished: false, isActive: true,
     }));
     let acknowledge: (result: boolean) => void = () => undefined;
-    const onComplete = jest.fn(() => new Promise<boolean>(resolve => { acknowledge = resolve; }));
-    const onClose = jest.fn();
-    const stop = jest.spyOn(electronIPC, 'stopPomodoro').mockResolvedValue();
+    const onComplete = vi.fn(() => new Promise<boolean>(resolve => { acknowledge = resolve; }));
+    const onClose = vi.fn();
+    const stop = vi.spyOn(electronIPC, 'stopPomodoro').mockResolvedValue();
     await act(async () => { root.render(<LanguageProvider><PomodoroTimer task={task} onClose={onClose}
-      onComplete={onComplete} onSessionStateChange={jest.fn()} /></LanguageProvider>); });
+      onComplete={onComplete} onSessionStateChange={vi.fn()} /></LanguageProvider>); });
     await act(async () => { (container.querySelectorAll('button')[1] as HTMLButtonElement).click(); });
     const timerId = start.mock.calls[0][0].timerId;
     await act(async () => { update?.({ timerId, duration: 1500, remaining: 0, endTime: Date.now(),
@@ -183,11 +184,11 @@ describe('PomodoroTimer task completion', () => {
 
   it('keeps an Android running session alive when the timer panel is closed', async () => {
     mockIsAndroid.mockReturnValue(true);
-    jest.spyOn(localStorageStore, 'getStorageItem').mockImplementation(key => localStorage.getItem(key));
-    const stop = jest.spyOn(electronIPC, 'stopPomodoro').mockResolvedValue();
-    const onClose = jest.fn();
+    vi.spyOn(localStorageStore, 'getStorageItem').mockImplementation(key => localStorage.getItem(key));
+    const stop = vi.spyOn(electronIPC, 'stopPomodoro').mockResolvedValue();
+    const onClose = vi.fn();
     await act(async () => { root.render(<LanguageProvider><PomodoroTimer task={task} onClose={onClose}
-      onComplete={jest.fn()} onSessionStateChange={jest.fn()} restoredState={{ timerId: 's', taskId: task.id,
+      onComplete={vi.fn()} onSessionStateChange={vi.fn()} restoredState={{ timerId: 's', taskId: task.id,
         taskName: task.name, taskDate: task.date, taskPriority: task.priority, taskDurationMinutes: 25,
         mode: 'focus', remainingSeconds: 100, isActive: true }} /></LanguageProvider>); });
     await act(async () => { (container.querySelector('button') as HTMLButtonElement).click(); });

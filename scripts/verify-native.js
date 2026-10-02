@@ -281,7 +281,7 @@ async function main() {
     if (String(dialogProbe).includes('Blocked invoke channel')) {
       problems.push('dialog-save-backup channel is not whitelisted in preload');
     }
-    if (!String(dialogProbe).includes('Missing backup content')) {
+    if (!String(dialogProbe).includes('Invalid IPC request: dialog-save-backup')) {
       problems.push(`dialog-save-backup channel did not respond as expected: ${dialogProbe}`);
     }
 

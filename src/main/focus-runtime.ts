@@ -19,6 +19,7 @@ export interface FocusTimer extends PomodoroTimerData {
   completionPersisted?: boolean;
   actualFocusSeconds?: number;
   stopped?: boolean;
+  taskMissing?: boolean;
   elapsed: number;
 }
 interface FocusState {
@@ -71,9 +72,10 @@ export class DurableFocusRuntime {
     this.state.completedChoices = copy(raw.completedChoices || []);
     for (const old of raw.activeTimers || []) {
       const restore = normalizePersistedTimerForRestore(old, this.now());
-      const t = { ...old, timerId: old.timerId || randomUUID(), sessionId: old.sessionId || randomUUID(),
+      const duration = old.duration || (old.taskDurationMinutes || 0) * 60 || Math.max(1, Math.ceil(restore.remaining / 1000));
+      const t = { ...old, duration, timerId: old.timerId || randomUUID(), sessionId: old.sessionId || randomUUID(),
         startedAt: old.startedAt || this.now(), ...restore, isFinished: false,
-        elapsed: Math.max(0, old.duration * 1000 - restore.remaining) } as FocusTimer;
+        elapsed: Math.max(0, duration * 1000 - restore.remaining) } as FocusTimer;
       if (restore.shouldRecover) {
         this.state.pendingRecoveries.push({ ...t, recoveryId: t.sessionId + '_recovery',
           mode: t.isFocusMode ? 'focus' : 'break', reason: 'expired_while_offline',
@@ -220,9 +222,9 @@ export class DurableFocusRuntime {
     for (const session of [...this.state.pendingCompletions]) {
       const entries = this.options.store.snapshot();
       const sessions = validateFocusSessions(JSON.parse(entries[FOCUS_SESSIONS_KEY] || '[]'));
+      const logs = JSON.parse(entries.mylifeos_daily_logs || '{}');
+      const task = logs[session.taskDate]?.tasks?.find((t: { id: string }) => t.id === session.taskId);
       if (!sessions.some(s => s.id === session.id)) {
-        const logs = JSON.parse(entries.mylifeos_daily_logs || '{}');
-        const task = logs[session.taskDate]?.tasks?.find((t: { id: string }) => t.id === session.taskId);
         if (task && session.result === 'completed') {
           task.status = 'completed';
           task.actualFocusMinutes = Math.max(1, Math.round(session.actualFocusSeconds / 60));
@@ -241,7 +243,7 @@ export class DurableFocusRuntime {
       const finished: FocusTimer = { timerId: session.timerId, sessionId: session.id,
         duration: session.plannedSeconds, isFocusMode: true, remaining: 0, endTime: session.endedAt,
         startedAt: session.startedAt, elapsed: session.actualFocusSeconds * 1000,
-        actualFocusSeconds: session.actualFocusSeconds, isActive: false,
+        actualFocusSeconds: session.actualFocusSeconds, isActive: false, taskMissing: !!session.taskId && !task,
         isFinished: session.result === 'completed', stopped: session.result === 'stopped',
         completionPersisted: true, notificationsEnabled: session.notificationsEnabled, taskId: session.taskId || undefined,
         taskDate: session.taskDate, taskName: session.taskName || undefined,

@@ -20,16 +20,22 @@ export const FOCUS_SESSIONS_KEY = 'mylifeos_focus_sessions';
 export function isFocusSession(value: unknown): value is FocusSession {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const s = value as FocusSession;
-  return typeof s.id === 'string' && s.id.length > 0 && typeof s.timerId === 'string'
-    && (s.taskId === null || typeof s.taskId === 'string')
+  const id = (v: unknown) => typeof v === 'string' && v.length > 0 && v.length <= 240 && !/[\x00-\x1f]/.test(v);
+  const timestamp = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 8640000000000000;
+  return id(s.id) && id(s.timerId)
+    && (s.taskId === null || id(s.taskId))
     && typeof s.taskDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.taskDate)
-    && (s.taskName === null || typeof s.taskName === 'string')
-    && (s.goalId === undefined || typeof s.goalId === 'string')
+    && !Number.isNaN(Date.parse(s.taskDate + 'T00:00:00Z'))
+    && new Date(s.taskDate + 'T00:00:00Z').toISOString().slice(0, 10) === s.taskDate
+    && (s.taskName === null || typeof s.taskName === 'string' && s.taskName.length <= 2000)
+    && (s.taskHabitId === undefined || s.taskHabitId === null || id(s.taskHabitId))
+    && (s.goalId === undefined || id(s.goalId))
+    && (s.notificationsEnabled === undefined || typeof s.notificationsEnabled === 'boolean')
     && (s.priority === undefined || ['P1', 'P2', 'P3'].includes(s.priority))
-    && Number.isFinite(s.plannedSeconds) && s.plannedSeconds > 0
+    && Number.isFinite(s.plannedSeconds) && s.plannedSeconds > 0 && s.plannedSeconds <= 86400
     && Number.isFinite(s.actualFocusSeconds) && s.actualFocusSeconds >= 0
     && s.actualFocusSeconds <= s.plannedSeconds
-    && Number.isFinite(s.startedAt) && Number.isFinite(s.endedAt) && s.endedAt >= s.startedAt
+    && timestamp(s.startedAt) && timestamp(s.endedAt) && s.endedAt >= s.startedAt
     && ['completed', 'stopped'].includes(s.result)
     && ['measured', 'estimated'].includes(s.measurement);
 }

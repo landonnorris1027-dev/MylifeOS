@@ -46,3 +46,16 @@ or claim code signing, visible Windows toast, OS disk-full or power-cut tests pa
 
 - P1-A candidate 0.1.6 passed the complete packaged regression, including direct focus, original non-grid schedule, paused-session routing, batch move/undo and input shortcut isolation.
 - P1-B: measured seconds, stopped sessions, separate historical estimates, local calendar week/rolling periods, goal snapshots, plan deviation and weekly review. Android keeps its existing statistics view. 25 suites / 163 tests and both type checks/production builds passed.
+
+- P1-B candidate 0.1.7 passed all packaged regressions including measured/historical statistics and calendar-week review.
+- P2 implementation: Vite 8.3.2 / Vitest 5.0.3 (Node 22.12 baseline), all original tests migrated; revision/raw-value caches, asynchronous ordinary IPC with conflict-safe retry, serialized mutations/quit drain, split window/tray and preferences modules, adapter contracts, CSP/navigation/source validation, bounded redacted diagnostics, build information and stale-build checks. Windows CI produces local candidate artifacts with publish disabled. Native dialog choices, installation, screen lock/sleep, visible notification and destructive OS fault tests are separate acceptance gates.
+
+## Reproducible commands
+
+- `npm run verify:quality`: renderer type check, all unit tests, production frontend and main process.
+- `npm run electron:build`: quality, cleanup, standalone Windows staging, installer and disposable-profile packaged regressions. Output: `out/windows/<version>/`.
+- `MYLIFEOS_SMOKE_EXE=<absolute candidate exe> node scripts/benchmark-windows.js`: 10k/50k/100k fixtures, cold and 40 repeated searches, 40 day switches, machine details and all timing samples.
+- `npm run verify:native` and `npm run verify:p0-native`: isolated Windows shell and save/quit paths (OS save-dialog choices stubbed).
+- `JAVA_HOME=<JDK21> ANDROID_HOME=<SDK> npm run android:verify:compile`: shared checks, Capacitor sync, native unit tests/lint and debug/instrumentation APK compilation. Never installs or runs on a phone; Android native version remains 0.1.4/code4.
+
+Vite uses relative resources and legacy chunks for file:// and the existing Android browser targets. Toolchain references: https://vite.dev/guide/ and https://vitest.dev/guide/.

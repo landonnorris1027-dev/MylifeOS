@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { AppDataStore } from './main/app-data-store';
 import fs from 'fs';
 import os from 'os';
@@ -6,16 +7,16 @@ import path from 'path';
 const FILE_PATH = 'D:/fake/userData/app-data.json';
 
 interface FakeFs {
-  existsSync: jest.Mock;
-  mkdirSync: jest.Mock;
-  readFileSync: jest.Mock;
-  writeFileSync: jest.Mock;
-  copyFileSync: jest.Mock;
-  openSync: jest.Mock;
-  fsyncSync: jest.Mock;
-  closeSync: jest.Mock;
-  renameSync: jest.Mock;
-  unlinkSync: jest.Mock;
+  existsSync: Mock;
+  mkdirSync: Mock;
+  readFileSync: Mock;
+  writeFileSync: Mock;
+  copyFileSync: Mock;
+  openSync: Mock;
+  fsyncSync: Mock;
+  closeSync: Mock;
+  renameSync: Mock;
+  unlinkSync: Mock;
   files: Map<string, string>;
 }
 
@@ -24,35 +25,35 @@ const createFakeFs = (initialFiles: Record<string, string> = {}): FakeFs => {
 
   return {
     files,
-    existsSync: jest.fn((target: unknown) => {
+    existsSync: vi.fn((target: unknown) => {
       const targetPath = String(target);
       return files.has(targetPath) || targetPath === path.dirname(FILE_PATH);
     }),
-    mkdirSync: jest.fn(),
-    readFileSync: jest.fn((target: unknown) => {
+    mkdirSync: vi.fn(),
+    readFileSync: vi.fn((target: unknown) => {
       const content = files.get(String(target));
       if (content === undefined) throw new Error(`ENOENT: ${target}`);
       return content;
     }),
-    writeFileSync: jest.fn((target: unknown, content: unknown) => {
+    writeFileSync: vi.fn((target: unknown, content: unknown) => {
       files.set(String(target), String(content));
     }),
-    copyFileSync: jest.fn((source: unknown, destination: unknown) => {
+    copyFileSync: vi.fn((source: unknown, destination: unknown) => {
       const content = files.get(String(source));
       if (content === undefined) throw new Error(`ENOENT: ${source}`);
       files.set(String(destination), content);
     }),
-    openSync: jest.fn(() => 42),
-    fsyncSync: jest.fn(),
-    closeSync: jest.fn(),
-    renameSync: jest.fn((source: unknown, destination: unknown) => {
+    openSync: vi.fn(() => 42),
+    fsyncSync: vi.fn(),
+    closeSync: vi.fn(),
+    renameSync: vi.fn((source: unknown, destination: unknown) => {
       const sourcePath = String(source);
       const content = files.get(sourcePath);
       if (content === undefined) throw new Error(`ENOENT: ${source}`);
       files.set(String(destination), content);
       files.delete(sourcePath);
     }),
-    unlinkSync: jest.fn((target: unknown) => {
+    unlinkSync: vi.fn((target: unknown) => {
       files.delete(String(target));
     }),
   };
@@ -91,7 +92,7 @@ const createStore = (fakeFs: FakeFs, scheduler: FakeScheduler) =>
     fileSystem: fakeFs,
     scheduleFlush: scheduler.scheduleFlush,
     cancelScheduledFlush: scheduler.cancelScheduledFlush,
-    logger: { error: jest.fn() },
+    logger: { error: vi.fn() },
   });
 
 describe('AppDataStore', () => {
@@ -307,13 +308,13 @@ describe('AppDataStore', () => {
   it('reports a debounced flush failure to the application', () => {
     const fakeFs = createFakeFs({ [FILE_PATH]: JSON.stringify({ a: 'old' }) });
     const scheduler = createFakeScheduler();
-    const onFlushError = jest.fn();
+    const onFlushError = vi.fn();
     const store = new AppDataStore({
       filePath: FILE_PATH,
       fileSystem: fakeFs,
       scheduleFlush: scheduler.scheduleFlush,
       cancelScheduledFlush: scheduler.cancelScheduledFlush,
-      logger: { error: jest.fn() },
+      logger: { error: vi.fn() },
       onFlushError,
     });
 
@@ -329,7 +330,7 @@ describe('AppDataStore', () => {
 
   it('blocks writes when both durable copies are unreadable', () => {
     const fakeFs = createFakeFs({ [FILE_PATH]: '{ not json' });
-    const logger = { error: jest.fn() };
+    const logger = { error: vi.fn() };
     const scheduler = createFakeScheduler();
 
     const store = new AppDataStore({
@@ -354,7 +355,7 @@ describe('AppDataStore', () => {
       [FILE_PATH]: '{"a":',
       [`${FILE_PATH}.bak`]: JSON.stringify({ a: 'durable-backup' }),
     });
-    const logger = { error: jest.fn() };
+    const logger = { error: vi.fn() };
     const scheduler = createFakeScheduler();
 
     const store = new AppDataStore({

@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React, { act, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import StorageBoundary from './StorageBoundary';
@@ -10,15 +11,15 @@ describe('desktop save state UI', () => {
   let container: HTMLDivElement;
   let statusListener: (status: StorageStatus) => void;
   let status: StorageStatus;
-  let invoke: jest.Mock;
+  let invoke: Mock;
   let durableLabel: string;
-  const interact = jest.fn();
+  const interact = vi.fn();
   const View = () => { const [value] = useState(durableLabel); return <><button>{value}</button><div role="button" tabIndex={0} draggable onClick={interact} onKeyDown={interact} onDragStart={interact}>Custom task</div></>; };
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     status = { state: 'saved', hasPending: false };
     durableLabel = 'Current durable task';
-    invoke = jest.fn(async channel => {
+    invoke = vi.fn(async channel => {
       if (channel === 'storage-status') return status;
       if (channel === 'pomodoro-pending-state') return null;
       if (channel === 'storage-pending-snapshot') return {
@@ -30,13 +31,13 @@ describe('desktop save state UI', () => {
       throw new Error(channel);
     });
     window.electronAPI = {
-      invoke, sendSync: jest.fn((_channel, payload) => payload.key === 'mylifeos_lang' ? 'en' : null),
-      on: jest.fn((_channel, callback) => { statusListener = callback; return () => undefined; }),
+      invoke, sendSync: vi.fn((_channel, payload) => payload.key === 'mylifeos_lang' ? 'en' : null),
+      on: vi.fn((_channel, callback) => { statusListener = callback; return () => undefined; }),
     } as unknown as Window['electronAPI'];
     container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   });
   afterEach(() => {
-    act(() => root.unmount()); container.remove(); delete window.electronAPI; jest.restoreAllMocks();
+    act(() => root.unmount()); container.remove(); delete window.electronAPI; vi.restoreAllMocks();
   });
   const render = async () => { await act(async () => root.render(<LanguageProvider><StorageBoundary><View /></StorageBoundary></LanguageProvider>)); };
 
@@ -61,11 +62,11 @@ describe('desktop save state UI', () => {
   });
 
   it('exports the pending snapshot rather than the rolled-back data', async () => {
-    jest.spyOn(platformFiles, 'saveJSONFile').mockResolvedValue('D:/test/backup.json');
+    vi.spyOn(platformFiles, 'saveJSONFile').mockResolvedValue('D:/test/backup.json');
     await render();
     await act(async () => statusListener({ state: 'error', hasPending: true }));
     await act(async () => Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Export pending data')!.click());
-    const json = JSON.parse((platformFiles.saveJSONFile as jest.Mock).mock.calls[0][0]);
+    const json = JSON.parse((platformFiles.saveJSONFile as Mock).mock.calls[0][0]);
     expect(json.goals[0].id).toBe('pending');
     expect(json.schemaVersion).toBe(8);
   });

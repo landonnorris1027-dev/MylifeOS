@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { buildTaskFromRecovery } from './useAppController';
@@ -10,26 +11,26 @@ import type { TimerSessionSnapshot } from '../components/PomodoroTimer';
 import type { DailyData, Task } from '../types';
 import { setStorageReadOnly } from '../services/storage/localStorageStore';
 
-jest.mock('../services/electronIPC', () => ({
+vi.mock('../services/electronIPC', () => ({
   electronIPC: {
-    getActiveTimers: jest.fn(() => Promise.resolve([])),
-    getPendingRecoveries: jest.fn(() => Promise.resolve([])),
-    resolveRecovery: jest.fn(() => Promise.resolve({ ok: true })),
-    getIsElectron: jest.fn(() => false),
-    startPomodoro: jest.fn(() => Promise.resolve({})),
-    togglePomodoro: jest.fn(),
-    stopPomodoro: jest.fn(),
-    onPomodoroUpdate: jest.fn(() => () => undefined),
-    onStorageWriteError: jest.fn(() => () => undefined),
+    getActiveTimers: vi.fn(() => Promise.resolve([])),
+    getPendingRecoveries: vi.fn(() => Promise.resolve([])),
+    resolveRecovery: vi.fn(() => Promise.resolve({ ok: true })),
+    getIsElectron: vi.fn(() => false),
+    startPomodoro: vi.fn(() => Promise.resolve({})),
+    togglePomodoro: vi.fn(),
+    stopPomodoro: vi.fn(),
+    onPomodoroUpdate: vi.fn(() => () => undefined),
+    onStorageWriteError: vi.fn(() => () => undefined),
   },
 }));
 
-const getActiveTimersMock = electronIPC.getActiveTimers as unknown as jest.Mock;
+const getActiveTimersMock = electronIPC.getActiveTimers as unknown as Mock;
 
 // CRA resets mock implementations before each test, including factory defaults.
 beforeEach(() => {
-  (electronIPC.getPendingRecoveries as jest.Mock).mockResolvedValue([]);
-  ((electronIPC as unknown as { onStorageWriteError: jest.Mock }).onStorageWriteError)
+  (electronIPC.getPendingRecoveries as Mock).mockResolvedValue([]);
+  ((electronIPC as unknown as { onStorageWriteError: Mock }).onStorageWriteError)
     .mockImplementation(() => () => undefined);
 });
 
@@ -117,8 +118,8 @@ describe('useAppController scheduling guards', () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
     localStorage.setItem('mylifeos_lang', 'zh');
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 3, 22, 23, 10, 0, 0));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 22, 23, 10, 0, 0));
     getActiveTimersMock.mockImplementation(() => Promise.resolve([]));
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -131,11 +132,11 @@ describe('useAppController scheduling guards', () => {
       root.unmount();
     });
     container.remove();
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('checks pending recoveries on startup without logging an error', async () => {
-    const errorSpy = jest.spyOn(console, 'error');
+    const errorSpy = vi.spyOn(console, 'error');
     try {
       await act(async () => {
         root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
@@ -168,10 +169,10 @@ describe('useAppController scheduling guards', () => {
   });
 
   it('shows an alert when a debounced desktop write fails', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
       let reportFailure: ((failure: { error?: string }) => void) | undefined;
-      ((electronIPC as unknown as { onStorageWriteError: jest.Mock }).onStorageWriteError)
+      ((electronIPC as unknown as { onStorageWriteError: Mock }).onStorageWriteError)
         .mockImplementation((callback: (failure: { error?: string }) => void) => {
           reportFailure = callback;
           return () => undefined;
@@ -292,8 +293,8 @@ describe('useAppController stale timer session handling', () => {
   beforeEach(() => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 3, 22, 23, 10, 0, 0));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 22, 23, 10, 0, 0));
     getActiveTimersMock.mockImplementation(() => Promise.resolve([]));
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -306,7 +307,7 @@ describe('useAppController stale timer session handling', () => {
       root.unmount();
     });
     container.remove();
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('clears a finished restored session and opens the clicked task instead of the break screen', async () => {

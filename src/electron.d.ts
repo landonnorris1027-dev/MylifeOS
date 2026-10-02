@@ -40,6 +40,10 @@ interface SaveBackupResult {
 }
 
 interface ElectronAPI {
+  invoke(channel: 'app-info'): Promise<import('./main/build-info').BuildInfo>;
+  invoke(channel: 'storage-read-all'): Promise<import('./services/storage/desktopStorageAdapter').DesktopSnapshot>;
+  invoke(channel: 'storage-write', payload: import('./services/storage/desktopStorageAdapter').DesktopWrite): Promise<StorageResult>;
+  on(channel: 'storage-changed', callback: (data: { revision: number }) => void): () => void;
   invoke(channel: 'pomodoro-abandon-for-restore', payload: { confirmed: boolean }): Promise<void>;
   invoke(channel: 'storage-flush'): Promise<StorageResult & StorageStatus>;
   invoke(channel: 'pomodoro-get-completed-focus'): Promise<PomodoroUpdateData[]>;
@@ -58,7 +62,6 @@ interface ElectronAPI {
     payload: { recoveryId: string; action: PomodoroRecoveryAction },
   ): Promise<PomodoroRecoveryResolution>;
   invoke(channel: 'dialog-save-backup', payload: SaveBackupPayload): Promise<SaveBackupResult>;
-  send(channel: 'pomodoro-toggle' | 'pomodoro-stop', payload: TimerIdPayload): void;
   sendSync(channel: 'storage-get-sync', payload: StorageGetPayload): string | null;
   sendSync(channel: 'storage-set-sync', payload: StorageSetPayload): StorageSetResult;
   on(channel: 'pomodoro-update', callback: (data: PomodoroUpdateData) => void): () => void;

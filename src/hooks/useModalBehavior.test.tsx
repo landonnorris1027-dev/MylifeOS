@@ -69,16 +69,16 @@ describe('useModalBehavior', () => {
     });
     // Flush the deferred focus timeout inside act.
     act(() => {
-      jest.runAllTimers();
+      vi.runAllTimers();
     });
     return trigger;
   };
 
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('moves focus into the dialog on open and returns it on close', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     act(() => {
       root.render(<Harness onClose={onClose} />);
     });
@@ -97,7 +97,7 @@ describe('useModalBehavior', () => {
   });
 
   it('closes on Escape', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     act(() => {
       root.render(<Harness onClose={onClose} />);
     });
@@ -111,7 +111,7 @@ describe('useModalBehavior', () => {
   });
 
   it('ignores Escape when closeOnEscape is false', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     act(() => {
       root.render(<Harness onClose={onClose} closeOnEscape={false} />);
     });
@@ -125,7 +125,7 @@ describe('useModalBehavior', () => {
   });
 
   it('traps Tab within the dialog and cycles with Shift+Tab', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     act(() => {
       root.render(<Harness onClose={onClose} />);
     });
@@ -148,7 +148,7 @@ describe('useModalBehavior', () => {
   });
 
   it('focuses the preferred element when initialFocusSelector is given', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     act(() => {
       root.render(<Harness onClose={onClose} initialFocusSelector='[data-testid="last-button"]' />);
     });

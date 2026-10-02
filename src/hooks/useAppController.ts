@@ -117,8 +117,8 @@ const initialState: AppControllerState = {
   selectedDate: getTodayStr(),
   dailyData: null,
   graphRefreshToken: 0,
-  timelineMode: getPlannerSettings().timelineMode,
-  intervalMinutes: getPlannerSettings().intervalMinutes,
+  timelineMode: 'daytime',
+  intervalMinutes: 15,
   autoStartFocus: false,
   isHabitConfigOpen: false,
   isManualTaskOpen: false,
@@ -341,7 +341,7 @@ export const useAppController = () => {
 
   useEffect(() => {
     if (isStorageReadOnly()) return;
-    try { const settings = savePlannerSettings(getPlannerSettings()); dispatch({ type: 'SET_INTERVAL', intervalMinutes: settings.intervalMinutes }); }
+    try { const settings = savePlannerSettings(getPlannerSettings()); dispatch({ type: 'SET_INTERVAL', intervalMinutes: settings.intervalMinutes }); dispatch({ type: 'SET_TIMELINE_MODE', timelineMode: settings.timelineMode }); }
     catch (error) { reportStorageError(error); }
   }, [reportStorageError]);
   useEffect(() => { loadData(state.selectedDate); }, [loadData, state.selectedDate]);
@@ -443,10 +443,11 @@ export const useAppController = () => {
 
   useEffect(() => electronIPC.onPomodoroUpdate(update => {
     if (update.isFinished && update.completionPersisted || update.stopped) {
-      loadData(state.selectedDate);
+      void flushStorageWrites().then(() => loadData(state.selectedDate)).catch(reportStorageError);
+      if (update.taskMissing) dispatch({ type: 'OPEN_ALERT', message: t('orphan_focus_saved'), tone: 'success' });
       if (update.stopped) dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
     }
-  }), [loadData, state.selectedDate]);
+  }), [loadData, state.selectedDate, reportStorageError, t]);
 
   const setView = useCallback((view: ViewMode) => {
     dispatch({ type: 'SET_VIEW', view });
@@ -877,7 +878,7 @@ export const useAppController = () => {
   const handleTaskReviewSave = useCallback((task: Task, note: string, review: string) => {
     try {
       updateTask({
-        ...task,
+        ...(findStoredTimerTask(task.id, task.date) || task),
         note: note.trim() || undefined,
         review: review.trim() || undefined,
       });

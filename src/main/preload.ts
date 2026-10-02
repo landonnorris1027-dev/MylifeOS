@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 const validInvokeChannels = new Set<string>([
+  'app-info',
   'pomodoro-start',
   'pomodoro-toggle',
   'pomodoro-stop',
@@ -9,6 +10,8 @@ const validInvokeChannels = new Set<string>([
   'pomodoro-pending-state',
   'pomodoro-abandon-for-restore',
   'storage-flush',
+  'storage-read-all',
+  'storage-write',
   'pomodoro-get-active-timers',
   'pomodoro-get-pending-recoveries',
   'pomodoro-resolve-recovery',
@@ -25,6 +28,7 @@ const validSendChannels = new Set<string>([
 ]);
 
 const validOnChannels = new Set<string>([
+  'storage-changed',
   'pomodoro-update',
   'storage-write-error',
   'storage-status',

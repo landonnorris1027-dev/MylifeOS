@@ -5,7 +5,8 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const version = require('../package.json').version;
+const version = fs.readFileSync(path.join(root, 'android/app/build.gradle'), 'utf8').match(/versionName\s+"([^"]+)"/)[1];
+const compileOnly = process.argv.includes('--compile-only');
 const checks = [];
 function run(command, args, cwd = root, capture = false, verbatim = false) {
   const result = spawnSync(command, args, { cwd, env: { ...process.env, CI: 'true' }, encoding: 'utf8',
@@ -48,10 +49,20 @@ try {
   const nativeRoot = nativeWorkspace();
   const gradle = path.join(nativeRoot, 'android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
   check('shared-typecheck', () => node('node_modules/typescript/bin/tsc', ['--noEmit']));
-  check('shared-tests', () => node('node_modules/react-scripts/scripts/test.js', ['--watchAll=false', '--runInBand']));
+  check('shared-tests', () => node('node_modules/vitest/vitest.mjs', ['run']));
   check('electron-contract-typecheck', () => node('node_modules/typescript/bin/tsc', ['--noEmit', '-p', 'tsconfig.main.json']));
-  check('web-production-build', () => node('node_modules/react-scripts/scripts/build.js'));
+  check('web-production-build', () => node('node_modules/vite/bin/vite.js', ['build']));
+  node('scripts/build-metadata.js', ['build']);
   check('capacitor-sync', () => node('node_modules/@capacitor/cli/bin/capacitor', ['sync', 'android']));
+  if (compileOnly) {
+    check('native-tests-lint-debug-compile', () => batch(gradle, [':app:testDebugUnitTest', ':app:lintDebug', ':app:assembleDebug', ':app:assembleDebugAndroidTest'], path.join(nativeRoot, 'android')));
+    const output = path.join(root, 'out/android'); fs.mkdirSync(output, { recursive: true });
+    fs.writeFileSync(path.join(output, 'compile-verification.json'), JSON.stringify({ nativeVersion: version,
+      sharedVersion: require('../package.json').version, generatedAt: new Date().toISOString(), checks,
+      sourceCommit: run('git', ['rev-parse', 'HEAD'], root, true).trim(), installed: false, instrumentationExecuted: false }, null, 2));
+    console.log('Android shared code and native tests/lint/APKs compiled; no device installation.');
+    process.exit(0);
+  }
   check('native-tests-lint-apk', () => batch(gradle, [':app:testDebugUnitTest', ':app:lintRelease', ':app:assembleRelease', ':app:assembleDebugAndroidTest'], path.join(nativeRoot, 'android')));
   const apk = path.join(nativeRoot, 'android/app/build/outputs/apk/release/app-release.apk');
   const signer = path.join(toolDirectory, process.platform === 'win32' ? 'apksigner.bat' : 'apksigner');

@@ -7,6 +7,15 @@ const root = path.resolve(__dirname, '..');
 const pkg = require('../package.json');
 const output = path.join(root, 'out', 'windows', pkg.version);
 const app = path.join(output, 'app');
+const identity = metadata();
+for (const target of ['build', 'dist-main']) {
+  const info = JSON.parse(fs.readFileSync(path.join(root, target, 'build-info.json'), 'utf8'));
+  if (info.sourceCommit !== identity.sourceCommit || info.fingerprint !== identity.fingerprint || info.version !== pkg.version) {
+    throw Error('Stale ' + target + '; rebuild both frontend and main process before packaging');
+  }
+}
+if (!app.startsWith(path.join(root, 'out', 'windows') + path.sep)) throw Error('Unsafe staging directory');
+fs.rmSync(app, { recursive: true, force: true });
 fs.mkdirSync(app, { recursive: true });
 for (const name of ['build', 'dist-main', 'assets']) {
   fs.cpSync(path.join(root, name), path.join(app, name), { recursive: true });
@@ -32,7 +41,8 @@ const archiveBytes = fs.statSync(path.join(output, 'win-unpacked', 'resources', 
 if (archiveBytes > 20 * 1024 * 1024) throw new Error('Windows app.asar exceeds 20 MiB');
 const installer = fs.readdirSync(output).find(name => name.endsWith('.exe'));
 fs.writeFileSync(path.join(output, 'verification.json'), JSON.stringify({
-  ...metadata(), installer, installerBytes: fs.statSync(path.join(output, installer)).size,
+  ...metadata(), installer,
+  verificationFiles: ['smoke-packaged.js', 'regression-packaged.js'], installerBytes: fs.statSync(path.join(output, installer)).size,
   installerSha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(output, installer))).digest('hex'),
   archiveBytes, packagedChecks: 'passed',
   openGates: ['code signing', 'visible Windows toast', 'OS disk exhaustion', 'power-cut durability'],

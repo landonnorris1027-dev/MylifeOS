@@ -49,7 +49,7 @@ npm ci
 npm start
 ```
 
-Keep the terminal process running and open [http://localhost:3000](http://localhost:3000). `public/index.html` is an empty source template. Double-clicking it does not load the React app and produces a blank page.
+Keep the terminal process running and open [http://localhost:3000](http://localhost:3000). `index.html` is an empty source template. Double-clicking it does not load the React app and produces a blank page.
 
 Browser data belongs to the browser and site address; `localhost` and `127.0.0.1` can also have different data. Use a consistent address and back up before changing browser or address. Clearing site data removes browser records. Closing or refreshing the page does not mean a native session continues in the background.
 
@@ -152,7 +152,7 @@ With a keyboard on Windows/browser: `Ctrl+1` Planner, `Ctrl+2` Profile, `Ctrl+K`
 
 ### Blank page after double-clicking index.html
 
-Run `npm start` in the project directory and visit `http://localhost:3000`. Do not open `public/index.html` directly.
+Run `npm start` in the project directory and visit `http://localhost:3000`. Do not open `index.html` directly.
 
 ### Windows launcher produces no window
 
@@ -179,3 +179,9 @@ There is no automatic synchronization. Export a backup compatible with the recei
 The `b2164cb` Android 0.1.4 build passed 143 shared tests and 10 native JVM tests. Release Lint reported 0 errors and 19 warnings, and the certificate fingerprint matches the old APK. Instrumentation tests were compiled but not executed. Android 7/13/16, installed upgrade, lock-screen/reboot/battery/silent/vibration behavior, and full 360–430dp, keyboard, and system-Back interaction remain pending device acceptance.
 
 See [validation and boundaries](docs/android/VALIDATION.md) and [Android build instructions](docs/android/IMPLEMENTATION.md). This guide update does not rebuild the APK; the artifact's source commit is recorded in `out/android/verification.json`.
+
+## Windows 0.1.8 candidate
+
+Launch `out/windows/0.1.8/win-unpacked/MyLifeOS.exe`. Back up v8 data before daily use, preserve the old executable and v6 compatibility backup. This work does not change existing shortcuts. Unfinished tasks today can start focus directly without losing their schedule; active/paused tasks cannot be moved/deleted. Scheduling offers 5/15/30-minute grids. Batch moves are atomic; Ctrl+Z undoes up to 20 task operations in this run outside inputs/dialogs, and Ctrl+J opens the current session.
+
+Desktop reports separate measured seconds from historical estimates, include stopped focus, exclude pauses/breaks, and offer Monday–Sunday weeks, rolling seven days, goal allocation, plan deviation and weekly review. Cross-midnight sessions belong to their original task date. Use v7 to exchange with Android 0.1.4 or v6 with Windows 0.1.3; keep a full v8 backup because compatibility exports omit sessions/precision. End or explicitly abandon active/pending sessions before restore.

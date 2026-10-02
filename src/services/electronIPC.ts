@@ -1,3 +1,4 @@
+import type { FocusRuntime } from './platformAdapters';
 import { setActiveTaskIds } from './taskActivity';
 import type { Priority } from '../types';
 import { isAndroid } from './platform';
@@ -25,6 +26,7 @@ export interface PomodoroUpdateData {
   actualFocusSeconds?: number;
   isActive?: boolean;
   stopped?: boolean;
+  taskMissing?: boolean;
   isFocusMode?: boolean;
   notificationsEnabled?: boolean;
   breakDurationSeconds?: number | null;
@@ -352,3 +354,8 @@ class ElectronIPCHandler {
 }
 
 export const electronIPC = new ElectronIPCHandler();
+
+export const focusRuntime: FocusRuntime = {
+ start: data => electronIPC.startPomodoro(data), toggle: id => electronIPC.togglePomodoro(id),
+ stop: id => electronIPC.stopPomodoro(id), complete: id => electronIPC.completePomodoro(id),
+};

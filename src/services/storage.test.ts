@@ -47,14 +47,14 @@ const createTask = (overrides: Partial<Task>): Task => ({
 describe('storage service', () => {
   beforeEach(() => {
     localStorage.clear();
-    jest.restoreAllMocks();
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-04-22T09:00:00+08:00'));
-    jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
+    vi.restoreAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-22T09:00:00+08:00'));
+    vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('formats and parses local dates consistently', () => {

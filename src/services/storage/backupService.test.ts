@@ -4,7 +4,7 @@ import { saveFocusSettings, getFocusSettings } from '../focusSettings';
 
 describe('complete snapshot backups', () => {
   beforeEach(() => { localStorage.clear(); });
-  afterEach(() => { jest.restoreAllMocks(); delete window.electronAPI; });
+  afterEach(() => { vi.restoreAllMocks(); delete window.electronAPI; });
 
   it('preserves precise v8 sessions, rejects invalid records, and omits them in both compatibility formats', async () => {
     const session = { id: 's', timerId: 't', taskId: null, taskDate: '2026-10-02', taskName: 'Deleted task', plannedSeconds: 120, actualFocusSeconds: 1.5, startedAt: 1000, endedAt: 2500, result: 'stopped', measurement: 'measured' };
@@ -67,8 +67,8 @@ describe('complete snapshot backups', () => {
     setStorageItem(KEYS.HABITS, '[]');
     const json = exportBackupJSON([], {}, [{ id: 'new', name: 'New' }]);
     const before = getStorageItem(KEYS.GOALS);
-    jest.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('QuotaExceededError'); });
-    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('QuotaExceededError'); });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect((await importBackupJSON(json)).ok).toBe(false);
     expect(getStorageItem(KEYS.GOALS)).toBe(before);
     expect(getStorageItem(KEYS.HABITS)).toBe('[]');
@@ -77,8 +77,8 @@ describe('complete snapshot backups', () => {
   it('does not acknowledge a desktop import until the durable transaction resolves', async () => {
     const json = exportBackupJSON([], {});
     let finish: (value: { ok: boolean; error?: string }) => void = () => undefined;
-    const invoke = jest.fn(() => new Promise(resolve => { finish = resolve; }));
-    window.electronAPI = { invoke, sendSync: jest.fn() } as unknown as Window['electronAPI'];
+    const invoke = vi.fn(() => new Promise(resolve => { finish = resolve; }));
+    window.electronAPI = { invoke, sendSync: vi.fn() } as unknown as Window['electronAPI'];
     let completed = false;
     const promise = importBackupJSON(json).then(result => { completed = true; return result; });
     await Promise.resolve();

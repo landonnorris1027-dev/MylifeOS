@@ -59,7 +59,7 @@ describe('legacy Electron storage migration', () => {
         '2026-09-20': splitDay,
         '2026-09-21': anotherSplitDay,
       });
-      const store = new AppDataStore({ filePath: appDataPath, logger: { error: jest.fn() } });
+      const store = new AppDataStore({ filePath: appDataPath, logger: { error: vi.fn() } });
       expect(JSON.parse(store.get('mylifeos_habits')!)).toEqual(legacyConfig.mylifeos_habits);
       expect(JSON.parse(store.get('mylifeos_daily_logs')!)).toEqual({
         '2026-09-20': splitDay,
@@ -135,7 +135,7 @@ describe('legacy Electron storage migration', () => {
     const legacyConfig = { mylifeos_habits: [] };
     const rawConfig = JSON.stringify(legacyConfig);
     fs.writeFileSync(legacyPath, rawConfig, 'utf8');
-    const writeSpy = jest.spyOn(fs, 'writeFileSync');
+    const writeSpy = vi.spyOn(fs, 'writeFileSync');
     writeSpy.mockImplementationOnce(() => { throw new Error('disk full'); });
 
     try {

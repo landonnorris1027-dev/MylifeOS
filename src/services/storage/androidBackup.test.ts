@@ -1,27 +1,28 @@
+import type { Mock } from 'vitest';
 import { importBackupJSON, exportBackupJSON, exportDesktopCompatibleBackupJSON } from './backupService';
 import { commitNativeEntries, refreshNativeTimers, flushNativeWrites } from '../nativeRuntime';
 import { Task } from '../../types';
-jest.mock('../platform', () => ({ isAndroid: () => true }));
-jest.mock('../nativeRuntime', () => ({
-  commitNativeEntries: jest.fn(), refreshNativeTimers: jest.fn(), flushNativeWrites: jest.fn(),
+vi.mock('../platform', () => ({ isAndroid: () => true }));
+vi.mock('../nativeRuntime', () => ({
+  commitNativeEntries: vi.fn(), refreshNativeTimers: vi.fn(), flushNativeWrites: vi.fn(),
   getNativeItem: (key: string) => globalThis.localStorage.getItem(key),
 }));
 beforeEach(() => {
   localStorage.clear();
-  (flushNativeWrites as jest.Mock).mockResolvedValue(undefined);
-  (refreshNativeTimers as jest.Mock).mockResolvedValue([]);
-  (commitNativeEntries as jest.Mock).mockResolvedValue(undefined);
-  jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  (flushNativeWrites as Mock).mockResolvedValue(undefined);
+  (refreshNativeTimers as Mock).mockResolvedValue([]);
+  (commitNativeEntries as Mock).mockResolvedValue(undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 it('blocks import for both running and paused sessions, and for unknown session state', async () => {
   const json = JSON.stringify({ schemaVersion: 4, habits: [], dailyLogs: {} });
   for (const state of ['running', 'paused']) {
-    (refreshNativeTimers as jest.Mock).mockResolvedValueOnce([{ state }]);
+    (refreshNativeTimers as Mock).mockResolvedValueOnce([{ state }]);
     expect((await importBackupJSON(json)).ok).toBe(false);
     expect(commitNativeEntries).not.toHaveBeenCalled();
   }
-  (refreshNativeTimers as jest.Mock).mockRejectedValueOnce(new Error('Cannot read session state'));
+  (refreshNativeTimers as Mock).mockRejectedValueOnce(new Error('Cannot read session state'));
   expect((await importBackupJSON(json)).ok).toBe(false);
   expect(commitNativeEntries).not.toHaveBeenCalled();
 });
@@ -33,12 +34,12 @@ it('preserves historical orphan tasks and exact focus minutes through v4, v6 and
     exportDesktopCompatibleBackupJSON([], logs), exportBackupJSON([], logs)]) {
     const result = await importBackupJSON(json);
     expect(result).toMatchObject({ ok: true, importedTaskCount: 1, filteredTaskCount: 0 });
-    const entries = (commitNativeEntries as jest.Mock).mock.calls.slice(-1)[0][0];
+    const entries = (commitNativeEntries as Mock).mock.calls.slice(-1)[0][0];
     expect(JSON.parse(entries.mylifeos_daily_logs)['2026-10-01'].tasks).toEqual([expect.objectContaining({ id: 'history', actualFocusMinutes: 17 })]);
   }
 });
 it('reports native import failure and uses one full commit', async () => {
-  (commitNativeEntries as jest.Mock).mockRejectedValueOnce(new Error('disk full'));
+  (commitNativeEntries as Mock).mockRejectedValueOnce(new Error('disk full'));
   expect((await importBackupJSON(exportBackupJSON([], {}))).ok).toBe(false);
   expect(commitNativeEntries).toHaveBeenCalledTimes(1);
 });

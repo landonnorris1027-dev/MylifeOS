@@ -1,3 +1,4 @@
+import type { FileAdapter } from './platformAdapters';
 import { isAndroid } from './platform';
 import { NativeStorage } from './nativeRuntime';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
@@ -41,7 +42,7 @@ const downloadJSONInBrowser = (json: string, filename: string) => {
  * path; Android uses the system document picker and browsers use a blob download.
  * Returns the chosen path, or null when the user canceled the dialog.
  */
-export const saveJSONFile = async (json: string, filename: string): Promise<string | null> => {
+const saveJSON = async (json: string, filename: string): Promise<string | null> => {
   if (isAndroid()) {
     const result = await NativeStorage.saveDocument({ content: json, filename });
     if (result.canceled) return null;
@@ -71,7 +72,7 @@ export const saveJSONFile = async (json: string, filename: string): Promise<stri
 };
 
 /** Sharing does not acknowledge durable export. Keep its cache file for later readers. */
-export const shareJSONFile = async (json: string, filename: string): Promise<void> => {
+const shareJSON = async (json: string, filename: string): Promise<void> => {
   if (!isAndroid()) { downloadJSONInBrowser(json, filename); return; }
   await Filesystem.writeFile({ path: `mylifeos-share/${filename}`, data: json, directory: Directory.Cache, encoding: Encoding.UTF8, recursive: true });
   const { uri } = await Filesystem.getUri({ path: `mylifeos-share/${filename}`, directory: Directory.Cache });
@@ -79,3 +80,7 @@ export const shareJSONFile = async (json: string, filename: string): Promise<voi
 };
 
 export type { SaveBackupResult };
+
+export const fileAdapter: FileAdapter = { saveJSON, shareJSON };
+export const saveJSONFile = fileAdapter.saveJSON;
+export const shareJSONFile = fileAdapter.shareJSON;

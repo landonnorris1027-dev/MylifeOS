@@ -1,3 +1,4 @@
+import { getDesktopStorage } from '../services/storage/desktopStorageAdapter';
 import React, { useEffect, useRef, useState } from 'react';
 import type { StorageStatus } from '../main/storage-contract';
 import { useLanguage } from '../contexts/LanguageContext';

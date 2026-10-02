@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 function fingerprint() {
   const hash = crypto.createHash('sha256');
   const roots = ['src', 'public', 'scripts', 'package.json', 'package-lock.json',
-    'tsconfig.json', 'tsconfig.main.json', 'vite.config.ts', 'vitest.config.ts', 'index.html',
+    'tsconfig.json', 'tsconfig.main.json', 'vite.config.mts', 'vitest.config.mts', 'index.html',
     'tailwind.config.js', 'postcss.config.js'];
   function visit(relative) {
     const absolute = path.join(root, relative);

@@ -1,5 +1,5 @@
-/// <reference types="react-scripts" />
-/// <reference types="jest" />
+/// <reference types="vite/client" />
+/// <reference types="vitest/globals" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
 

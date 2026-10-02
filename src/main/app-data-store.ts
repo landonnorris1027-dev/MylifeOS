@@ -58,7 +58,16 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
           || typeof task.date !== 'string' || (task.actualFocusMinutes !== undefined && (typeof task.actualFocusMinutes !== 'number' || !Number.isFinite(task.actualFocusMinutes) || task.actualFocusMinutes < 0))))) return false;
     }
     for (const key of ['mylifeos_focus_settings', 'mylifeos_profile_settings', 'mylifeos_planner_settings', 'mylifeos_desktop_settings']) {
-      if (record[key] !== undefined && !object(JSON.parse(record[key]))) return false;
+      if (record[key] === undefined) continue;
+      const settings = JSON.parse(record[key]);
+      if (!object(settings)) return false;
+      for (const field of ['soundEnabled', 'notificationsEnabled', 'vibrationEnabled', 'minimizeToTray']) {
+        if (settings[field] !== undefined && typeof settings[field] !== 'boolean') return false;
+      }
+      if (settings.intervalMinutes !== undefined && ![5, 15, 30].includes(settings.intervalMinutes as number)) return false;
+      if (settings.timelineMode !== undefined && !['daytime', 'fullDay'].includes(settings.timelineMode as string)) return false;
+      if (settings.breakDurationMinutes !== undefined && ![3, 5, 10, 15].includes(settings.breakDurationMinutes as number)) return false;
+      if (settings.weeklyTargetMinutes !== undefined && (!positive(settings.weeklyTargetMinutes) || settings.weeklyTargetMinutes < 60 || settings.weeklyTargetMinutes > 4800)) return false;
     }
     return true;
   } catch { return false; }
@@ -82,6 +91,8 @@ export class AppDataStore {
   private readonly cancelScheduledFlush: (handle: unknown) => void;
 
   private cache = new Map<string, string>();
+  private revisionNumber = 0;
+  get revision() { return this.revisionNumber; }
   private pendingFlushHandle: unknown = null;
   private dirty = false;
   private failedSnapshot: Map<string, string> | null = null;
@@ -150,6 +161,7 @@ export class AppDataStore {
       this.cache.set(key, String(value));
     }
 
+    this.revisionNumber++;
     this.markDirtyAndSchedule();
     return { ok: true };
   }
@@ -180,6 +192,7 @@ export class AppDataStore {
 
     if (this.recoveryRequired && !this.failedSnapshot) return { ok: false, error: this.lastError };
     if (this.failedSnapshot) {
+      this.revisionNumber++;
       this.recoveryRequired = false;
       this.cache = new Map(this.failedSnapshot);
       this.dirty = true;
@@ -221,6 +234,7 @@ export class AppDataStore {
   }
 
   private rollbackToDiskState(): void {
+    this.revisionNumber++;
     this.cache.clear();
     this.dirty = false;
     this.loadFromDisk();
@@ -261,6 +275,7 @@ export class AppDataStore {
         this.recoveryRequired = false;
       }
       Object.entries(entries).forEach(([key, value]) => this.cache.set(key, value));
+      this.revisionNumber++;
       this.dirty = true;
       return this.flush();
     } catch (error) {

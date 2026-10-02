@@ -4,7 +4,7 @@
 
 MyLifeOS 是面向 Windows 与 Android 的离线效率应用，使用 React、TypeScript、桌面端 Electron 和安卓端 Capacitor。它整合习惯规则、每日任务、时间线排期、专注计时和画像统计。另有浏览器预览，使用独立的浏览器本地数据。
 
-当前源码版本为 **0.1.4**。安卓个人 APK 基于 `codex/android-reliability` 的 `b2164cb` 构建，设备验收仍待完成。这不会自动更新电脑上已安装的 Windows 应用。
+当前 Windows 源码/候选版本为 **0.1.8**，Android 原生版本保留 **0.1.4**。安卓个人 APK 基于 `codex/android-reliability` 的 `b2164cb` 构建，设备验收仍待完成。这不会自动更新电脑上已安装的 Windows 应用。
 
 ## 功能
 
@@ -14,7 +14,7 @@ MyLifeOS 是面向 Windows 与 Android 的离线效率应用，使用 React、Ty
 - 搜索任务、将未完成临时任务跨日改期、在当日删除后十秒内撤销
 - 手机切换待办池与时间线，使用固定新增入口，跳到当前时段
 - Windows 与 Android 使用原生计时；安卓先保存完成记录，再选择是否休息
-- 导出完整 v7 备份、导入 v1–v6 备份、导出供桌面 0.1.3 交换的 v6 文件
+- 导出完整 v8 备份、导入 v1–v8 备份；交换时明确选择 Android 0.1.4 的 v7 或 Windows 0.1.3 的 v6
 - 原生平台显示保存/恢复状态，保留失败修改供重试或导出
 - 查看全年专注活动和画像统计
 
@@ -34,7 +34,7 @@ MyLifeOS 是面向 Windows 与 Android 的离线效率应用，使用 React、Ty
 2. 打开某天，应用按当前规则核对任务。
 3. 将待办池任务安排到时间线。
 4. 点击已排期任务，开始专注。
-5. 安卓等待完成记录保存，再选择“开始休息”或“返回计划”。Windows/网页目前先进入休息流程。
+5. 安卓等待完成记录保存，再选择“开始休息”或“返回计划”。Windows 同样先保存，再显示“开始休息 / 返回计划”。
 6. 查看统计，在“设置 → 数据管理”备份数据。
 
 完整操作见[中文使用指南](USER_GUIDE.md)或 [English user guide](USER_GUIDE.en.md)。
@@ -70,7 +70,7 @@ npm ci
 npm start
 ```
 
-保持进程运行，打开 [http://localhost:3000](http://localhost:3000)。不要双击 `public/index.html`：它是空的源码模板，开发服务器会注入应用脚本。网页数据与 Windows、安卓数据分开；网页计时不具备原生后台保障。
+保持进程运行，打开 [http://localhost:3000](http://localhost:3000)。不要双击 `index.html`：它是空的源码模板，开发服务器会注入应用脚本。网页数据与 Windows、安卓数据分开；网页计时不具备原生后台保障。
 
 启动网页与 Electron 开发模式：
 
@@ -99,7 +99,7 @@ npm run verify:release
 npm run electron:build
 ```
 
-Windows 安装包输出到 `out/`。打包会执行安装包启动与功能回归；覆盖范围及网络镜像配置见发布检查表。
+Windows 候选包输出到 `out/windows/<版本>/`。打包会执行安装包启动与功能回归；覆盖范围及网络镜像配置见发布检查表。
 
 ## 发布检查
 
@@ -130,3 +130,11 @@ npm run android:verify
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/DATA_FLOW.md](docs/DATA_FLOW.md)
 - [docs/DEPENDENCY_UPGRADE_RESEARCH.md](docs/DEPENDENCY_UPGRADE_RESEARCH.md)
+
+## Windows 0.1.8 改进
+
+当天未完成任务可直接“开始专注”，原排期保留。排期精度可选 5/15/30 分钟；新配置默认 15，已有配置保留 30。未完成临时任务支持批量改期，本次运行内最多撤销 20 步任务操作（非输入、无弹窗时 Ctrl+Z），Ctrl+J 定位当前会话。
+
+统计分开展示实际会话秒数和历史估算。停止专注计入实际投入，暂停和休息不计入。本周为本地周一至周日，近七天单独查看；跨午夜会话归属原任务日期，周复盘保留笔记和历史目标快照。
+
+开发使用 Vite/Vitest。启动器同时核对前端和主进程的源码指纹/提交，过期时同时重建。候选包在 `out/windows/<版本>/`，不会更新现有程序和快捷方式。完整实施、验证入口和待验收项目见 [Windows 实施记录](docs/WINDOWS_IMPROVEMENTS.md)。`npm run android:verify:compile` 仅执行共享代码、原生单测/lint 和 APK 编译，不安装到手机。

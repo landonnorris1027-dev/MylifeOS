@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { migrateRecoveryPoints, RecoveryPointsStore } from './main/recovery-points-migration';
 
 const KEY = 'mylifeos_recovery_points';
@@ -5,15 +6,15 @@ const KEY = 'mylifeos_recovery_points';
 const createStore = (
   initialValue: string | null,
   flushResult: { ok: boolean; error?: string } = { ok: true },
-): RecoveryPointsStore & { set: jest.Mock; flush: jest.Mock } => {
+): RecoveryPointsStore & { set: Mock; flush: Mock } => {
   let value = initialValue;
   let durableValue = initialValue;
   return {
-    get: jest.fn(() => value),
-    set: jest.fn((_key: string, nextValue: string | null) => {
+    get: vi.fn(() => value),
+    set: vi.fn((_key: string, nextValue: string | null) => {
       value = nextValue;
     }),
-    flush: jest.fn(() => {
+    flush: vi.fn(() => {
       if (flushResult.ok) {
         durableValue = value;
       } else {

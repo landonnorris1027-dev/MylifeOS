@@ -1,6 +1,6 @@
 {
   "name": "mylifeos",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -18,13 +18,11 @@
     "lucide-react": "^0.292.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.1",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^16.18.61",
+    "@types/node": "22.12.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "autoprefixer": "^10.4.20",
@@ -34,18 +32,23 @@
     "electron-builder": "26.16.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.19",
-    "typescript": "^4.9.5",
-    "wait-on": "^7.2.0"
+    "typescript": "5.9.3",
+    "wait-on": "^7.2.0",
+    "vite": "8.3.2",
+    "vitest": "5.0.3",
+    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-legacy": "8.2.3",
+    "jsdom": "26.1.0"
   },
   "scripts": {
     "android:sync": "npm run build && cap sync android",
     "android:verify": "node scripts/verify-android.js",
     "android:verify:emulator": "node scripts/verify-android-emulator.js",
     "android:open": "cap open android",
-    "start": "react-scripts start",
-    "build": "react-scripts build && node scripts/build-metadata.js build",
+    "start": "vite --host 127.0.0.1 --port 3000 --strictPort",
+    "build": "vite build && node scripts/build-metadata.js build",
     "typecheck": "tsc --noEmit",
-    "test": "react-scripts test --watchAll=false --passWithNoTests --testMatch=**/src/**/*.test.ts --testMatch=**/src/**/*.test.tsx",
+    "test": "vitest run",
     "build:main": "tsc -p tsconfig.main.json && node scripts/build-metadata.js dist-main",
     "check:electron": "tsc --noEmit -p tsconfig.main.json",
     "verify:quality": "npm run typecheck && npm run test && npm run build && npm run build:main",
@@ -56,9 +59,10 @@
     "verify:packaged": "npm run smoke:packaged && npm run test:packaged",
     "verify:native": "node ./scripts/verify-native.js",
     "verify:p0-native": "npm run build:main && node ./scripts/verify-p0-native.js",
-    "prod": "npm run build:main && node ./scripts/start-electron.js",
-    "electron:dev": "npm run build:main && concurrently \"cross-env BROWSER=none npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node ./scripts/start-electron.js\"",
-    "electron:build": "npm run verify:release && npm run clean:build && node scripts/package-windows.js"
+    "prod": "node scripts/start-electron.js",
+    "electron:dev": "concurrently \"npm start\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 NODE_ENV=development node scripts/start-electron.js\"",
+    "electron:build": "npm run verify:release && npm run clean:build && node scripts/package-windows.js",
+    "android:verify:compile": "node scripts/verify-android.js --compile-only"
   },
   "build": {
     "extends": null,

@@ -1,12 +1,12 @@
-const mockNative = { load: jest.fn(), write: jest.fn(), timer: jest.fn(), timers: jest.fn(), stopForRecovery: jest.fn(), saveDocument: jest.fn() };
+const mockNative = vi.hoisted(() => ({ load: vi.fn(), write: vi.fn(), timer: vi.fn(), timers: vi.fn(), stopForRecovery: vi.fn(), saveDocument: vi.fn() }));
 export {};
-jest.mock('@capacitor/core', () => ({ registerPlugin: () => mockNative }));
+vi.mock('@capacitor/core', () => ({ registerPlugin: () => mockNative }));
 
 describe('Android durable storage boundary', () => {
   let runtime: typeof import('./nativeRuntime');
   let durable: { revision: number; entries: Record<string, string>; sessions: any[] };
   beforeEach(async () => {
-    jest.resetModules(); jest.clearAllMocks(); localStorage.clear();
+    vi.resetModules(); vi.clearAllMocks(); localStorage.clear();
     durable = { revision: 0, entries: { goals: 'old', habits: 'old' }, sessions: [] };
     mockNative.load.mockImplementation(async () => ({ ...durable, entries: { ...durable.entries } }));
     mockNative.write.mockImplementation(async ({ entries, expectedRevision }) => {
@@ -20,7 +20,7 @@ describe('Android durable storage boundary', () => {
         ? session : { ...session, isActive: action === 'resume', state: action === 'resume' ? 'running' : 'paused' }) };
       return durable;
     });
-    runtime = require('./nativeRuntime');
+    runtime = await import('./nativeRuntime');
     await runtime.bootstrapNativeStorage(['goals', 'habits']);
   });
   it('serializes rapid edits and waits for their acknowledgements', async () => {

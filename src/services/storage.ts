@@ -1,3 +1,5 @@
+import { revisionCache } from './storage/revisionCache';
+import { KEYS, safeParse } from './storage/localStorageStore';
 import { assertTaskInactive } from './taskActivity';
 import { DailyData, Goal, Habit, Priority, Task } from '../types';
 import { exportBackupJSON, exportAndroidCompatibleBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
@@ -58,18 +60,16 @@ export interface TaskSearchFilters {
   status?: Task['status'];
 }
 
+const searchIndex = revisionCache([KEYS.DAILY_LOGS], ([raw]) => Object.values(safeParse<Record<string, DailyData>>(raw, {}))
+  .flatMap(day => day.tasks).filter(task => task.status !== 'deleted')
+  .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name))
+  .map(task => ({ task, text: [task.name, task.note, task.review].map(value => value?.toLocaleLowerCase() || '').join('\0') })));
 export const searchTasks = (filters: TaskSearchFilters): Task[] => {
   const query = filters.query?.trim().toLocaleLowerCase() || '';
-  return Object.values(getAllDailyLogs())
-    .flatMap((day) => day.tasks)
-    .filter((task) => task.status !== 'deleted'
-      && (!filters.from || task.date >= filters.from)
-      && (!filters.to || task.date <= filters.to)
-      && (!filters.goalId || task.goalId === filters.goalId)
-      && (!filters.priority || task.priority === filters.priority)
-      && (!filters.status || task.status === filters.status)
-      && (!query || [task.name, task.note, task.review].some((value) => value?.toLocaleLowerCase().includes(query))))
-    .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name));
+  return searchIndex().filter(({ task, text }) => (!filters.from || task.date >= filters.from)
+    && (!filters.to || task.date <= filters.to) && (!filters.goalId || task.goalId === filters.goalId)
+    && (!filters.priority || task.priority === filters.priority) && (!filters.status || task.status === filters.status)
+    && (!query || text.includes(query))).map(({ task }) => ({ ...task }));
 };
 
 export const getAllDataJSON = (desktopCompatible: boolean | 'android' = false) => {
@@ -211,7 +211,10 @@ export const getYearlyStats = (): Record<string, number> => {
   return getCompletedMinutesByDate();
 };
 
-export const getProfileStats = (): ProfileStats => {
+const profileStatsCache = revisionCache([KEYS.DAILY_LOGS], () => buildProfileStats());
+export const getProfileStats = (): ProfileStats => profileStatsCache(getTodayStr());
+
+const buildProfileStats = (): ProfileStats => {
   const allLogs = getAllDailyLogs();
   const today = getTodayStr();
   const relevantDates = Object.keys(allLogs)

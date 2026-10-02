@@ -1,6 +1,7 @@
+import { revisionCache } from './storage/revisionCache';
 import { DailyData, Priority, Task } from '../types';
 import { FocusSession, validateFocusSessions } from '../main/focus-session';
-import { getAllDailyLogs } from './storage/dailyLogRepository';
+import { getDailyLogsSnapshot } from './storage/dailyLogRepository';
 import { KEYS, getStorageItem } from './storage/localStorageStore';
 import { formatDateLocal, parseDateLocal } from './storage/dateUtils';
 export type FocusPeriod = 'week' | 'rolling';
@@ -10,7 +11,8 @@ export interface FocusReport {
   goalSeconds: Record<string, number>; prioritySeconds: Record<Priority, number>;
   days: FocusDay[]; tasks: Task[]; sessions: FocusSession[];
 }
-export const getFocusSessions = (): FocusSession[] => validateFocusSessions(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS) || '[]'));
+const sessions = revisionCache([KEYS.FOCUS_SESSIONS], ([raw]) => validateFocusSessions(JSON.parse(raw || '[]')));
+export const getFocusSessions = (): FocusSession[] => sessions().map(session => ({ ...session }));
 export function focusPeriodRange(anchor: string, period: FocusPeriod): { from: string; to: string } {
   const start = parseDateLocal(anchor), end = parseDateLocal(anchor);
   if (period === 'week') {
@@ -58,9 +60,9 @@ export function summarizeFocus(logs: Record<string, DailyData>, sessions: FocusS
   report.days = Array.from(days.values()).sort((a, b) => a.date.localeCompare(b.date));
   return report;
 }
-export function getFocusReport(anchor: string, period: FocusPeriod): FocusReport {
+function buildFocusReport(anchor: string, period: FocusPeriod): FocusReport {
   const range = focusPeriodRange(anchor, period);
-  const report = summarizeFocus(getAllDailyLogs(), getFocusSessions(), range.from, range.to);
+  const report = summarizeFocus(getDailyLogsSnapshot(), getFocusSessions(), range.from, range.to);
   const cursor = parseDateLocal(range.from);
   for (let i = 0; i < 7; i++) {
     const date = formatDateLocal(cursor);
@@ -69,5 +71,10 @@ export function getFocusReport(anchor: string, period: FocusPeriod): FocusReport
   }
   report.days.sort((a, b) => a.date.localeCompare(b.date)); return report;
 }
-export const getFocusTotals = () => summarizeFocus(getAllDailyLogs(), getFocusSessions(), '0000-01-01', '9999-12-31');
+const totals = revisionCache([KEYS.DAILY_LOGS, KEYS.FOCUS_SESSIONS], () => summarizeFocus(getDailyLogsSnapshot(), sessions(), '0000-01-01', '9999-12-31'));
+const reports = revisionCache([KEYS.DAILY_LOGS, KEYS.FOCUS_SESSIONS], (_raw, key) => {
+  const [anchor, period] = key.split(':'); return buildFocusReport(anchor, period as FocusPeriod);
+});
+export const getFocusReport = (anchor: string, period: FocusPeriod): FocusReport => reports(anchor + ':' + period);
+export const getFocusTotals = () => totals();
 export const getMeasuredMinutesByDate = () => Object.fromEntries(getFocusTotals().days.map(d => [d.date, d.measuredSeconds / 60]));

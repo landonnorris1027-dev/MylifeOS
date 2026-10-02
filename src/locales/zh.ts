@@ -3,6 +3,7 @@ const zh = {
   backup_compatibility_hint: '完整 v8 备份包含会话与排期精度；v7/v6 不携带这些字段，v6 还不携带振动偏好。分享不等于文件已保存。',
   share_backup: '分享完整备份',
   jump_current_time: '跳到当前时段',
+  orphan_focus_saved: '原任务已缺失，专注会话已独立保存，未重建任务。',
   focus_saved: '专注记录已保存，是否开始休息？',
   stop_focus: '停止本次专注',
   start_focus: '开始专注',

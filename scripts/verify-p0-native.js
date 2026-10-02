@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function childMain() {
-  const { app, dialog, ipcMain } = require('electron');
+  const { app, dialog, ipcMain, BrowserWindow } = require('electron');
   const profile = process.argv[process.argv.indexOf('--p0-profile') + 1];
   const mode = process.argv[process.argv.indexOf('--p0-mode') + 1];
   app.setPath('userData', profile);
@@ -23,7 +23,9 @@ async function childMain() {
   require(path.join(root, 'dist-main/electron.js'));
   await app.whenReady();
   await delay(700);
-  const call = (channel, payload) => handlers.get(channel)({}, payload);
+  const sender = BrowserWindow.getAllWindows()[0].webContents;
+  const trustedEvent = { sender, senderFrame: sender.mainFrame };
+  const call = (channel, payload) => handlers.get(channel)(trustedEvent, payload);
   const output = path.join(profile, 'export.json');
   dialog.showSaveDialog = async () => ({ canceled: true });
   assert.equal((await call('dialog-save-backup', { content: '{}' })).canceled, true);
@@ -36,7 +38,7 @@ async function childMain() {
 
   const blocker = path.join(profile, 'app-data.json.tmp');
   fs.mkdirSync(blocker);
-  const event = {};
+  const event = { ...trustedEvent };
   ipcMain.emit('storage-set-sync', event, { key: 'p0_quit_probe', value: 'pending' });
   assert.equal(event.returnValue.ok, true);
   await delay(450);
@@ -58,7 +60,7 @@ async function childMain() {
     assert.equal(prompts, 2);
     const file = path.join(profile, 'app-data.json');
     if (mode === 'retry') assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).p0_quit_probe, 'pending');
-    else assert.equal(fs.existsSync(file), false);
+    else assert.equal(fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')).p0_quit_probe : undefined, undefined);
     fs.writeFileSync(path.join(profile, 'verified.json'), JSON.stringify({ mode, prompts, nativeSave: 'success/cancel/failure' }));
   });
   app.quit();
