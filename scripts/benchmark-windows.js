@@ -47,7 +47,7 @@ async function measure(count) {
     const end = Date.now() + 45000;
     while (!await evaluate("document.querySelector('input[type=date]') !== null")) { if (Date.now() > end) throw Error('UI did not boot'); await delay(100); }
     await delay(500);
-    await evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true}))"); await delay(100);
+    await evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true}))"); await delay(100);
     const queries = ['Benchmark task', 'Fixed search', 'Benchmark task 1'];
     const search = [];
     for (let i = 0; i < 41; i++) {
@@ -57,10 +57,10 @@ async function measure(count) {
         const start=performance.now(); document.querySelector('input[type=search]').closest('form').requestSubmit();
         requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(performance.now()-start)));
       })`);
-      if (!await evaluate("document.querySelector('[aria-live=polite]').textContent.includes('tasks found')")) throw Error('Search produced no visible count');
+      if (!await evaluate("document.querySelector('[role=dialog] [aria-live=polite]').textContent.includes('tasks found')")) throw Error('Search produced no visible count');
       search.push(elapsed); await delay(30);
     }
-    await evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))"); await delay(100);
+    await evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))"); await delay(100);
     const switching = [];
     for (let i = 0; i < 40; i++) {
       const date = i % 2 ? '2026-10-02' : '2026-10-01';

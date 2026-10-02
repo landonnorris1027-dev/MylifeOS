@@ -267,8 +267,14 @@ function registerPomodoroIpc(): void {
 
 function registerStorageIpc(): void {
   safeHandle('app-info', () => buildInfo());
-  safeHandle('storage-read-all', () => ({ revision: getAppDataStore().revision,
-    entries: { ...getAppDataStore().snapshot(), [RECOVERY_POINTS_KEY]: getRecoveryPointsStore().get(RECOVERY_POINTS_KEY) || '[]' } }));
+  safeHandle('storage-read-all', () => {
+    const entries = getAppDataStore().snapshot();
+    const recovery = getRecoveryPointsStore().get(RECOVERY_POINTS_KEY);
+    // Absence must remain absence for compare-and-set on the first checkpoint.
+    delete entries[RECOVERY_POINTS_KEY];
+    if (recovery !== null) entries[RECOVERY_POINTS_KEY] = recovery;
+    return { revision: getAppDataStore().revision, entries };
+  });
   safeHandle('storage-write', (_event, payload: { key: string; value: string; expectedValue: string | null }) => {
     const store = getStorageStoreForKey(payload.key);
     if (store.get(payload.key) !== payload.expectedValue) return { ok: false, error: 'Data changed before this edit was accepted' };

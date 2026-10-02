@@ -26,6 +26,10 @@ async function childMain() {
   const sender = BrowserWindow.getAllWindows()[0].webContents;
   const trustedEvent = { sender, senderFrame: sender.mainFrame };
   const call = (channel, payload) => handlers.get(channel)(trustedEvent, payload);
+  const initialSnapshot = await call('storage-read-all');
+  assert.equal(initialSnapshot.entries.mylifeos_recovery_points, undefined);
+  assert.equal((await call('storage-write', { key: 'mylifeos_recovery_points', value: '[]', expectedValue: null })).ok, true);
+  assert.equal((await call('storage-read-all')).entries.mylifeos_recovery_points, '[]');
   const output = path.join(profile, 'export.json');
   dialog.showSaveDialog = async () => ({ canceled: true });
   assert.equal((await call('dialog-save-backup', { content: '{}' })).canceled, true);
