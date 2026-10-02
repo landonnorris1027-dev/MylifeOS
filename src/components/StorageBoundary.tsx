@@ -94,6 +94,9 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
           {!recovery && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
             await storageBridge.retry();
           })}>{zh ? '重试保存' : 'Retry saving'}</button>}
+          {!recovery && getDesktopStorage() && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
+            await getDesktopStorage()!.discardLocalCandidate();
+          })}>{zh ? '放弃本地待保存修改并重新载入' : 'Discard local pending edits and reload'}</button>}
           <button className={buttonClass} disabled={busy} onClick={() => void run(exportPending)}>{zh ? '导出待保存数据' : 'Export pending data'}</button>
         </>}
         {(recovery || failed) && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {

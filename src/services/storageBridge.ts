@@ -8,7 +8,7 @@ export const storageBridge = {
   status: async (): Promise<StorageStatus> => isAndroid() ? getNativeStatus() : getDesktopStorage() ? getDesktopStorage()!.status() : window.electronAPI!.invoke('storage-status'),
   subscribe: (callback: (status: StorageStatus) => void): (() => void) => isAndroid()
     ? subscribeNativeStatus(callback) : getDesktopStorage() ? getDesktopStorage()!.subscribe(callback) : window.electronAPI!.on('storage-status', callback),
-  pending: async (): Promise<Record<string, string>> => isAndroid() ? getNativePending() : getDesktopStorage() ? { ...await window.electronAPI!.invoke('storage-pending-snapshot'), ...getDesktopStorage()!.pending() } : window.electronAPI!.invoke('storage-pending-snapshot'),
+  pending: async (): Promise<Record<string, string>> => isAndroid() ? getNativePending() : getDesktopStorage() ? { ...await window.electronAPI!.invoke('storage-pending-snapshot'), ...getDesktopStorage()!.pendingOverrides() } : window.electronAPI!.invoke('storage-pending-snapshot'),
   retry: async () => {
     if (isAndroid()) { await retryNativeWrites(); return; }
     if (getDesktopStorage()) { await getDesktopStorage()!.retry(); return; }

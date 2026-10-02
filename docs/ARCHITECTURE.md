@@ -18,7 +18,7 @@ Important components:
 
 - `HabitConfig`: manage habit rules and backup import/export
 - `TaskCard`: shared task presentation for inbox and timeline
-- `TimePickerModal`: half-hour scheduling picker with overlap blocking
+- `TimePickerModal`: 5/15/30-minute scheduling picker with overlap blocking
 - `PomodoroTimer`: focus and break session UI
 - `RecoveryModal`: resolve expired offline sessions
 - `ContributionGraph`: yearly heatmap
@@ -131,3 +131,11 @@ Core renderer types are defined in [`src/types.ts`](../src/types.ts):
 - `DailyData`
 
 The app remains local-first. In Electron, data is stored in the desktop app data file. In non-Electron fallback runs, browser storage is still supported.
+
+## Windows 0.1.8 boundaries
+
+`focus-runtime.ts` owns the durable timer/outbox and idempotent task/session completion. `app-data-store.ts` owns fsync/atomic storage; `write-queue.ts` serializes asynchronous IPC mutations and shutdown drain. `desktop-shell.ts` owns window state and tray lifecycle; `ipc-security.ts` validates renderer origin and request shape. `diagnostics.ts` accepts bounded, fixed redacted fields only.
+
+The renderer bootstraps `DesktopStorageAdapter` and the active timer inventory before task reconciliation. Ordinary edits acknowledge queue acceptance; critical operations await flush. Failed candidates remain separate from durable data and conflict retries never replace newer completion state. `revisionCache.ts` keys log/search/report caches by storage revision and raw snapshot values, invalidating on restore/retry. `FocusRuntime`, `StorageAdapter`, and `FileAdapter` expose platform boundaries; native Android retains its existing runtime.
+
+`PreferencesSettings` renders settings separately from habit/data management, and `TaskOperations` implements task-scoped batch/undo. Production uses relative Vite legacy resources under `build/`, whitelisted preload IPC, and a minimal Windows staging project. The launcher checks both build identities. See `WINDOWS_IMPROVEMENTS.md` for acceptance commands and outstanding OS gates.

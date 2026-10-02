@@ -90,6 +90,12 @@ export class DesktopStorageAdapter implements StorageAdapter {
     this.server = result; await this.reload(); this.publish();
   }
   pending() { return { ...(this.candidate || this.entries) }; }
+  pendingOverrides() {
+    const overrides: Record<string, string> = {};
+    for (const [key, value] of Object.entries(this.candidate || {})) if (value !== this.entries[key]) overrides[key] = value;
+    for (const request of this.writes) overrides[request.key] = request.value;
+    return overrides;
+  }
   async retry() {
     await this.tail;
     const result = await this.bridge.retry();
@@ -115,7 +121,9 @@ export class DesktopStorageAdapter implements StorageAdapter {
   }
   async discardLocalCandidate() {
     await this.tail;
-    if ((await this.bridge.status()).state !== 'saved') throw Error('Retry the main-process save before discarding a local conflict.');
+    const status = await this.bridge.status();
+    if (status.state !== 'saved') throw Error('Retry the main-process save before discarding a local conflict.');
+    this.server = status;
     this.writes = []; this.failure = null; this.candidate = null; await this.reload(); this.publish();
   }
 }

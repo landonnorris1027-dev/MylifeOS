@@ -150,6 +150,7 @@ async function main() {
   await current.evaluate("(() => { const b = Array.from(document.querySelectorAll('button')).find(b => !b.disabled && b.innerText.includes('No overlap detected')); if (!b) throw Error('No available schedule slot'); b.click(); })()");
   await delay(150);
   logs = await readLogs();
+  if (logs[day].tasks.find(t => t.id === task.id).status !== 'scheduled') console.error('Scheduling diagnostic:', await current.evaluate('document.body.innerText'), errors);
   assert.equal(logs[day].tasks.find(t => t.id === task.id).status, 'scheduled');
   log('PASS task creation and scheduling through UI + synchronous persistence');
 
@@ -445,6 +446,24 @@ async function main() {
     log('PASS measured/historical separation, weekly/rolling periods and review UI');
   }
 
+
+  // A paused habit task must be protected before first-render reconciliation.
+  await clickText('Planner');
+  const protectedLogs = await readLogs();
+  const pausedTask = { id: 'paused-orphan-habit', name: 'Paused orphan habit', origin: 'habit', habitId: 'removed-habit',
+    date: todayDate, status: 'inbox', priority: 'P1', durationMinutes: 2 };
+  protectedLogs[todayDate] ||= { date: todayDate, tasks: [] };
+  protectedLogs[todayDate].tasks.push(pausedTask);
+  await current.evaluate(`window.electronAPI.sendSync('storage-set-sync',{key:'mylifeos_daily_logs',value:${JSON.stringify(JSON.stringify(protectedLogs))}})`);
+  await invoke('storage-flush');
+  await invoke('pomodoro-start', { timerId: 'paused-orphan-timer', duration: 120, isFocusMode: true, notificationsEnabled: false,
+    taskId: pausedTask.id, taskDate: todayDate, taskName: pausedTask.name, taskHabitId: pausedTask.habitId, taskPriority: 'P1', taskDurationMinutes: 2 });
+  await invoke('pomodoro-toggle', { timerId: 'paused-orphan-timer' });
+  await stop(); await launch();
+  assert.equal((await readLogs())[todayDate].tasks.find(t => t.id === pausedTask.id).status, 'inbox');
+  assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
+  await invoke('pomodoro-stop', { timerId: 'paused-orphan-timer' });
+  log('PASS paused habit task remains intact during startup reconciliation');
 
   assert.deepEqual(errors, [], 'No renderer errors across the regression run');
   if (process.env.MYLIFEOS_REGRESSION_SCREENSHOT_OUT) {

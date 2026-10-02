@@ -1,4 +1,5 @@
 import { bootstrapDesktopStorage } from './services/storage/desktopStorageAdapter';
+import { electronIPC } from './services/electronIPC';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -31,5 +32,11 @@ const render = () => ReactDOM.createRoot(rootElement).render(
 );
 
 if (isAndroid()) void bootstrapNativeStorage(Object.values(KEYS)).then(render);
-else if (window.electronAPI) void bootstrapDesktopStorage().then(render, render);
+else if (window.electronAPI) void bootstrapDesktopStorage().then(async () => {
+  // Protect restored active/paused habit tasks before the first reconciliation.
+  await electronIPC.getActiveTimers(true);
+}).then(render, () => {
+  // A missing timer inventory must not permit habit reconciliation or edits.
+  rootElement.textContent = 'Unable to load desktop storage or sessions. Restart the app to retry. / 无法读取存储或会话，请重启重试。';
+});
 else render();

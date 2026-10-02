@@ -57,7 +57,8 @@ async function measure(count) {
         const start=performance.now(); document.querySelector('input[type=search]').closest('form').requestSubmit();
         requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(performance.now()-start)));
       })`);
-      if (!await evaluate("document.querySelector('[role=dialog] [aria-live=polite]').textContent.includes('tasks found')")) throw Error('Search produced no visible count');
+      const expectedCount = query === 'Benchmark task 1' ? Array.from({ length: count }, (_, number) => number).filter(number => String(number).startsWith('1')).length : count;
+      if (!await evaluate(`document.querySelector('[role=dialog] [aria-live=polite]').textContent.includes('${expectedCount} tasks found')`)) throw Error('Search result count is incorrect');
       search.push(elapsed); await delay(30);
     }
     await evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))"); await delay(100);
@@ -69,7 +70,10 @@ async function measure(count) {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(date)});
         input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true}));
         requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(performance.now()-start)));
-      })`)); await delay(30);
+      })`));
+      const visibleTask = i % 2 ? 'Benchmark task 0' : 'Benchmark task 100';
+      if (!await evaluate(`Array.from(document.querySelectorAll('div[role=button]')).some(card => card.innerText.includes('${visibleTask}'))`)) throw Error('Day did not change to its fixture tasks');
+      await delay(30);
     }
     return { count, fixtureSHA256: crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex'),
       coldSearchMs: search[0], warmSearch: distribution(search.slice(1)), daySwitch: distribution(switching),

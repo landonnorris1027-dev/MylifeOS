@@ -6,6 +6,16 @@ describe('complete snapshot backups', () => {
   beforeEach(() => { localStorage.clear(); });
   afterEach(() => { vi.restoreAllMocks(); delete window.electronAPI; });
 
+  it('retains history referencing a removed habit and goal through a full backup restore', async () => {
+    const date = '2026-10-02';
+    const task = { id: 'history', name: 'Preserved history', date, habitId: 'removed-habit', goalId: 'removed-goal',
+      origin: 'habit', status: 'completed', priority: 'P1', durationMinutes: 25, actualFocusMinutes: 20, review: 'Keep this review' };
+    const backup = exportBackupJSON([], { [date]: { date, tasks: [task as import('../../types').Task] } }, []);
+    expect((await importBackupJSON(backup)).ok).toBe(true);
+    const restored = JSON.parse(getStorageItem(KEYS.DAILY_LOGS)!)[date].tasks[0];
+    expect(restored).toMatchObject({ id: task.id, goalId: task.goalId, habitId: task.habitId, review: task.review });
+  });
+
   it('preserves precise v8 sessions, rejects invalid records, and omits them in both compatibility formats', async () => {
     const session = { id: 's', timerId: 't', taskId: null, taskDate: '2026-10-02', taskName: 'Deleted task', plannedSeconds: 120, actualFocusSeconds: 1.5, startedAt: 1000, endedAt: 2500, result: 'stopped', measurement: 'measured' };
     setStorageItem(KEYS.FOCUS_SESSIONS, JSON.stringify([session]));

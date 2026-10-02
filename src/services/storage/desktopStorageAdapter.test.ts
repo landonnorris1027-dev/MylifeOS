@@ -39,5 +39,14 @@ describe('desktop async storage boundary', () => {
     await expect(adapter.retry()).rejects.toThrow('Data changed');
     expect(adapter.get('probe')).toBe('external'); expect(adapter.pending().probe).toBe('stale');
     await adapter.discardLocalCandidate(); expect(adapter.get('probe')).toBe('external');
+    expect(adapter.status().state).toBe('saved');
+  });
+  it('exports only local differences over a pending main-process completion', async () => {
+    const { adapter, changeExternally } = await setup();
+    expect(adapter.pendingOverrides()).toEqual({});
+    const pendingCompletion = { probe: 'old', mylifeos_daily_logs: 'completed', mylifeos_focus_sessions: 'session-record' };
+    expect({ ...pendingCompletion, ...adapter.pendingOverrides() }).toEqual(pendingCompletion);
+    changeExternally(); await expect(adapter.set('probe', 'local edit')).rejects.toThrow();
+    expect({ ...pendingCompletion, ...adapter.pendingOverrides() }).toEqual({ ...pendingCompletion, probe: 'local edit' });
   });
 });

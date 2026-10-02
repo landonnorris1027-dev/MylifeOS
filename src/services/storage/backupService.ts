@@ -169,7 +169,7 @@ const sanitizeTask = (
   if (origin === 'habit' && !rawHabitId) return null;
 
   seenTaskIds.add(value.id);
-  const goalId = typeof value.goalId === 'string' && validGoalIds.has(value.goalId) ? value.goalId : undefined;
+  const goalId = isNonEmptyString(value.goalId) ? value.goalId : undefined;
   const note = typeof value.note === 'string' ? value.note.slice(0, 1000) : undefined;
   const review = typeof value.review === 'string' ? value.review.slice(0, 1000) : undefined;
 

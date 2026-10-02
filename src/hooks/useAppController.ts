@@ -377,6 +377,7 @@ export const useAppController = () => {
         }
         if (activeTimers.length === 0) {
           const completed = typeof electronIPC.getCompletedFocus === 'function' ? (await electronIPC.getCompletedFocus()).slice(-1)[0] : undefined;
+          if (completed?.taskMissing) dispatch({ type: 'OPEN_ALERT', message: t('orphan_focus_saved'), tone: 'success' });
           if (completed?.taskId && completed.taskDate) {
             const task = findStoredTimerTask(completed.taskId, completed.taskDate);
             if (task?.status === 'completed') {
