@@ -17,6 +17,8 @@ jobs:
           node-version: '22.12.0'
           cache: npm
       - run: npm ci
+      - name: Install the pinned Electron runtime
+        run: node node_modules/electron/install.js
       - run: npm run electron:build
       - run: npm run verify:p0-native
       - uses: actions/upload-artifact@v4
