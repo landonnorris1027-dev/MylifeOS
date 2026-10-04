@@ -80,6 +80,7 @@ async function until(check, timeout = 10000) {
   throw new Error(`Condition timed out: ${String(check)}`);
 }
 async function clickText(text) {
+  await until(() => current.evaluate(`Array.from(document.querySelectorAll('button')).some(b => b.innerText.trim() === ${JSON.stringify(text)} && !b.disabled)`));
   await current.evaluate(`(() => { const b = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === ${JSON.stringify(text)} && !b.disabled); if (!b) throw Error('Missing button: ' + ${JSON.stringify(text)}); b.click(); })()`);
   await delay(150);
 }
@@ -117,7 +118,7 @@ async function main() {
     const legacyTimers = await invoke('pomodoro-get-active-timers');
     assert.equal(legacyTimers.length, 1);
     assert.equal(legacyTimers[0].isActive, false);
-    await current.evaluate(`window.electronAPI.send('pomodoro-stop', {timerId:${JSON.stringify(legacyTimers[0].timerId)}})`);
+    await current.evaluate(`window.electronAPI.invoke('pomodoro-stop', {timerId:${JSON.stringify(legacyTimers[0].timerId)}})`);
     await stop();
     await launch();
     log('PASS previous Electron version data and paused timer compatibility');
@@ -150,6 +151,7 @@ async function main() {
   await current.evaluate("(() => { const b = Array.from(document.querySelectorAll('button')).find(b => !b.disabled && b.innerText.includes('No overlap detected')); if (!b) throw Error('No available schedule slot'); b.click(); })()");
   await delay(150);
   logs = await readLogs();
+  if (logs[day].tasks.find(t => t.id === task.id).status !== 'scheduled') console.error('Scheduling diagnostic:', await current.evaluate('document.body.innerText'), errors);
   assert.equal(logs[day].tasks.find(t => t.id === task.id).status, 'scheduled');
   log('PASS task creation and scheduling through UI + synchronous persistence');
 
@@ -247,7 +249,7 @@ async function main() {
     taskId: task.id, taskName: task.name, taskDate: day, taskPriority: 'P1', taskDurationMinutes: 25, breakDurationSeconds: 10 };
   await invoke('pomodoro-start', timer);
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, true);
-  await current.evaluate("window.electronAPI.send('pomodoro-toggle', {timerId:'upgrade-timer'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-toggle', {timerId:'upgrade-timer'})");
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
   if (process.env.MYLIFEOS_REGRESSION_FIXTURE_OUT) {
     fs.mkdirSync(process.env.MYLIFEOS_REGRESSION_FIXTURE_OUT, { recursive: true });
@@ -259,9 +261,9 @@ async function main() {
   await launch();
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
   assert.ok(await current.evaluate("document.body.textContent.includes('Focus Mode')"), 'Paused timer should reopen in renderer');
-  await current.evaluate("window.electronAPI.send('pomodoro-toggle', {timerId:'upgrade-timer'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-toggle', {timerId:'upgrade-timer'})");
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, true);
-  await current.evaluate("window.electronAPI.send('pomodoro-stop', {timerId:'upgrade-timer'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-stop', {timerId:'upgrade-timer'})");
   assert.equal((await invoke('pomodoro-get-active-timers')).length, 0);
   log('PASS timer start, pause, persisted recovery, resume and stop');
 
@@ -271,6 +273,7 @@ async function main() {
   await until(() => current.evaluate('window.__finished'));
   await current.evaluate('window.__unsubscribe()');
   assert.equal((await invoke('pomodoro-get-active-timers')).length, 0);
+  await invoke('pomodoro-stop', {timerId: 'upgrade-finish'});
   log('PASS completion event and notification-enabled timer path (visual delivery not asserted)');
 
   await invoke('pomodoro-start', { ...timer, timerId: 'upgrade-offline', duration: 1 });
@@ -345,7 +348,7 @@ async function main() {
   assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).p0_pending_probe, 'retry-me');
   injectingStorageFailure = false;
   assert.equal((await invoke('pomodoro-get-active-timers')).find(timer => timer.timerId === 'p0-break-guard').isActive, false);
-  await current.evaluate("window.electronAPI.send('pomodoro-stop', {timerId:'p0-break-guard'})");
+  await current.evaluate("window.electronAPI.invoke('pomodoro-stop', {timerId:'p0-break-guard'})");
   await until(async () => !(await invoke('pomodoro-get-active-timers')).some(timer => timer.timerId === 'p0-break-guard'));
   log('PASS real write failure, durable UI rollback, pending snapshot and retry');
 
@@ -384,8 +387,93 @@ async function main() {
   await until(async () => (await invoke('storage-status')).state === 'saved');
   assert.ok(fs.readdirSync(profile).some(name => name.startsWith('app-data.json.corrupt-')));
   assert.ok(fs.readdirSync(profile).some(name => name.startsWith('app-data.json.bak.corrupt-')));
-  assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_focus_settings, atomicEntries.mylifeos_focus_settings);
+  assert.deepEqual(JSON.parse(JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8')).mylifeos_focus_settings), { ...JSON.parse(atomicEntries.mylifeos_focus_settings), vibrationEnabled: true });
   log('PASS corruption blocks empty overwrite; UI restore archives originals and restores settings');
+
+  // P1-A public UI: original schedule, existing-session routing, precise grids,
+  // atomic batch move, and Ctrl+Z isolation from native text editing.
+  const today = new Date();
+  const todayDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  await fill('input[type=date]', todayDate);
+  const efficiencyNames = ['A', 'B'].map(letter => `Efficiency ${letter} ${Date.now()}`);
+  for (const name of efficiencyNames) {
+    await clickText('Add one-time task'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
+  }
+  const efficiencyTasks = (await readLogs())[todayDate].tasks.filter(t => efficiencyNames.includes(t.name));
+  const efficiencyLogs = await readLogs();
+  efficiencyLogs[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).status = 'scheduled';
+  efficiencyLogs[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime = '09:07';
+  await current.evaluate(`window.electronAPI.sendSync('storage-set-sync', {key:'mylifeos_daily_logs', value:${JSON.stringify(JSON.stringify(efficiencyLogs))}})`);
+  await fill('input[type=date]', day); await fill('input[type=date]', todayDate);
+  for (const interval of [5,15,30]) {
+    await current.evaluate(`(() => { const e = document.querySelector('select'); e.value = '${interval}'; e.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+    await delay(100);
+    assert.ok(await current.evaluate("!!document.querySelector('[data-timeline-time=\"09:07\"]')"));
+  }
+  const focusCard = async name => current.evaluate(`(() => { const card = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(name)})); Array.from(card.querySelectorAll('button')).find(b => b.innerText.trim() === 'Start focus').click(); })()`);
+  await focusCard(efficiencyNames[0]); await until(async () => (await invoke('pomodoro-get-active-timers')).length === 1);
+  const efficiencyTimer = (await invoke('pomodoro-get-active-timers'))[0];
+  assert.equal((await readLogs())[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime, '09:07');
+  await invoke('pomodoro-toggle', {timerId:efficiencyTimer.timerId});
+  await current.evaluate("document.querySelector('[role=dialog] button').click()");
+  await focusCard(efficiencyNames[1]); await delay(200);
+  assert.equal((await invoke('pomodoro-get-active-timers')).length, 1);
+  assert.equal((await invoke('pomodoro-get-active-timers'))[0].timerId, efficiencyTimer.timerId);
+  await clickText('Stop focus');
+  const preciseSessions = await current.evaluate("JSON.parse(window.electronAPI.sendSync('storage-get-sync',{key:'mylifeos_focus_sessions'}) || '[]')");
+  assert.ok(preciseSessions.some(s => s.taskId === efficiencyTasks[0].id && s.result === 'stopped'));
+  for (let round = 0; round < 2; round++) {
+    await clickText('Batch reschedule');
+    await current.evaluate(`Array.from(document.querySelectorAll('[role=dialog] label')).filter(l => ${JSON.stringify(efficiencyNames)}.some(n => l.textContent.includes(n))).forEach(l => l.querySelector('input[type=checkbox]').click())`);
+    await fill('[role=dialog] input[type=date]', day); await clickText('Move selected tasks');
+    await until(async () => (await readLogs())[day].tasks.some(t => t.id === efficiencyTasks[0].id));
+    if (round === 1) {
+      await clickText('Add one-time task'); const beforeEditingUndo = JSON.stringify(await readLogs());
+      await current.evaluate("document.querySelector('input[placeholder=\"e.g. Submit form, call advisor\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
+      assert.equal(JSON.stringify(await readLogs()), beforeEditingUndo);
+      await current.evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))");
+    }
+    await current.evaluate("document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
+    await until(async () => (await readLogs())[todayDate].tasks.some(t => t.id === efficiencyTasks[0].id));
+  }
+  log('PASS direct focus preserves non-grid schedule; existing paused session; all grids; batch move/undo; text shortcut isolation');
+  if (Number(require('../package.json').version.split('.')[2]) >= 7) {
+    await clickText('Profile');
+    assert.ok(await current.evaluate("document.body.textContent.includes('Measured focus time') && document.body.textContent.includes('Historical task duration (includes estimates)') && document.body.textContent.includes('Local Monday–Sunday') && document.body.textContent.includes('Weekly review')"));
+    await clickText('Last seven days');
+    assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Last seven days').getAttribute('aria-pressed')"), 'true');
+    await clickText('This week');
+    assert.ok(await current.evaluate("document.body.textContent.includes('cross-midnight sessions belong to the original task date')"));
+    log('PASS measured/historical separation, weekly/rolling periods and review UI');
+  }
+
+
+  // A paused habit task must be protected before first-render reconciliation.
+  await clickText('Planner');
+  const protectedLogs = await readLogs();
+  const pausedTask = { id: 'paused-orphan-habit', name: 'Paused orphan habit', origin: 'habit', habitId: 'removed-habit',
+    date: todayDate, status: 'inbox', priority: 'P1', durationMinutes: 2 };
+  protectedLogs[todayDate] ||= { date: todayDate, tasks: [] };
+  protectedLogs[todayDate].tasks.push(pausedTask);
+  await invoke('storage-flush');
+  await stop();
+  // Seed both files while stopped. Inserting an unprotected orphan in a running
+  // planner legitimately reconciles it before the subsequent start IPC arrives.
+  const protectedEntries = JSON.parse(fs.readFileSync(path.join(profile, 'app-data.json'), 'utf8'));
+  protectedEntries.mylifeos_daily_logs = JSON.stringify(protectedLogs);
+  fs.writeFileSync(path.join(profile, 'app-data.json'), JSON.stringify(protectedEntries));
+  fs.writeFileSync(path.join(profile, 'pomodoro-state.json'), JSON.stringify({ activeTimers: [{
+    timerId: 'paused-orphan-timer', sessionId: 'paused-orphan-session', duration: 120,
+    remaining: 120000, endTime: Date.now() + 120000, startedAt: Date.now(), elapsed: 0,
+    isActive: false, isFinished: false, isFocusMode: true, notificationsEnabled: false,
+    taskId: pausedTask.id, taskDate: todayDate, taskName: pausedTask.name,
+    taskHabitId: pausedTask.habitId, taskPriority: 'P1', taskDurationMinutes: 2,
+  }], pendingRecoveries: [], pendingCompletions: [], completedChoices: [] }));
+  await launch();
+  assert.equal((await readLogs())[todayDate].tasks.find(t => t.id === pausedTask.id).status, 'inbox');
+  assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, false);
+  await invoke('pomodoro-stop', { timerId: 'paused-orphan-timer' });
+  log('PASS paused habit task remains intact during startup reconciliation');
 
   assert.deepEqual(errors, [], 'No renderer errors across the regression run');
   if (process.env.MYLIFEOS_REGRESSION_SCREENSHOT_OUT) {

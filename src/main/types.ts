@@ -12,6 +12,8 @@ export interface PomodoroTimerData {
   duration: number;
   isFocusMode: boolean;
   notificationsEnabled?: boolean;
+  vibrationEnabled?: boolean;
+  soundEnabled?: boolean;
   breakDurationSeconds?: number;
   taskId?: string;
   taskHabitId?: string;
@@ -41,7 +43,7 @@ export interface PomodoroRecoveryData {
   expiredAt?: number;
 }
 
-export type PomodoroRecoveryAction = 'resume-break' | 'restart-break' | 'dismiss';
+export type PomodoroRecoveryAction = 'resume-break' | 'restart-break' | 'dismiss' | 'complete';
 
 export interface MainTimer {
   timerId: string;

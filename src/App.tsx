@@ -1,3 +1,4 @@
+import BatchRescheduleModal from './components/BatchRescheduleModal';
 import React from 'react';
 import { isStorageReadOnly } from './services/storage/localStorageStore';
 import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search } from 'lucide-react';
@@ -21,6 +22,8 @@ import RescheduleModal from './components/RescheduleModal';
 import { useAppController } from './hooks/useAppController';
 import ErrorBoundary from './components/ErrorBoundary';
 import { buildTimelineSlotsForMode } from './services/scheduling';
+import { isAndroid } from './services/platform';
+import { App as NativeApp } from '@capacitor/app';
 
 const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
   P1: 'p1_label',
@@ -29,17 +32,46 @@ const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
 };
 
 export default function App() {
+  const [batchOpen, setBatchOpen] = React.useState(false);
   const [mobilePane, setMobilePane] = React.useState<'inbox' | 'timeline'>('inbox');
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [selectedSearchTask, setSelectedSearchTask] = React.useState<Task | null>(null);
   const searchResultRef = React.useRef<HTMLDivElement>(null);
   const { t, language, setLanguage } = useLanguage();
   const { state, actions } = useAppController();
+  React.useEffect(() => {
+    if (!isAndroid()) return;
+    const listener = NativeApp.addListener('backButton', () => {
+      const dialog = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find(element => element.getClientRects().length > 0);
+      if (dialog) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      else if (state.view !== 'planner') actions.setView('planner');
+      else void NativeApp.minimizeApp();
+    });
+    return () => { void listener.then(handle => handle.remove()); };
+  }, [state.view, actions.setView]);
+  const jumpToCurrentTime = () => {
+    actions.goToToday(); setMobilePane('timeline');
+    window.setTimeout(() => {
+      const now = new Date(); const minutes = now.getHours() * 60 + now.getMinutes();
+      const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-timeline-time]'));
+      const target = rows.reduce<HTMLElement | null>((nearest, row) => {
+        const difference = (element: HTMLElement) => {
+          const [hour, minute] = (element.dataset.timelineTime || '00:00').split(':').map(Number);
+          return Math.abs(hour * 60 + minute - minutes);
+        };
+        return !nearest || difference(row) < difference(nearest) ? row : nearest;
+      }, null);
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 0);
+  };
   const {
     view,
     selectedDate,
     graphRefreshToken,
     timelineMode,
+    intervalMinutes,
+    autoStartFocus,
+    undoCount,
     isHabitConfigOpen,
     isManualTaskOpen,
     isTaskSearchOpen,
@@ -63,6 +95,11 @@ export default function App() {
   const {
     setView,
     setTimelineMode,
+    setIntervalMinutes,
+    handleDirectFocus,
+    openCurrentSession,
+    handleUndoTaskOperation,
+    handleBatchReschedule,
     openHabitConfig,
     closeHabitConfig,
     openManualTask,
@@ -103,7 +140,17 @@ export default function App() {
   } = actions;
 
   const formatHours = (minutes: number) => (minutes / 60).toFixed(1);
-  const timelineSlots = React.useMemo(() => buildTimelineSlotsForMode(timelineMode), [timelineMode]);
+  const timelineSlots = React.useMemo(() => {
+    const slots = buildTimelineSlotsForMode(timelineMode, intervalMinutes);
+    const seen = new Set(slots.map(slot => slot.time));
+    for (const task of scheduledTasks) {
+      if (task.startTime && !seen.has(task.startTime)) {
+        seen.add(task.startTime); const [h, m] = task.startTime.split(':').map(Number);
+        slots.push({ time: task.startTime, minutes: h * 60 + m });
+      }
+    }
+    return slots.sort((a, b) => a.minutes - b.minutes);
+  }, [timelineMode, intervalMinutes, scheduledTasks]);
   React.useEffect(() => {
     if (selectedSearchTask?.date !== selectedDate) return;
     searchResultRef.current?.scrollIntoView({ block: 'start' });
@@ -128,6 +175,16 @@ export default function App() {
   // useModalBehavior.
   React.useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editing = Boolean(target?.closest('input,textarea,select,[contenteditable="true"]'));
+      const modal = Boolean(document.querySelector('[role="dialog"],[role="alertdialog"],[aria-modal="true"]'));
+      if ((event.ctrlKey || event.metaKey) && ['z', 'j'].includes(event.key.toLowerCase())) {
+        if (editing || modal || isStorageReadOnly() || event.altKey || event.shiftKey) return;
+        event.preventDefault();
+        if (event.key.toLowerCase() === 'z' && undoCount) void handleUndoTaskOperation();
+        if (event.key.toLowerCase() === 'j') void openCurrentSession();
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         if (isHabitConfigOpen || isSettingsOpen || isTaskSearchOpen || isManualTaskOpen || activeTask || schedulingTask || reschedulingTask || reviewingTask || isRecoveryModalOpen) return;
         event.preventDefault();
@@ -152,7 +209,6 @@ export default function App() {
 
       if (event.key !== 'n' && event.key !== 'N') return;
 
-      const target = event.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
       const isEditingField =
         tagName === 'input' ||
@@ -187,11 +243,13 @@ export default function App() {
     isTaskSearchOpen,
     reschedulingTask,
     openTaskSearch,
+    undoCount, handleUndoTaskOperation, openCurrentSession,
   ]);
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] pb-10 font-sans text-[#37352F]">
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 mb-6">
+    <div className="min-h-screen bg-[#F7F7F5] pb-24 font-sans text-[#37352F]">
+      <div className="safe-area-status-bar" aria-hidden="true" />
+      <header className="safe-area-sticky-top sticky z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-4 mb-6 md:px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('planner')}>
@@ -334,7 +392,14 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6">
+      <div className="mx-auto mb-4 flex max-w-6xl flex-wrap items-center gap-3 px-4 text-sm">
+        <button className="rounded border bg-white px-3 py-2" onClick={() => void openCurrentSession()}>{language === 'zh' ? '当前会话' : 'Current session'} · Ctrl+J</button>
+        <button disabled={!undoCount} className="rounded border bg-white px-3 py-2 disabled:opacity-40" onClick={() => void handleUndoTaskOperation()}>{language === 'zh' ? '撤销' : 'Undo'} ({undoCount}/20)</button>
+        {view === 'planner' && <button className="rounded border bg-white px-3 py-2" onClick={() => setBatchOpen(true)}>{language === 'zh' ? '批量改期' : 'Batch reschedule'}</button>}
+        <label>{language === 'zh' ? '排期精度' : 'Schedule interval'} <select className="rounded border bg-white p-2" value={intervalMinutes} onChange={e => setIntervalMinutes(Number(e.target.value) as 5 | 15 | 30)}>{[5, 15, 30].map(value => <option key={value} value={value}>{value} min</option>)}</select></label>
+        <details><summary className="cursor-pointer">{language === 'zh' ? '快捷键' : 'Keyboard shortcuts'}</summary><p>N: {language === 'zh' ? '新建任务' : 'New task'} · Ctrl+K: {language === 'zh' ? '搜索' : 'Search'} · Ctrl+J: {language === 'zh' ? '当前会话' : 'Current session'} · Ctrl+Z: {language === 'zh' ? '撤销' : 'Undo'} · Ctrl+1/2: {language === 'zh' ? '计划/画像' : 'Planner/Profile'} · Esc: {language === 'zh' ? '关闭弹窗' : 'Close dialog'}</p></details>
+      </div>
+      <main className="max-w-6xl mx-auto px-3 md:px-6">
         {selectedSearchTask?.date === selectedDate && (
           <div ref={searchResultRef} tabIndex={-1} className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             <div className="flex items-start justify-between gap-3">
@@ -385,6 +450,7 @@ export default function App() {
                 className={`flex-1 rounded-lg px-3 py-2 text-sm ${mobilePane === 'inbox' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}>{t('inbox')}</button>
               <button onClick={() => setMobilePane('timeline')} aria-pressed={mobilePane === 'timeline'}
                 className={`flex-1 rounded-lg px-3 py-2 text-sm ${mobilePane === 'timeline' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}>{t('timeline')}</button>
+              <button onClick={jumpToCurrentTime} className="rounded-lg bg-white px-3 text-sm text-gray-700">{t('jump_current_time')}</button>
             </div>
             <div className={`${mobilePane === 'inbox' ? 'flex' : 'hidden'} flex-col gap-6 md:col-span-4 md:flex lg:col-span-3`}>
               <div className="bg-white rounded-2xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] min-h-[500px] border border-gray-100/50">
@@ -439,6 +505,7 @@ export default function App() {
                         task={task}
                         mode="pool"
                         onClick={handleTaskCardClick}
+                        onFocus={isToday ? handleDirectFocus : undefined}
                         draggable
                         onDragStart={handleTaskDragStart}
                         onDeleteToday={handleTaskDeleteToday}
@@ -542,7 +609,7 @@ export default function App() {
                     const tasksInSlot = scheduledTasks.filter((task) => task.startTime === timeLabel);
 
                     return (
-                      <div key={timeLabel} className="flex gap-4 group min-h-[64px]">
+                      <div key={timeLabel} data-timeline-time={timeLabel} className="flex gap-4 group min-h-[64px]">
                         <div className="w-14 text-right flex-shrink-0 pt-1">
                           <span className="text-xs font-mono text-gray-400 group-hover:text-gray-900 transition-colors">{timeLabel}</span>
                         </div>
@@ -568,6 +635,7 @@ export default function App() {
                                   task={task}
                                   mode="schedule"
                                   onClick={handleTaskCardClick}
+                        onFocus={isToday ? handleDirectFocus : undefined}
                                   onUnschedule={handleTaskUnschedule}
                                   onEditReview={openTaskReview}
                                   onReschedule={openReschedule}
@@ -589,6 +657,11 @@ export default function App() {
         )}
         </ErrorBoundary>
       </main>
+      {view === 'planner' && <button onClick={openManualTask}
+        className="fixed bottom-6 right-4 z-40 flex min-h-[48px] items-center gap-2 rounded-full bg-gray-900 px-5 text-white shadow-lg md:hidden"
+        style={{ bottom: 'calc(1.5rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))' }}>
+        <Plus size={20} />{t('add_manual_task')}
+      </button>}
 
       <ErrorBoundary
         title={t('dialog_unavailable_title')}
@@ -615,6 +688,7 @@ export default function App() {
           task={schedulingTask}
           dailyTasks={state.dailyData?.tasks || []}
           timelineMode={timelineMode}
+          intervalMinutes={intervalMinutes}
           onClose={closeSchedulingModal}
           onConfirm={handleScheduleConfirm}
         />
@@ -632,12 +706,15 @@ export default function App() {
         }} />
         <RescheduleModal task={reschedulingTask} onClose={closeReschedule} onConfirm={handleReschedule} />
 
+        <BatchRescheduleModal open={batchOpen} tasks={state.dailyData?.tasks || []} onClose={() => setBatchOpen(false)} onConfirm={handleBatchReschedule} />
+
         <PomodoroTimer
+          autoStart={autoStartFocus}
           task={activeTask}
           restoredState={restoredTimerState}
           onSessionStateChange={setRestoredTimerState}
           onClose={closeTimer}
-          onComplete={handleTaskComplete}
+          onComplete={(task, minutes) => handleTaskComplete(task, minutes, isAndroid() || Boolean(window.electronAPI))}
         />
 
         <RecoveryModal

@@ -13,7 +13,7 @@ describe('localStorageStore desktop writes', () => {
       writable: true,
       value: originalElectronAPI,
     });
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('writes to browser localStorage when desktop storage is unavailable', () => {
@@ -33,7 +33,7 @@ describe('localStorageStore desktop writes', () => {
       configurable: true,
       writable: true,
       value: {
-        sendSync: jest.fn().mockReturnValue({ ok: false, error: 'disk full' }),
+        sendSync: vi.fn().mockReturnValue({ ok: false, error: 'disk full' }),
       },
     });
 
@@ -43,7 +43,7 @@ describe('localStorageStore desktop writes', () => {
   });
 
   it('does not fallback to browser localStorage after a successful desktop write', () => {
-    const sendSync = jest.fn().mockReturnValue({ ok: true });
+    const sendSync = vi.fn().mockReturnValue({ ok: true });
     Object.defineProperty(window, 'electronAPI', {
       configurable: true,
       writable: true,

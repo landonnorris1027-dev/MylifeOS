@@ -1,3 +1,5 @@
+import { bootstrapDesktopStorage } from './services/storage/desktopStorageAdapter';
+import { electronIPC } from './services/electronIPC';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -5,14 +7,16 @@ import './index.css';
 import { LanguageProvider } from './contexts/LanguageContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import StorageBoundary from './components/StorageBoundary';
+import { isAndroid } from './services/platform';
+import { bootstrapNativeStorage } from './services/nativeRuntime';
+import { KEYS } from './services/storage/localStorageStore';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
+const render = () => ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <LanguageProvider>
       <ErrorBoundary
@@ -26,3 +30,13 @@ root.render(
     </LanguageProvider>
   </React.StrictMode>
 );
+
+if (isAndroid()) void bootstrapNativeStorage(Object.values(KEYS)).then(render);
+else if (window.electronAPI) void bootstrapDesktopStorage().then(async () => {
+  // Protect restored active/paused habit tasks before the first reconciliation.
+  await electronIPC.getActiveTimers(true);
+}).then(render, () => {
+  // A missing timer inventory must not permit habit reconciliation or edits.
+  rootElement.textContent = 'Unable to load desktop storage or sessions. Restart the app to retry. / 无法读取存储或会话，请重启重试。';
+});
+else render();

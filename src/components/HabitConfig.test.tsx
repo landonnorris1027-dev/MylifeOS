@@ -33,10 +33,10 @@ describe('HabitConfig restore safety', () => {
     document.body.appendChild(container);
     root = createRoot(container);
 
-    jest.spyOn(storage, 'previewImportDataJSON').mockReturnValue(successfulImport);
-    jest.spyOn(storage, 'getAllDataJSON').mockReturnValue('{"current":true}');
-    jest.spyOn(storage, 'importDataJSON').mockResolvedValue(successfulImport);
-    jest.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (this: FileReader) {
+    vi.spyOn(storage, 'previewImportDataJSON').mockReturnValue(successfulImport);
+    vi.spyOn(storage, 'getAllDataJSON').mockReturnValue('{"current":true}');
+    vi.spyOn(storage, 'importDataJSON').mockResolvedValue(successfulImport);
+    vi.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (this: FileReader) {
       Object.defineProperty(this, 'result', { configurable: true, value: '{"schemaVersion":2}' });
       this.onload?.({ target: this } as ProgressEvent<FileReader>);
     });
@@ -45,14 +45,14 @@ describe('HabitConfig restore safety', () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   const openRestoreConfirmation = async () => {
     await act(async () => {
       root.render(
         <LanguageProvider>
-          <HabitConfig isOpen section="settings" onClose={jest.fn()} onAdded={jest.fn()} />
+          <HabitConfig isOpen section="settings" onClose={vi.fn()} onAdded={vi.fn()} />
         </LanguageProvider>,
       );
     });
@@ -74,12 +74,12 @@ describe('HabitConfig restore safety', () => {
 
   it('waits for the pre-restore backup to be saved before importing data', async () => {
     let finishSaving: (path: string | null) => void = () => undefined;
-    jest.spyOn(platformFiles, 'saveJSONFile').mockReturnValue(
+    vi.spyOn(platformFiles, 'saveJSONFile').mockReturnValue(
       new Promise((resolve) => {
         finishSaving = resolve;
       }),
     );
-    const importSpy = jest.spyOn(storage, 'importDataJSON');
+    const importSpy = vi.spyOn(storage, 'importDataJSON');
     const confirmButton = await openRestoreConfirmation();
 
     await act(async () => {
@@ -99,8 +99,8 @@ describe('HabitConfig restore safety', () => {
   });
 
   it('stops the restore when the user cancels the pre-restore backup', async () => {
-    jest.spyOn(platformFiles, 'saveJSONFile').mockResolvedValue(null);
-    const importSpy = jest.spyOn(storage, 'importDataJSON');
+    vi.spyOn(platformFiles, 'saveJSONFile').mockResolvedValue(null);
+    const importSpy = vi.spyOn(storage, 'importDataJSON');
     const confirmButton = await openRestoreConfirmation();
 
     await act(async () => {
@@ -114,9 +114,9 @@ describe('HabitConfig restore safety', () => {
   });
 
   it('stops the restore when saving the pre-restore backup fails', async () => {
-    jest.spyOn(platformFiles, 'saveJSONFile').mockRejectedValue(new Error('disk full'));
-    const importSpy = jest.spyOn(storage, 'importDataJSON');
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(platformFiles, 'saveJSONFile').mockRejectedValue(new Error('disk full'));
+    const importSpy = vi.spyOn(storage, 'importDataJSON');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const confirmButton = await openRestoreConfirmation();
 
     await act(async () => {

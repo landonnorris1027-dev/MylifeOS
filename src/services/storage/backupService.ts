@@ -1,6 +1,11 @@
+import { FocusSession, validateFocusSessions } from '../../main/focus-session';
+import { getStorageItem } from './localStorageStore';
 import { DailyData, Goal, Habit, Priority, Task, TaskStatus } from '../../types';
 import { DATA_SCHEMA_VERSION, KEYS, commitStorageSnapshot } from './localStorageStore';
 import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSettings } from './backupSettings';
+import { getFocusSettings } from '../focusSettings';
+import { isAndroid } from '../platform';
+import { flushNativeWrites, refreshNativeTimers } from '../nativeRuntime';
 
 interface BackupPayloadV2 {
   schemaVersion: number;
@@ -9,6 +14,7 @@ interface BackupPayloadV2 {
   habits: Habit[];
   dailyLogs: Record<string, DailyData>;
   settings?: BackupSettings;
+  focusSessions?: FocusSession[];
 }
 
 interface LegacyBackupPayloadV1 {
@@ -152,6 +158,7 @@ const sanitizeTask = (
     !isValidStatus(value.status) ||
     !isPositiveInteger(value.durationMinutes) ||
     (value.actualFocusMinutes !== undefined && !isPositiveInteger(value.actualFocusMinutes)) ||
+    (value.historicalFocusMinutes !== undefined && !isPositiveInteger(value.historicalFocusMinutes)) ||
     !isValidDateString(taskDate) ||
     taskDate !== fallbackDate ||
     (value.startTime !== undefined && !isValidTimeString(value.startTime))
@@ -163,7 +170,7 @@ const sanitizeTask = (
   if (origin === 'habit' && !rawHabitId) return null;
 
   seenTaskIds.add(value.id);
-  const goalId = typeof value.goalId === 'string' && validGoalIds.has(value.goalId) ? value.goalId : undefined;
+  const goalId = isNonEmptyString(value.goalId) ? value.goalId : undefined;
   const note = typeof value.note === 'string' ? value.note.slice(0, 1000) : undefined;
   const review = typeof value.review === 'string' ? value.review.slice(0, 1000) : undefined;
 
@@ -179,6 +186,7 @@ const sanitizeTask = (
     startTime: typeof value.startTime === 'string' ? value.startTime : undefined,
     durationMinutes: value.durationMinutes,
     actualFocusMinutes: typeof value.actualFocusMinutes === 'number' ? value.actualFocusMinutes : undefined,
+    historicalFocusMinutes: typeof value.historicalFocusMinutes === 'number' ? value.historicalFocusMinutes : undefined,
     note,
     review,
   };
@@ -263,6 +271,18 @@ const normalizeBackupPayload = (
   }
   const settings = raw.settings === undefined ? undefined : validateBackupSettings(raw.settings);
   if (schemaVersion >= 5 && (!settings || Object.keys(settings).length !== 5)) throw new Error('Incomplete backup settings');
+  if (settings?.focus) {
+    const focus = settings.focus as Record<string, unknown>;
+    if (schemaVersion >= 7 && typeof focus.vibrationEnabled !== 'boolean') throw new Error('Incomplete vibration preference');
+    settings.focus = { ...focus, vibrationEnabled: typeof focus.vibrationEnabled === 'boolean'
+      ? focus.vibrationEnabled : getFocusSettings().vibrationEnabled !== false };
+  }
+
+  if (settings?.planner) {
+    const planner = settings.planner as Record<string, unknown>;
+    if (schemaVersion >= 8 && ![5, 15, 30].includes(planner.intervalMinutes as number)) throw new Error('Invalid scheduling precision');
+    settings.planner = { ...planner, intervalMinutes: schemaVersion >= 8 ? planner.intervalMinutes : 30 };
+  }
 
   const rawGoals = Array.isArray(raw.goals) ? raw.goals : [];
   const seenGoalIds = new Set<string>();
@@ -277,6 +297,7 @@ const normalizeBackupPayload = (
     .map((habit) => sanitizeHabit(habit, seenHabitIds, goalIds))
     .filter((habit): habit is Habit => habit !== null);
   const { dailyLogs, filteredTaskCount } = sanitizeDailyLogs(raw.dailyLogs, goalIds);
+  const focusSessions = schemaVersion >= 8 ? validateFocusSessions(raw.focusSessions) : [];
   const timestamp = typeof raw.timestamp === 'string' ? raw.timestamp : new Date().toISOString();
 
   return {
@@ -287,6 +308,7 @@ const normalizeBackupPayload = (
       habits,
       dailyLogs,
       settings,
+      focusSessions,
     },
     migratedFromVersion: schemaVersion < DATA_SCHEMA_VERSION ? schemaVersion : null,
     filteredGoalCount: rawGoals.length - goals.length,
@@ -350,6 +372,7 @@ export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, Dail
       habits,
       dailyLogs,
       settings,
+      focusSessions: validateFocusSessions(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS) || '[]')),
     },
     null,
     2,
@@ -361,9 +384,16 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
     const parsed = JSON.parse(jsonStr) as BackupPayloadV2 | LegacyBackupPayloadV1;
     const normalized = normalizeBackupPayload(parsed);
     const data = normalized.payload;
+    if (isAndroid() && !recover) {
+      await flushNativeWrites();
+      if ((await refreshNativeTimers()).some(session => session.state !== 'completed')) {
+        throw new Error('请先结束当前专注或休息，再导入或恢复。 / Finish the current session before restoring.');
+      }
+    }
 
     // Preserve the verified snapshot exactly; normal day initialization reconciles habits later.
     await commitStorageSnapshot({
+      [KEYS.FOCUS_SESSIONS]: JSON.stringify(data.focusSessions || []),
       [KEYS.GOALS]: JSON.stringify(data.goals || []),
       [KEYS.HABITS]: JSON.stringify(data.habits),
       [KEYS.DAILY_LOGS]: JSON.stringify(data.dailyLogs),
@@ -381,6 +411,27 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
     console.error('Import failed', e);
     return buildImportFailureResult(e);
   }
+};
+
+/** Explicit exchange format for desktop 0.1.3; vibration stays on the receiving device. */
+const omitRetainedHistory = (payload: BackupPayloadV2) => {
+  for (const day of Object.values(payload.dailyLogs)) for (const task of day.tasks) delete task.historicalFocusMinutes;
+};
+export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
+  const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
+  payload.schemaVersion = 6;
+  delete payload.focusSessions;
+  delete payload.settings.planner.intervalMinutes;
+  delete payload.settings.focus.vibrationEnabled;
+  omitRetainedHistory(payload);
+  return JSON.stringify(payload, null, 2);
+};
+
+export const exportAndroidCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
+  const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
+  payload.schemaVersion = 7; delete payload.focusSessions; delete payload.settings.planner.intervalMinutes;
+  omitRetainedHistory(payload);
+  return JSON.stringify(payload, null, 2);
 };
 
 export const previewImportBackupJSON = (jsonStr: string): ImportDataResult => {

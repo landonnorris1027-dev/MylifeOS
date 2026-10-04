@@ -1,10 +1,59 @@
-import { exportBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
+import { exportBackupJSON, exportDesktopCompatibleBackupJSON, exportAndroidCompatibleBackupJSON, importBackupJSON, previewImportBackupJSON } from './backupService';
 import { KEYS, getStorageItem, setStorageItem } from './localStorageStore';
 import { saveFocusSettings, getFocusSettings } from '../focusSettings';
 
 describe('complete snapshot backups', () => {
   beforeEach(() => { localStorage.clear(); });
-  afterEach(() => { jest.restoreAllMocks(); delete window.electronAPI; });
+  afterEach(() => { vi.restoreAllMocks(); delete window.electronAPI; });
+
+  it('retains history referencing a removed habit and goal through a full backup restore', async () => {
+    const date = '2026-10-02';
+    const task = { id: 'history', name: 'Preserved history', date, habitId: 'removed-habit', goalId: 'removed-goal',
+      origin: 'habit', status: 'completed', priority: 'P1', durationMinutes: 25, actualFocusMinutes: 20, review: 'Keep this review' };
+    const backup = exportBackupJSON([], { [date]: { date, tasks: [task as import('../../types').Task] } }, []);
+    expect((await importBackupJSON(backup)).ok).toBe(true);
+    const restored = JSON.parse(getStorageItem(KEYS.DAILY_LOGS)!)[date].tasks[0];
+    expect(restored).toMatchObject({ id: task.id, goalId: task.goalId, habitId: task.habitId, review: task.review });
+  });
+
+  it('preserves precise v8 sessions, rejects invalid records, and omits them in both compatibility formats', async () => {
+    const session = { id: 's', timerId: 't', taskId: null, taskDate: '2026-10-02', taskName: 'Deleted task', plannedSeconds: 120, actualFocusSeconds: 1.5, startedAt: 1000, endedAt: 2500, result: 'stopped', measurement: 'measured' };
+    setStorageItem(KEYS.FOCUS_SESSIONS, JSON.stringify([session]));
+    const full = JSON.parse(exportBackupJSON([], {}));
+    expect(full.focusSessions).toEqual([session]);
+    for (const invalid of [[session, session], [{ ...session, actualFocusSeconds: -1 }], [{ ...session, endedAt: 0 }]]) {
+      expect(previewImportBackupJSON(JSON.stringify({ ...full, focusSessions: invalid })).ok).toBe(false);
+    }
+    localStorage.clear(); expect((await importBackupJSON(JSON.stringify(full))).ok).toBe(true);
+    expect(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS)!)).toEqual([session]);
+    for (const compatible of [exportDesktopCompatibleBackupJSON([], {}), exportAndroidCompatibleBackupJSON([], {})]) {
+      expect(JSON.parse(compatible)).not.toHaveProperty('focusSessions');
+      expect(previewImportBackupJSON(compatible).ok).toBe(true);
+    }
+  });
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('imports v%i backups with independent task history and no invented focus sessions', async schemaVersion => {
+    const date = '2026-10-02';
+    const task = { id: 'old', name: 'History', priority: 'P1', status: 'completed', date, durationMinutes: 25, origin: 'manual' };
+    const backup = JSON.parse(exportBackupJSON([], { [date]: { date, tasks: [task as import('../../types').Task] } }));
+    backup.schemaVersion = schemaVersion;
+    if (schemaVersion < 8) delete backup.focusSessions;
+    if (schemaVersion < 5) delete backup.settings;
+    expect((await importBackupJSON(JSON.stringify(backup))).ok).toBe(true);
+    expect(JSON.parse(getStorageItem(KEYS.DAILY_LOGS)!)[date].tasks[0].id).toBe('old');
+    expect(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS) || '[]')).toEqual([]);
+  });
+  it('round-trips retained legacy history in v8 and explicitly omits it in exchange exports', async () => {
+    const date = '2026-10-02';
+    const task = { id: 'requeued', name: 'Old completion', date, priority: 'P1', status: 'inbox', durationMinutes: 25, historicalFocusMinutes: 20 } as import('../../types').Task;
+    const logs = { [date]: { date, tasks: [task] } };
+    expect((await importBackupJSON(exportBackupJSON([], logs))).ok).toBe(true);
+    expect(JSON.parse(getStorageItem(KEYS.DAILY_LOGS)!)[date].tasks[0].historicalFocusMinutes).toBe(20);
+    for (const json of [exportAndroidCompatibleBackupJSON([], logs), exportDesktopCompatibleBackupJSON([], logs)]) {
+      expect(JSON.parse(json).dailyLogs[date].tasks[0]).not.toHaveProperty('historicalFocusMinutes');
+    }
+    expect(task.historicalFocusMinutes).toBe(20);
+  });
 
   it('round-trips all preferences, goals and tasks as a single snapshot', async () => {
     setStorageItem(KEYS.LANGUAGE, 'en');
@@ -15,7 +64,7 @@ describe('complete snapshot backups', () => {
     localStorage.clear();
     expect((await importBackupJSON(json)).ok).toBe(true);
     expect(getStorageItem(KEYS.LANGUAGE)).toBe('en');
-    expect(getFocusSettings()).toEqual({ soundEnabled: false, notificationsEnabled: false, breakDurationMinutes: 15 });
+    expect(getFocusSettings()).toEqual({ soundEnabled: false, notificationsEnabled: false, breakDurationMinutes: 15, vibrationEnabled: true });
     expect(JSON.parse(getStorageItem(KEYS.GOALS)!)).toEqual([{ id: 'g', name: 'Goal' }]);
     expect(JSON.parse(exportBackupJSON([], {})).settings).toEqual(JSON.parse(json).settings);
   });
@@ -32,13 +81,27 @@ describe('complete snapshot backups', () => {
     expect(previewImportBackupJSON(JSON.stringify(invalid)).ok).toBe(false);
   });
 
+  it('exports v6 without vibration and preserves the receiving device preference', async () => {
+    saveFocusSettings({ ...getFocusSettings(), vibrationEnabled: false });
+    const compatible = JSON.parse(exportDesktopCompatibleBackupJSON([], {}));
+    expect(compatible.schemaVersion).toBe(6);
+    expect(compatible.settings.focus).not.toHaveProperty('vibrationEnabled');
+    expect((await importBackupJSON(JSON.stringify(compatible))).ok).toBe(true);
+    expect(getFocusSettings().vibrationEnabled).toBe(false);
+    const full = JSON.parse(exportBackupJSON([], {}));
+    expect(full.schemaVersion).toBe(8);
+    expect(full.settings.focus.vibrationEnabled).toBe(false);
+    delete full.settings.focus.vibrationEnabled;
+    expect(previewImportBackupJSON(JSON.stringify(full)).ok).toBe(false);
+  });
+
   it('leaves every previous key intact when the browser snapshot write fails', async () => {
     setStorageItem(KEYS.GOALS, '[{"id":"old","name":"Old"}]');
     setStorageItem(KEYS.HABITS, '[]');
     const json = exportBackupJSON([], {}, [{ id: 'new', name: 'New' }]);
     const before = getStorageItem(KEYS.GOALS);
-    jest.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('QuotaExceededError'); });
-    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('QuotaExceededError'); });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect((await importBackupJSON(json)).ok).toBe(false);
     expect(getStorageItem(KEYS.GOALS)).toBe(before);
     expect(getStorageItem(KEYS.HABITS)).toBe('[]');
@@ -47,8 +110,8 @@ describe('complete snapshot backups', () => {
   it('does not acknowledge a desktop import until the durable transaction resolves', async () => {
     const json = exportBackupJSON([], {});
     let finish: (value: { ok: boolean; error?: string }) => void = () => undefined;
-    const invoke = jest.fn(() => new Promise(resolve => { finish = resolve; }));
-    window.electronAPI = { invoke, sendSync: jest.fn() } as unknown as Window['electronAPI'];
+    const invoke = vi.fn(() => new Promise(resolve => { finish = resolve; }));
+    window.electronAPI = { invoke, sendSync: vi.fn() } as unknown as Window['electronAPI'];
     let completed = false;
     const promise = importBackupJSON(json).then(result => { completed = true; return result; });
     await Promise.resolve();

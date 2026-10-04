@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  padding: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) var(--safe-area-inset-right, env(safe-area-inset-right, 0px))
+    var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  background: #F7F7F5;
+}
+.safe-area-padding {
+  padding: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
+    calc(1rem + var(--safe-area-inset-right, env(safe-area-inset-right, 0px)))
+    calc(1rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))
+    calc(1rem + var(--safe-area-inset-left, env(safe-area-inset-left, 0px)));
+}
+.safe-area-sticky-top { top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); }
+.safe-area-status-bar {
+  position: fixed; z-index: 40; top: 0; left: 0; right: 0; pointer-events: none;
+  height: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  background: rgba(255,255,255,.8); backdrop-filter: blur(16px);
+}
+@media (pointer: coarse) {
+  button, [role="button"], a, label.flex, label.inline-flex { min-height: 48px; min-width: 48px; touch-action: manipulation; }
+  .task-heading { flex-wrap: wrap; }
+  .task-actions { opacity: 1; flex-wrap: wrap; width: 100%; }
+}
+@media (max-width: 767px) {
+  [role="dialog"] { max-height: 100vh; max-height: 100dvh; overflow-y: auto; }
+}
+
 body {
   background-color: #F7F7F5;
   color: #37352F;

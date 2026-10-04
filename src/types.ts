@@ -36,6 +36,7 @@ export interface Task {
   startTime?: string; // HH:mm format
   durationMinutes: number;
   actualFocusMinutes?: number;
+  historicalFocusMinutes?: number; // Retained legacy estimate when a completed task is deleted/requeued.
   note?: string;
   review?: string;
 }

@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { randomUUID } from 'crypto';
+import { FOCUS_SESSIONS_KEY, validateFocusSessions } from './focus-session';
 import type { StorageStatus } from './storage-contract';
-import { DurableFileSystem, readJsonWithBackup, writeTextAtomically } from './durable-file';
+import { DurableFileSystem, readJsonWithBackup, writeTextAtomically, archiveCorruptFile } from './durable-file';
 
 type FileSystemLike = DurableFileSystem;
 
@@ -33,6 +33,7 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
   const positive = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v > 0;
   const priority = (v: unknown) => v === 'P1' || v === 'P2' || v === 'P3';
   try {
+    if (record[FOCUS_SESSIONS_KEY] !== undefined) validateFocusSessions(JSON.parse(record[FOCUS_SESSIONS_KEY]));
     for (const key of ['mylifeos_goals', 'mylifeos_habits', 'mylifeos_recovery_points']) {
       if (record[key] === undefined) continue;
       const entries: unknown = JSON.parse(record[key]);
@@ -53,10 +54,20 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
         || typeof day.date !== 'string' || day.tasks.some(task => !object(task) || typeof task.name !== 'string'
           || !text(task.id) || !positive(task.durationMinutes) || !priority(task.priority)
           || !['inbox', 'scheduled', 'completed', 'deleted'].includes(String(task.status))
-          || typeof task.date !== 'string' || (task.actualFocusMinutes !== undefined && (typeof task.actualFocusMinutes !== 'number' || !Number.isFinite(task.actualFocusMinutes) || task.actualFocusMinutes < 0))))) return false;
+          || typeof task.date !== 'string' || (task.historicalFocusMinutes !== undefined && !positive(task.historicalFocusMinutes))
+          || (task.actualFocusMinutes !== undefined && !positive(task.actualFocusMinutes))))) return false;
     }
     for (const key of ['mylifeos_focus_settings', 'mylifeos_profile_settings', 'mylifeos_planner_settings', 'mylifeos_desktop_settings']) {
-      if (record[key] !== undefined && !object(JSON.parse(record[key]))) return false;
+      if (record[key] === undefined) continue;
+      const settings = JSON.parse(record[key]);
+      if (!object(settings)) return false;
+      for (const field of ['soundEnabled', 'notificationsEnabled', 'vibrationEnabled', 'minimizeToTray']) {
+        if (settings[field] !== undefined && typeof settings[field] !== 'boolean') return false;
+      }
+      if (settings.intervalMinutes !== undefined && ![5, 15, 30].includes(settings.intervalMinutes as number)) return false;
+      if (settings.timelineMode !== undefined && !['daytime', 'fullDay'].includes(settings.timelineMode as string)) return false;
+      if (settings.breakDurationMinutes !== undefined && ![3, 5, 10, 15].includes(settings.breakDurationMinutes as number)) return false;
+      if (settings.weeklyTargetMinutes !== undefined && (!positive(settings.weeklyTargetMinutes) || settings.weeklyTargetMinutes < 60 || settings.weeklyTargetMinutes > 4800)) return false;
     }
     return true;
   } catch { return false; }
@@ -80,10 +91,13 @@ export class AppDataStore {
   private readonly cancelScheduledFlush: (handle: unknown) => void;
 
   private cache = new Map<string, string>();
+  private revisionNumber = 0;
+  get revision() { return this.revisionNumber; }
   private pendingFlushHandle: unknown = null;
   private dirty = false;
   private failedSnapshot: Map<string, string> | null = null;
   private recoveryRequired = false;
+  private archiveRequired = false;
   private lastError: string | undefined;
   private readonly onStatusChange?: () => void;
 
@@ -120,6 +134,9 @@ export class AppDataStore {
         return;
       }
       if (result.recoveredFromBackup) {
+        this.archiveRequired = this.fs.existsSync(this.filePath);
+        if (this.archiveRequired) archiveCorruptFile(this.filePath, this.fs);
+        this.archiveRequired = false;
         this.logger.error('[MyLifeOS] Recovered app data store from the last complete backup.');
       }
       if (!isAppDataRecord(result.value)) return;
@@ -148,6 +165,7 @@ export class AppDataStore {
       this.cache.set(key, String(value));
     }
 
+    this.revisionNumber++;
     this.markDirtyAndSchedule();
     return { ok: true };
   }
@@ -177,7 +195,17 @@ export class AppDataStore {
     }
 
     if (this.recoveryRequired && !this.failedSnapshot) return { ok: false, error: this.lastError };
+    if (this.archiveRequired) {
+      try {
+        if (this.fs.existsSync(this.filePath)) archiveCorruptFile(this.filePath, this.fs);
+        this.archiveRequired = false;
+      } catch (error) {
+        this.lastError = error instanceof Error ? error.message : 'Recovery archive failed';
+        this.onStatusChange?.(); return { ok: false, error: this.lastError };
+      }
+    }
     if (this.failedSnapshot) {
+      this.revisionNumber++;
       this.recoveryRequired = false;
       this.cache = new Map(this.failedSnapshot);
       this.dirty = true;
@@ -219,6 +247,7 @@ export class AppDataStore {
   }
 
   private rollbackToDiskState(): void {
+    this.revisionNumber++;
     this.cache.clear();
     this.dirty = false;
     this.loadFromDisk();
@@ -248,17 +277,15 @@ export class AppDataStore {
     try {
       if (this.recoveryRequired) {
         // Preserve the original bytes before allowing an explicit recovery.
-        const suffix = `.corrupt-${randomUUID()}`;
         for (const source of [this.filePath, `${this.filePath}.bak`]) {
           if (!this.fs.existsSync(source)) continue;
-          const archive = `${source}${suffix}`;
-          this.fs.copyFileSync(source, archive);
-          const descriptor = this.fs.openSync(archive, 'r+');
-          try { this.fs.fsyncSync(descriptor); } finally { this.fs.closeSync(descriptor); }
+          archiveCorruptFile(source, this.fs);
         }
         this.recoveryRequired = false;
+        this.archiveRequired = false;
       }
       Object.entries(entries).forEach(([key, value]) => this.cache.set(key, value));
+      this.revisionNumber++;
       this.dirty = true;
       return this.flush();
     } catch (error) {

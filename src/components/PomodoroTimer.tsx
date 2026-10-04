@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Play, Pause, CheckCircle, Coffee, SkipForward } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { electronIPC, PomodoroTimerData } from '../services/electronIPC';
+import { electronIPC, focusRuntime, PomodoroTimerData } from '../services/electronIPC';
 import { DEFAULT_FOCUS_SETTINGS, FocusSettings, getFocusSettings } from '../services/focusSettings';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { isAndroid } from '../services/platform';
+import { playCompletionAlert } from '../services/nativeReminder';
 
 export interface TimerSessionSnapshot {
   timerId: string;
@@ -18,17 +20,19 @@ export interface TimerSessionSnapshot {
   mode: 'focus' | 'break';
   remainingSeconds: number;
   isActive: boolean;
+  focusCompleted?: boolean;
 }
 
 interface PomodoroTimerProps {
+  autoStart?: boolean;
   task: Task | null;
   restoredState?: TimerSessionSnapshot | null;
   onClose: () => void;
-  onComplete: (task: Task, actualFocusMinutes?: number) => void;
+  onComplete: (task: Task, actualFocusMinutes?: number) => void | Promise<boolean | void>;
   onSessionStateChange: (snapshot: TimerSessionSnapshot | null) => void;
 }
 
-const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onClose, onComplete, onSessionStateChange }) => {
+const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, restoredState, onClose, onComplete, onSessionStateChange }) => {
   const { t } = useLanguage();
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
@@ -37,6 +41,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const [hasStarted, setHasStarted] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [timerError, setTimerError] = useState<string | null>(null);
+  const [focusSaved, setFocusSaved] = useState(false);
   const [focusSettings, setFocusSettings] = useState<FocusSettings>(DEFAULT_FOCUS_SETTINGS);
 
   const localIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -45,9 +50,21 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const currentTimerIdRef = useRef('');
   const finishHandledRef = useRef<string | null>(null);
   const startInFlightRef = useRef(false);
+  const initializedTaskRef = useRef<string | null>(null);
+  const autoStartedTaskRef = useRef<string | null>(null);
   const completedFocusSecondsRef = useRef<number | null>(null);
+  const finishTimerRef = useRef<(mode: 'focus' | 'break', silent?: boolean) => Promise<void>>(async () => undefined);
   const isElectron = electronIPC.getIsElectron();
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
+  const android = isAndroid();
+  const managed = isElectron || android;
+  const closePanel = async () => {
+    if (managed && focusSaved && mode === 'focus') {
+      try { await focusRuntime.stop(currentTimerIdRef.current); }
+      catch { setTimerError(t('storage_write_failed')); return; }
+    }
+    onClose();
+  };
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose: () => { void closePanel(); } });
 
   const activeTimerId = useMemo(() => {
     if (!baseTimerId) return '';
@@ -58,9 +75,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const playSound = (type: 'complete' | 'break') => {
     if (!focusSettings.soundEnabled) return;
 
-    try {
+    void playCompletionAlert(() => { try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
+      if (!AudioContext) return false;
 
       const ctx = new AudioContext();
       const osc = ctx.createOscillator();
@@ -93,13 +110,17 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       setTimeout(() => {
         ctx.close();
       }, 1000);
+      return true;
     } catch (e) {
       console.error('Audio play failed', e);
-    }
+      return false;
+    } }, focusSettings.vibrationEnabled !== false);
   };
 
   useEffect(() => {
-    if (!task) return;
+    if (!task) { initializedTaskRef.current = null; autoStartedTaskRef.current = null; return; }
+    if (initializedTaskRef.current === task.id) return;
+    initializedTaskRef.current = task.id;
 
     finishHandledRef.current = null;
     startInFlightRef.current = false;
@@ -110,6 +131,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       : null;
     setIsStarting(false);
     setTimerError(null);
+    setFocusSaved(false);
     setFocusSettings(getFocusSettings());
 
     if (localIntervalRef.current) {
@@ -117,6 +139,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       localIntervalRef.current = null;
     }
     localTickRef.current = null;
+
+    if (restoredState?.taskId === task.id && restoredState.focusCompleted) {
+      setBaseTimerId(restoredState.timerId); currentTimerIdRef.current = restoredState.timerId;
+      setMode('focus'); setTimeLeft(0); setIsActive(false); setHasStarted(false); setFocusSaved(true);
+      return;
+    }
 
     if (restoredState?.taskId === task.id && (restoredState.remainingSeconds > 0 || restoredState.isActive)) {
       setBaseTimerId(restoredState.timerId);
@@ -188,6 +216,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       const nextMode = update.timerId === breakTimerId ? 'break' : 'focus';
       if (update.stopped) {
         setMode(nextMode);
+        if (nextMode === 'break') setFocusSaved(false);
         setTimeLeft(Math.max(0, Math.ceil(update.remaining / 1000)));
         setIsActive(false);
         setHasStarted(false);
@@ -205,7 +234,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
         if (nextMode === 'focus') {
           completedFocusSecondsRef.current = Math.max(0, Math.round((update.elapsed || 0) / 1000));
         }
-        void handleTimerFinish(nextMode);
+        void finishTimerRef.current(nextMode, update.suppressCompletionAlert);
       }
     });
   }, [task]);
@@ -213,12 +242,15 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   const buildTimerPayload = (nextMode: 'focus' | 'break'): PomodoroTimerData | null => {
     if (!task) return null;
 
+    const preferences = getFocusSettings();
     return {
       timerId: nextMode === 'focus' ? currentTimerIdRef.current : `${currentTimerIdRef.current}_break`,
       duration: nextMode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds,
       isFocusMode: nextMode === 'focus',
-      notificationsEnabled: focusSettings.notificationsEnabled,
-      breakDurationSeconds,
+      notificationsEnabled: preferences.notificationsEnabled,
+      vibrationEnabled: preferences.vibrationEnabled,
+      soundEnabled: preferences.soundEnabled,
+      breakDurationSeconds: preferences.breakDurationMinutes * 60,
       taskId: task.id,
       taskHabitId: task.habitId,
       taskName: task.name,
@@ -256,7 +288,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
         if (nextMode === 'focus') {
           completedFocusSecondsRef.current = durationSeconds;
         }
-        void handleTimerFinish(nextMode);
+        void finishTimerRef.current(nextMode);
       }
     };
 
@@ -273,11 +305,11 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     finishHandledRef.current = null;
 
     try {
-      if (isElectron) {
+      if (managed) {
         const payload = buildTimerPayload(nextMode);
         if (!payload) return;
 
-        const started = await electronIPC.startPomodoro(payload);
+        const started = await focusRuntime.start(payload);
         setMode(nextMode);
         setHasStarted(true);
         setTimeLeft(Math.max(0, Math.ceil(started.remaining / 1000)));
@@ -301,15 +333,20 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     }
   };
 
-  const handleTimerFinish = async (finishedMode: 'focus' | 'break') => {
+  const handleTimerFinish = async (finishedMode: 'focus' | 'break', silent = false) => {
     setIsActive(false);
-    playSound(finishedMode === 'focus' ? 'complete' : 'break');
+    if (!silent) playSound(finishedMode === 'focus' ? 'complete' : 'break');
 
     if (finishedMode === 'focus') {
       if (task && completedFocusSecondsRef.current === null) {
         completedFocusSecondsRef.current = task.durationMinutes * 60;
       }
-      await startTimer('break');
+      if (managed && task) {
+        const minutes = Math.max(1, Math.round((completedFocusSecondsRef.current ?? task.durationMinutes * 60) / 60));
+        const saved = await onComplete(task, minutes);
+        if (saved === false) { setTimerError(t('storage_write_failed')); return; }
+        setFocusSaved(true); setHasStarted(false); onSessionStateChange(null);
+      } else await startTimer('break');
       return;
     }
 
@@ -317,37 +354,49 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
       finishBreak();
     }, 500);
   };
+  finishTimerRef.current = handleTimerFinish;
+  useEffect(() => {
+    if (autoStart && task && !restoredState && autoStartedTaskRef.current !== task.id) {
+      autoStartedTaskRef.current = task.id; void startTimer('focus');
+    }
+    return () => { if (!managed) autoStartedTaskRef.current = null; };
+    // The initialization effect establishes the new timer ID before this effect.
+  }, [task?.id, autoStart]);
 
-  const finishBreak = () => {
+  const finishBreak = async () => {
     if (localIntervalRef.current) {
       clearInterval(localIntervalRef.current);
       localIntervalRef.current = null;
     }
 
     if (currentTimerIdRef.current) {
-      electronIPC.stopPomodoro(currentTimerIdRef.current);
-      electronIPC.stopPomodoro(`${currentTimerIdRef.current}_break`);
+      try {
+        await focusRuntime.stop(currentTimerIdRef.current);
+        await focusRuntime.stop(`${currentTimerIdRef.current}_break`);
+      } catch (error) { setTimerError(t('storage_write_failed')); return; }
     }
 
     onSessionStateChange(null);
 
+    if (managed) { onClose(); return; }
     if (task) {
       const actualFocusSeconds = completedFocusSecondsRef.current ?? task.durationMinutes * 60;
       const actualFocusMinutes = Math.max(1, Math.round(actualFocusSeconds / 60));
-      onComplete(task, actualFocusMinutes);
+      await onComplete(task, actualFocusMinutes);
     }
   };
 
   const toggleTimer = async () => {
     if (!task || isStarting || startInFlightRef.current) return;
 
-    if (isElectron) {
+    if (managed) {
       if (!hasStarted) {
         await startTimer(mode);
         return;
       }
 
-      electronIPC.togglePomodoro(activeTimerId);
+      try { await focusRuntime.toggle(activeTimerId); }
+      catch (error) { setTimerError(t('storage_write_failed')); }
       return;
     }
 
@@ -366,9 +415,15 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
 
   const markEarlyComplete = async () => {
     if (mode !== 'focus') return;
+    if (managed) {
+      if (!hasStarted || focusSaved) return;
+      try { await focusRuntime.complete(currentTimerIdRef.current); }
+      catch (error) { setTimerError(t('storage_write_failed')); }
+      return;
+    }
 
     if (isElectron) {
-      electronIPC.stopPomodoro(currentTimerIdRef.current);
+      await focusRuntime.stop(currentTimerIdRef.current);
     } else if (localIntervalRef.current) {
       clearInterval(localIntervalRef.current);
       localIntervalRef.current = null;
@@ -379,12 +434,12 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     }
     setIsActive(false);
     playSound('complete');
-    finishBreak();
+    await finishBreak();
   };
 
   const skipBreak = () => {
     if (mode !== 'break') return;
-    finishBreak();
+    void finishBreak();
   };
 
   if (!task) return null;
@@ -405,10 +460,10 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
     <div
       {...dialogProps}
       ref={containerRef}
-      className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center"
+      className="safe-area-padding fixed inset-0 overflow-y-auto bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center"
     >
       <button
-        onClick={onClose}
+        onClick={() => void closePanel()}
         aria-label={t('cancel')}
         className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
       >
@@ -455,7 +510,11 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
           </div>
         </div>
 
-        <div className="flex justify-center gap-4">
+        {managed && focusSaved && !isBreak ? <div className="space-y-3">
+          <p role="status" className="font-semibold text-green-700">{t('focus_saved')}</p>
+          <button className="min-h-[48px] w-full rounded-xl bg-emerald-600 px-4 text-white" onClick={() => void startTimer('break')}>{t('start_break')}</button>
+          <button className="min-h-[48px] w-full rounded-xl border bg-white px-4" onClick={() => void closePanel()}>{t('close_timer')}</button>
+        </div> : <div className="flex justify-center gap-4">
           <button
             onClick={toggleTimer}
             disabled={isStarting}
@@ -480,14 +539,20 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
           ) : (
             <button
               onClick={markEarlyComplete}
+              disabled={managed && !hasStarted}
               className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-lg border border-gray-100 text-green-600 hover:scale-105 transition-transform hover:bg-green-50"
               title={t('mark_early')}
             >
               <CheckCircle size={24} />
             </button>
           )}
-        </div>
+        </div>}
       </div>
+
+      {managed && hasStarted && !focusSaved && !isBreak && <button type="button" className="mt-5 rounded border px-3 py-2 text-sm" onClick={async () => {
+        try { await focusRuntime.stop(currentTimerIdRef.current); onSessionStateChange(null); onClose(); }
+        catch (error) { setTimerError(t('storage_write_failed')); }
+      }}>{t('stop_focus')}</button>}
 
       {timerError ? (
         <p role="alert" className="mt-4 text-red-600 text-sm font-medium">

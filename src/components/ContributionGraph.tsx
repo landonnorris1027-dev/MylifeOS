@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getMeasuredMinutesByDate } from '../services/focusReports';
+import { isAndroid } from '../services/platform';
 import { getYearlyStats, formatDateLocal, parseDateLocal } from '../services/storage';
 
 interface DayData {
@@ -21,7 +23,7 @@ interface ContributionGraphProps {
 const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 }) => {
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
-  const stats = useMemo(() => getYearlyStats(), [refreshToken]);
+  const stats = useMemo(() => isAndroid() ? getYearlyStats() : getMeasuredMinutesByDate(), [refreshToken]);
 
   // Calculate grid data
   const { weeks, totalMinutes } = useMemo(() => {

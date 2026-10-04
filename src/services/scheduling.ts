@@ -69,7 +69,7 @@ export const buildTimelineSlots = (
 ): TimelineSlot[] => {
   const slots: TimelineSlot[] = [];
   const startMinutes = startHour * 60;
-  const endMinutes = endHour * 60 + 30;
+  const endMinutes = endHour * 60 + 60 - intervalMinutes;
 
   for (let current = startMinutes; current <= endMinutes; current += intervalMinutes) {
     slots.push({
@@ -81,10 +81,10 @@ export const buildTimelineSlots = (
   return slots;
 };
 
-export const buildTimelineSlotsForMode = (mode: TimelineMode) => {
+export const buildTimelineSlotsForMode = (mode: TimelineMode, intervalMinutes = TIMELINE_INTERVAL_MINUTES) => {
   return mode === 'fullDay'
-    ? buildTimelineSlots(0, TIMELINE_END_HOUR, TIMELINE_INTERVAL_MINUTES)
-    : buildTimelineSlots(TIMELINE_START_HOUR, TIMELINE_END_HOUR, TIMELINE_INTERVAL_MINUTES);
+    ? buildTimelineSlots(0, TIMELINE_END_HOUR, intervalMinutes)
+    : buildTimelineSlots(TIMELINE_START_HOUR, TIMELINE_END_HOUR, intervalMinutes);
 };
 
 export const getTaskTimeRange = (task: Task) => {

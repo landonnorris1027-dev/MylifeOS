@@ -18,7 +18,7 @@ Important components:
 
 - `HabitConfig`: manage habit rules and backup import/export
 - `TaskCard`: shared task presentation for inbox and timeline
-- `TimePickerModal`: half-hour scheduling picker with overlap blocking
+- `TimePickerModal`: 5/15/30-minute scheduling picker with overlap blocking
 - `PomodoroTimer`: focus and break session UI
 - `RecoveryModal`: resolve expired offline sessions
 - `ContributionGraph`: yearly heatmap
@@ -131,3 +131,17 @@ Core renderer types are defined in [`src/types.ts`](../src/types.ts):
 - `DailyData`
 
 The app remains local-first. In Electron, data is stored in the desktop app data file. In non-Electron fallback runs, browser storage is still supported.
+
+## Windows 0.1.8 boundaries
+
+Shutdown freezes new renderer edits and waits for an authenticated renderer flush acknowledgement before draining the main queue. A rejected local compare-and-set candidate prevents silent exit even when main storage is healthy. Closing without tray minimization follows the same path and keeps the renderer alive until success or explicit discard.
+
+Backup fallback archives an existing rejected primary and flushes that archive before applying repaired data. The archive obligation survives rollback/retry failures. Supplied timer metadata uses the session ID/timestamp/calendar-date validators; missing and nullable legacy metadata are normalized before producing session records.
+
+`Task.historicalFocusMinutes` retains a legacy estimate independently of scheduling status when a completed task is deleted/requeued by undo. It is included in v8 and historical totals, never counted as measured time or synthesized as a session. v7/v6 exchange exports omit it and explain that omission.
+
+`focus-runtime.ts` owns the durable timer/outbox and idempotent task/session completion. `app-data-store.ts` owns fsync/atomic storage; `write-queue.ts` serializes asynchronous IPC mutations and shutdown drain. `desktop-shell.ts` owns window state and tray lifecycle; `ipc-security.ts` validates renderer origin and request shape. `diagnostics.ts` accepts bounded, fixed redacted fields only.
+
+The renderer bootstraps `DesktopStorageAdapter` and the active timer inventory before task reconciliation. Ordinary edits acknowledge queue acceptance; critical operations await flush. Failed candidates remain separate from durable data and conflict retries never replace newer completion state. `revisionCache.ts` keys log/search/report caches by storage revision and raw snapshot values, invalidating on restore/retry. `FocusRuntime`, `StorageAdapter`, and `FileAdapter` expose platform boundaries; native Android retains its existing runtime.
+
+`PreferencesSettings` renders settings separately from habit/data management, and `TaskOperations` implements task-scoped batch/undo. Production uses relative Vite legacy resources under `build/`, whitelisted preload IPC, and a minimal Windows staging project. The launcher checks both build identities. See `WINDOWS_IMPROVEMENTS.md` for acceptance commands and outstanding OS gates.

@@ -13,11 +13,11 @@ const logsKey = 'mylifeos_daily_logs';
 describe('P1 task execution loop', () => {
   beforeEach(() => {
     localStorage.clear();
-    jest.restoreAllMocks();
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-04-22T09:00:00+08:00'));
+    vi.restoreAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-22T09:00:00+08:00'));
   });
-  afterEach(() => jest.useRealTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('finds historical tasks by note and review with date, goal, priority and status filters', () => {
     localStorage.setItem(logsKey, JSON.stringify({
@@ -43,7 +43,7 @@ describe('P1 task execution loop', () => {
     localStorage.setItem(logsKey, JSON.stringify({ '2026-04-22': { date: '2026-04-22', tasks: [original] } }));
     const before = localStorage.getItem(logsKey);
     const setItem = Storage.prototype.setItem;
-    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
       if (key === logsKey) throw new Error('disk full');
       return setItem.call(this, key, value);
     });
@@ -85,7 +85,7 @@ describe('P1 task execution loop', () => {
     expect(initializeDay('2026-04-25').tasks.map((task) => task.habitId)).not.toContain(workdays.id);
     expect(initializeDay('2026-05-01').tasks.map((task) => task.habitId)).not.toContain(workdays.id);
     const backup = JSON.parse(getAllDataJSON());
-    expect(backup.schemaVersion).toBe(6);
+    expect(backup.schemaVersion).toBe(8);
     expect(backup.habits.find((habit: { id: string }) => habit.id === workdays.id).weekdays).toEqual([1, 2, 3, 4, 5]);
     localStorage.clear();
     expect((await importDataJSON(JSON.stringify(backup))).ok).toBe(true);

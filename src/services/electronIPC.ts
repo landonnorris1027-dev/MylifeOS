@@ -1,4 +1,9 @@
+import type { FocusRuntime } from './platformAdapters';
+import { setActiveTaskIds } from './taskActivity';
 import type { Priority } from '../types';
+import { isAndroid } from './platform';
+import { NativePomodoroManager } from './nativePomodoro';
+import { setNativeTimerVisible } from './nativeReminder';
 import type {
   PomodoroNotificationMessages,
   PomodoroRecoveryAction,
@@ -15,8 +20,13 @@ export interface PomodoroUpdateData {
   endTime: number;
   elapsed: number;
   isFinished: boolean;
+  suppressCompletionAlert?: boolean;
+  completionPersisted?: boolean;
+  sessionId?: string;
+  actualFocusSeconds?: number;
   isActive?: boolean;
   stopped?: boolean;
+  taskMissing?: boolean;
   isFocusMode?: boolean;
   notificationsEnabled?: boolean;
   breakDurationSeconds?: number | null;
@@ -58,11 +68,14 @@ interface BrowserTimer {
 
 class ElectronIPCHandler {
   private isElectron: boolean;
+  private nativeTimers: NativePomodoroManager | null;
   private browserTimers: Map<string, BrowserTimer> = new Map();
+  private activity = new Map<string, string>();
   private updateCallbacks: Set<(data: PomodoroUpdateData) => void> = new Set();
 
   constructor() {
     this.isElectron = typeof window !== 'undefined' && typeof window.electronAPI !== 'undefined';
+    this.nativeTimers = isAndroid() ? new NativePomodoroManager(data => this.notifySubscribers(data)) : null;
 
     if (this.isElectron) {
       try {
@@ -76,17 +89,9 @@ class ElectronIPCHandler {
   }
 
   async startPomodoro(timerData: PomodoroTimerData): Promise<PomodoroUpdateData> {
+    if (this.nativeTimers) return this.nativeTimers.start(timerData);
     if (this.isElectron) {
-      try {
-        return await window.electronAPI!.invoke('pomodoro-start', timerData);
-      } catch (error) {
-        try {
-          window.electronAPI!.send('pomodoro-stop', { timerId: timerData.timerId });
-        } catch (cleanupError) {
-          console.warn('Failed to clean up a timer after desktop start failed:', cleanupError);
-        }
-        throw error;
-      }
+      return window.electronAPI!.invoke('pomodoro-start', timerData);
     }
 
     return this.startBrowserTimer(timerData);
@@ -176,9 +181,10 @@ class ElectronIPCHandler {
     return payload;
   }
 
-  togglePomodoro(timerId: string): void {
+  async togglePomodoro(timerId: string): Promise<void> {
+    if (this.nativeTimers) return this.nativeTimers.toggle(timerId);
     if (this.isElectron) {
-      window.electronAPI?.send('pomodoro-toggle', { timerId });
+      await window.electronAPI?.invoke('pomodoro-toggle', { timerId });
       return;
     }
 
@@ -214,9 +220,10 @@ class ElectronIPCHandler {
     });
   }
 
-  stopPomodoro(timerId: string): void {
+  async stopPomodoro(timerId: string): Promise<void> {
+    if (this.nativeTimers) return this.nativeTimers.stop(timerId);
     if (this.isElectron) {
-      window.electronAPI?.send('pomodoro-stop', { timerId });
+      await window.electronAPI?.invoke('pomodoro-stop', { timerId });
       return;
     }
 
@@ -242,14 +249,21 @@ class ElectronIPCHandler {
   }
 
   private notifySubscribers(data: PomodoroUpdateData) {
+    if (data.isFinished || data.stopped) this.activity.delete(data.timerId);
+    else if (data.taskId) this.activity.set(data.timerId, data.taskId);
+    setActiveTaskIds(Array.from(this.activity.values()));
     this.updateCallbacks.forEach((callback) => callback(data));
   }
 
   async getActiveTimers(failClosed = false): Promise<PomodoroUpdateData[]> {
+    if (this.nativeTimers) return this.nativeTimers.getActiveTimers();
     if (this.isElectron) {
       try {
         const mainProcessTimers = await window.electronAPI?.invoke('pomodoro-get-active-timers');
-        if (Array.isArray(mainProcessTimers)) return mainProcessTimers;
+        if (Array.isArray(mainProcessTimers)) {
+          this.activity = new Map(mainProcessTimers.filter(t => t.taskId).map(t => [t.timerId, t.taskId!]));
+          setActiveTaskIds(Array.from(this.activity.values())); return mainProcessTimers;
+        }
         if (failClosed) throw new Error('Invalid timer response from main process');
         return [];
       } catch (e) {
@@ -279,6 +293,10 @@ class ElectronIPCHandler {
     }));
   }
 
+  async getCompletedFocus(): Promise<PomodoroUpdateData[]> {
+    return this.isElectron ? window.electronAPI!.invoke('pomodoro-get-completed-focus') : [];
+  }
+
   async getPendingRecoveries(): Promise<PomodoroRecoveryData[]> {
     if (!this.isElectron) return [];
 
@@ -306,8 +324,10 @@ class ElectronIPCHandler {
 
   onPomodoroUpdate(callback: (data: PomodoroUpdateData) => void): () => void {
     this.updateCallbacks.add(callback);
+    if (this.nativeTimers) void setNativeTimerVisible(true).catch(() => undefined);
     return () => {
       this.updateCallbacks.delete(callback);
+      if (this.nativeTimers && this.updateCallbacks.size === 0) void setNativeTimerVisible(false).catch(() => undefined);
     };
   }
 
@@ -325,6 +345,17 @@ class ElectronIPCHandler {
   getIsElectron(): boolean {
     return this.isElectron;
   }
+
+  async completePomodoro(timerId: string): Promise<void> {
+    if (this.isElectron) { await window.electronAPI!.invoke('pomodoro-complete', { timerId }); return; }
+    if (!this.nativeTimers) throw new Error('Native completion is unavailable');
+    await this.nativeTimers.complete(timerId);
+  }
 }
 
 export const electronIPC = new ElectronIPCHandler();
+
+export const focusRuntime: FocusRuntime = {
+ start: data => electronIPC.startPomodoro(data), toggle: id => electronIPC.togglePomodoro(id),
+ stop: id => electronIPC.stopPomodoro(id), complete: id => electronIPC.completePomodoro(id),
+};

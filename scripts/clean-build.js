@@ -3,7 +3,7 @@ const path = require('path');
 
 // `build/` is the only renderer payload that ships inside the installer
 // (electron-builder `files: ["build/**/*", ...]`), so it must contain exactly
-// the artifacts produced by `react-scripts build`.
+// the artifacts produced by `Vite build`.
 //   index.html          -> entry point resolved by electron-window-target.js
 //   static/             -> `./static/js/*` + `./static/css/*` referenced above
 //   manifest.json       -> web app manifest copied from public/
@@ -11,7 +11,7 @@ const path = require('path');
 // Anything else (installers, .apk, win-unpacked/, android/, builder-debug.yml,
 // stray copies from other tools) is a stray artifact that would otherwise be
 // packaged into the app and shipped to users.
-const KEEP_ENTRIES = ['index.html', 'manifest.json', 'asset-manifest.json', 'static'];
+const KEEP_ENTRIES = ['index.html', 'manifest.json', 'asset-manifest.json', 'build-info.json', 'static', 'assets', '.vite'];
 
 const buildDir = path.resolve(__dirname, '..', 'build');
 
@@ -98,7 +98,7 @@ function main() {
 
   console.log(`[clean:build] remaining: ${remaining.length ? remaining.join(', ') : '(empty)'}`);
 
-  const missing = ['index.html', 'static'].filter((name) => !remaining.includes(name));
+  const missing = ['index.html', 'assets'].filter((name) => !remaining.includes(name));
   if (missing.length > 0) {
     console.warn(`[clean:build] WARNING: build/ is missing ${missing.join(', ')}. Run "npm run build" before packaging.`);
   }

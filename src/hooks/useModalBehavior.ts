@@ -90,6 +90,8 @@ export const useModalBehavior = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && closeOnEscape) {
+        const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).filter(element => !isHidden(element));
+        if (dialogs.length && dialogs[dialogs.length - 1] !== containerRef.current) return;
         event.preventDefault();
         event.stopPropagation();
         onCloseRef.current();

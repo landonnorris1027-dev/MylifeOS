@@ -1,3 +1,4 @@
+import { isTaskActive } from '../taskActivity';
 import { DailyData, Habit, Task } from '../../types';
 import { generateId, getTodayStr, parseDateLocal } from './dateUtils';
 import { getAllDailyLogs, saveAllDailyLogs } from './dailyLogRepository';
@@ -32,7 +33,7 @@ const taskRank = (task: Task) => {
 // Only untouched, generated inbox copies can be removed when a habit rule shrinks.
 // A scheduled or completed copy, or one with user text, is already user data.
 const isGeneratedInboxTask = (task: Task) =>
-  task.status === 'inbox' && !task.note?.trim() && !task.review?.trim();
+  task.status === 'inbox' && !isTaskActive(task.id) && !task.note?.trim() && !task.review?.trim();
 
 export const reconcileDayTasks = (dayData: DailyData, habits: Habit[], todayStr: string): DailyData => {
   const isFutureDay = dayData.date > todayStr;
@@ -71,7 +72,7 @@ export const reconcileDayTasks = (dayData: DailyData, habits: Habit[], todayStr:
     }
 
     const sorted = [...tasks].sort((left, right) => taskRank(left) - taskRank(right));
-    const withinQuota = sorted.slice(0, habit.dailyQuota).map((task) => ({
+    const withinQuota = sorted.slice(0, habit.dailyQuota).map((task) => isTaskActive(task.id) || task.status === 'completed' ? task : ({
       ...task,
       goalId: habit.goalId,
       name: habit.name,
@@ -79,7 +80,7 @@ export const reconcileDayTasks = (dayData: DailyData, habits: Habit[], todayStr:
       durationMinutes: habit.defaultDurationMinutes,
     }));
     const preservedOverflow = isToday || isFutureDay
-      ? sorted.slice(habit.dailyQuota).filter((task) => !isGeneratedInboxTask(task)).map((task) => ({
+      ? sorted.slice(habit.dailyQuota).filter((task) => !isGeneratedInboxTask(task)).map((task) => isTaskActive(task.id) || task.status === 'completed' ? task : ({
           ...task,
           goalId: habit.goalId,
           name: habit.name,

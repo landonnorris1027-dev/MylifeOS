@@ -47,14 +47,14 @@ const createTask = (overrides: Partial<Task>): Task => ({
 describe('storage service', () => {
   beforeEach(() => {
     localStorage.clear();
-    jest.restoreAllMocks();
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2026-04-22T09:00:00+08:00'));
-    jest.spyOn(Math, 'random').mockReturnValue(0.123456789);
+    vi.restoreAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-22T09:00:00+08:00'));
+    vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('formats and parses local dates consistently', () => {
@@ -357,7 +357,7 @@ describe('storage service', () => {
 
     const exported = JSON.parse(getAllDataJSON());
 
-    expect(exported.schemaVersion).toBe(6);
+    expect(exported.schemaVersion).toBe(8);
     expect(Array.isArray(exported.habits)).toBe(true);
     expect(Array.isArray(exported.goals)).toBe(true);
     expect(typeof exported.dailyLogs).toBe('object');
@@ -437,7 +437,7 @@ describe('storage service', () => {
     expect(getDailyData('2026-04-22')?.tasks).toHaveLength(1);
 
     const reExported = JSON.parse(getAllDataJSON());
-    expect(reExported.schemaVersion).toBe(6);
+    expect(reExported.schemaVersion).toBe(8);
   });
 
   it('imports manual tasks without habit associations', async () => {

@@ -9,44 +9,45 @@ const timerData: PomodoroTimerData = {
 
 describe('electronIPC startPomodoro', () => {
   beforeEach(() => {
-    jest.resetModules();
-    jest.useFakeTimers();
+    vi.resetModules();
+    vi.useFakeTimers();
     delete window.electronAPI;
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     delete window.electronAPI;
   });
 
   it('rejects a failed desktop start without creating a browser timer', async () => {
     let mainProcessTimerActive = false;
-    const invoke = jest.fn().mockImplementation(async () => {
+    const invoke = vi.fn().mockImplementation(async () => {
       mainProcessTimerActive = true;
       throw new Error('main process unavailable');
     });
-    const send = jest.fn((channel: string, payload: { timerId: string }) => {
+    const send = vi.fn((channel: string, payload: { timerId: string }) => {
       if (channel === 'pomodoro-stop' && payload.timerId === timerData.timerId) {
         mainProcessTimerActive = false;
       }
     });
     window.electronAPI = {
       invoke,
-      on: jest.fn(() => jest.fn()),
+      on: vi.fn(() => vi.fn()),
       send,
-      sendSync: jest.fn(),
+      sendSync: vi.fn(),
     } as unknown as NonNullable<Window['electronAPI']>;
 
     const { electronIPC } = await import('./electronIPC');
-    const update = jest.fn();
+    const update = vi.fn();
     electronIPC.onPomodoroUpdate(update);
 
     await expect(electronIPC.startPomodoro(timerData)).rejects.toThrow('main process unavailable');
 
     expect(invoke).toHaveBeenCalledWith('pomodoro-start', timerData);
-    expect(send).toHaveBeenCalledWith('pomodoro-stop', { timerId: timerData.timerId });
-    expect(mainProcessTimerActive).toBe(false);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+    // Main process retains the candidate; the renderer must not discard retry evidence.
+    expect(mainProcessTimerActive).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -56,9 +57,9 @@ describe('electronIPC startPomodoro', () => {
     const started = await electronIPC.startPomodoro(timerData);
 
     expect(started).toMatchObject({ timerId: timerData.timerId, isActive: true });
-    expect(jest.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(1);
 
     electronIPC.stopPomodoro(timerData.timerId);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

@@ -7,6 +7,7 @@ import { getTaskTimeLabel } from '../services/scheduling';
 interface TaskCardProps {
   task: Task;
   onClick: (task: Task) => void;
+  onFocus?: (task: Task) => void;
   onDeleteToday?: (taskId: string) => void;
   onDeletePermanent?: (taskId: string, habitId: string) => void;
   onUnschedule?: (task: Task) => void;
@@ -20,6 +21,7 @@ interface TaskCardProps {
 const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onClick,
+  onFocus,
   onDeleteToday,
   onDeletePermanent,
   onUnschedule,
@@ -91,7 +93,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       `}
     >
       <div className="flex flex-col gap-2 min-w-0">
-        <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="task-heading flex items-start justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {task.status === 'completed' ? (
               <CheckCircle2 size={16} className={`${styles.text} opacity-60 flex-shrink-0`} />
@@ -111,7 +113,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </div>
 
           <div
-              className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
+              className="task-actions flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
               onClick={stopEvent}
             >
               {onEditReview && (
@@ -174,6 +176,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
 
         <div className="flex items-center justify-end gap-2 pl-4">
+            {onFocus && task.status !== 'completed' && <button type="button" className="mr-auto rounded bg-white px-2 py-1 text-xs font-semibold" onClick={event => { stopEvent(event); onFocus(task); }}>
+              {t('start_focus')}
+            </button>}
             {timeLabel && (
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
                 {timeLabel}

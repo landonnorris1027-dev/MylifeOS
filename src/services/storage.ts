@@ -1,5 +1,9 @@
+import { revisionCache } from './storage/revisionCache';
+import { KEYS, safeParse } from './storage/localStorageStore';
+import { assertTaskInactive } from './taskActivity';
 import { DailyData, Goal, Habit, Priority, Task } from '../types';
-import { exportBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
+import { exportBackupJSON, exportAndroidCompatibleBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
+import { flushStorageWrites } from './storage/localStorageStore';
 import { formatDateLocal, generateId, getTodayStr, parseDateLocal } from './storage/dateUtils';
 import { getAllDailyLogs, getCompletedMinutesByDate, getDailyLogByDate, saveAllDailyLogs, saveDailyLog } from './storage/dailyLogRepository';
 import { getGoalsRecord, saveGoalsRecord } from './storage/goalRepository';
@@ -56,28 +60,26 @@ export interface TaskSearchFilters {
   status?: Task['status'];
 }
 
+const searchIndex = revisionCache([KEYS.DAILY_LOGS], ([raw]) => Object.values(safeParse<Record<string, DailyData>>(raw, {}))
+  .flatMap(day => day.tasks).filter(task => task.status !== 'deleted')
+  .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name))
+  .map(task => ({ task, text: [task.name, task.note, task.review].map(value => value?.toLocaleLowerCase() || '').join('\0') })));
 export const searchTasks = (filters: TaskSearchFilters): Task[] => {
   const query = filters.query?.trim().toLocaleLowerCase() || '';
-  return Object.values(getAllDailyLogs())
-    .flatMap((day) => day.tasks)
-    .filter((task) => task.status !== 'deleted'
-      && (!filters.from || task.date >= filters.from)
-      && (!filters.to || task.date <= filters.to)
-      && (!filters.goalId || task.goalId === filters.goalId)
-      && (!filters.priority || task.priority === filters.priority)
-      && (!filters.status || task.status === filters.status)
-      && (!query || [task.name, task.note, task.review].some((value) => value?.toLocaleLowerCase().includes(query))))
-    .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name));
+  return searchIndex().filter(({ task, text }) => (!filters.from || task.date >= filters.from)
+    && (!filters.to || task.date <= filters.to) && (!filters.goalId || task.goalId === filters.goalId)
+    && (!filters.priority || task.priority === filters.priority) && (!filters.status || task.status === filters.status)
+    && (!query || text.includes(query))).map(({ task }) => ({ ...task }));
 };
 
-export const getAllDataJSON = () => {
-  return exportBackupJSON(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
+export const getAllDataJSON = (desktopCompatible: boolean | 'android' = false) => {
+  return (desktopCompatible === 'android' ? exportAndroidCompatibleBackupJSON : desktopCompatible ? exportDesktopCompatibleBackupJSON : exportBackupJSON)(getHabitsRecord(), getAllDailyLogs(), getGoalsRecord());
 };
 
 export const importDataJSON = async (jsonStr: string): Promise<ImportDataResult> => {
   const preview = previewImportBackupJSON(jsonStr);
   if (!preview.ok) return preview;
-  try { createRecoveryPoint('pre-import', { force: true }); }
+  try { createRecoveryPoint('pre-import', { force: true }); await flushStorageWrites(); }
   catch (error) { return { ...preview, ok: false, message: error instanceof Error ? error.message : 'Pre-import recovery point failed' }; }
   return importBackupJSON(jsonStr);
 };
@@ -209,7 +211,10 @@ export const getYearlyStats = (): Record<string, number> => {
   return getCompletedMinutesByDate();
 };
 
-export const getProfileStats = (): ProfileStats => {
+const profileStatsCache = revisionCache([KEYS.DAILY_LOGS], () => buildProfileStats());
+export const getProfileStats = (): ProfileStats => profileStatsCache(getTodayStr());
+
+const buildProfileStats = (): ProfileStats => {
   const allLogs = getAllDailyLogs();
   const today = getTodayStr();
   const relevantDates = Object.keys(allLogs)
@@ -350,6 +355,7 @@ export const updateTask = (task: Task) => {
 };
 
 export const deleteTaskFromDay = (taskId: string, date: string) => {
+  assertTaskInactive(taskId);
   const data = getDailyLogByDate(date);
   if (!data) return;
 
@@ -359,6 +365,7 @@ export const deleteTaskFromDay = (taskId: string, date: string) => {
 };
 
 export const deleteTaskForToday = (taskId: string, date: string) => {
+  assertTaskInactive(taskId);
   const data = getDailyLogByDate(date);
   if (!data) return;
 
@@ -374,6 +381,7 @@ export const deleteTaskForToday = (taskId: string, date: string) => {
 // Both dates live in one daily-logs storage value, so a failed write cannot
 // leave a removed source task without its destination copy.
 export const rescheduleManualTask = (taskId: string, sourceDate: string, targetDate: string): Task => {
+  assertTaskInactive(taskId);
   const date = parseDateLocal(targetDate);
   if (formatDateLocal(date) !== targetDate || sourceDate === targetDate) {
     throw new Error('Choose a different valid date');

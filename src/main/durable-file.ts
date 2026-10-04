@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 export type DurableFileSystem = Pick<
   typeof fs,
@@ -41,6 +42,14 @@ const syncFile = (filePath: string, fileSystem: DurableFileSystem): void => {
     fileSystem.closeSync(descriptor);
   }
 };
+
+/** Preserve exact source bytes durably before any damaged-file replacement. */
+export function archiveCorruptFile(source: string, fileSystem: DurableFileSystem = fs): string {
+  const archive = source + '.corrupt-' + randomUUID();
+  fileSystem.copyFileSync(source, archive);
+  syncFile(archive, fileSystem);
+  return archive;
+}
 
 const containsCompleteJson = (
   filePath: string,
