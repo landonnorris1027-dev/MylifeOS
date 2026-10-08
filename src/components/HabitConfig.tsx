@@ -97,7 +97,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<Priority>('P1');
   const [quota, setQuota] = useState(1);
-  const [duration, setDuration] = useState(25);
+  const [duration, setDuration] = useState<number | ''>(25);
   const [effectiveType, setEffectiveType] = useState<'permanent' | 'range'>('permanent');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -169,7 +169,8 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const habitName = name.trim();
-    if (!habitName) return;
+    if (!habitName || duration === '' || !Number.isInteger(duration)
+      || duration < 1 || duration > 180) return;
     if (repeatMode === 'custom' && customWeekdays.length === 0) {
       setAlertConfig({ isOpen: true, message: t('repeat_choose_day') });
       return;
@@ -614,8 +615,10 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                     type="number"
                     min="1"
                     max="180"
+                    required
+                    aria-label={t('habit_duration')}
                     value={duration}
-                    onChange={(e) => setDuration(parseInt(e.target.value) || 25)}
+                    onChange={(e) => setDuration(e.target.value === '' ? '' : Number(e.target.value))}
                     className="w-full p-1.5 pl-8 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
                   />
                   <Clock size={14} className="absolute left-2.5 top-2.5 text-gray-400" />

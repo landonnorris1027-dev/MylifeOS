@@ -19,7 +19,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [goalName, setGoalName] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState(25);
+  const [durationMinutes, setDurationMinutes] = useState<number | ''>(25);
   const [note, setNote] = useState('');
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
   const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
@@ -47,11 +47,12 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const taskName = name.trim();
-    if (!taskName) return;
+    if (!taskName || durationMinutes === '' || !Number.isInteger(durationMinutes)
+      || durationMinutes < 1 || durationMinutes > 180) return;
 
     onCreate({
       name: taskName,
-      durationMinutes: Math.max(1, Math.min(180, durationMinutes || 25)),
+      durationMinutes,
       goalName: goalName.trim() || undefined,
       note: note.trim() || undefined,
     });
@@ -120,10 +121,11 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
             <div className="relative">
               <input
                 type="number"
+                required
                 min="1"
                 max="180"
                 value={durationMinutes}
-                onChange={(event) => setDurationMinutes(parseInt(event.target.value, 10) || 25)}
+                onChange={(event) => setDurationMinutes(event.target.value === '' ? '' : Number(event.target.value))}
                 className="w-full p-2.5 pl-9 pr-14 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
               />
               <Clock size={15} className="absolute left-3 top-3 text-gray-400" />
