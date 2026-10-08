@@ -28,7 +28,7 @@ export function validateIpcRequest(channel: string, payload: unknown): void {
       && ['notificationsEnabled', 'soundEnabled', 'vibrationEnabled'].every(key => payload[key] === undefined || typeof payload[key] === 'boolean')
       && ['taskId', 'taskHabitId', 'taskName'].every(key => payload[key] === undefined || text(payload[key], key === 'taskName' ? 2000 : 240))
       && (payload.taskDate === undefined || isTaskDate(payload.taskDate))
-      && (payload.taskPriority === undefined || ['P1', 'P2', 'P3'].includes(String(payload.taskPriority)))
+      && (payload.taskPriority === undefined || ['P1', 'P2', 'P3', 'none'].includes(String(payload.taskPriority)))
       && (payload.taskDurationMinutes === undefined || typeof payload.taskDurationMinutes === 'number' && Number.isInteger(payload.taskDurationMinutes) && payload.taskDurationMinutes > 0 && payload.taskDurationMinutes <= 1440)
       && (payload.breakDurationSeconds === undefined || typeof payload.breakDurationSeconds === 'number' && Number.isFinite(payload.breakDurationSeconds) && payload.breakDurationSeconds > 0 && payload.breakDurationSeconds <= 86400)
       && (payload.notificationMessages === undefined || object(payload.notificationMessages) && Object.values(payload.notificationMessages).every(value => text(value, 2000)));

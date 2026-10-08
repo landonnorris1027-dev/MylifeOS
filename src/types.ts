@@ -1,4 +1,6 @@
 export type Priority = 'P1' | 'P2' | 'P3';
+export type TaskPriority = Priority | 'none';
+export const isTaskPriority = (value: unknown): value is TaskPriority => value === 'none' || isPriority(value);
 
 export const isPriority = (value: unknown): value is Priority => {
   return value === 'P1' || value === 'P2' || value === 'P3';
@@ -30,7 +32,7 @@ export interface Task {
   goalId?: string;
   origin?: 'habit' | 'manual';
   name: string;
-  priority: Priority;
+  priority: TaskPriority;
   status: TaskStatus;
   date: string; // YYYY-MM-DD
   startTime?: string; // HH:mm format
@@ -47,6 +49,10 @@ export interface DailyData {
 }
 
 export const PRIORITY_STYLES = {
+  none: {
+    bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-900',
+    tag: 'bg-purple-100', accent: 'bg-[#8e24aa]', hover: 'hover:bg-purple-100',
+  },
   P1: {
     bg: 'bg-red-50',
     border: 'border-red-100',

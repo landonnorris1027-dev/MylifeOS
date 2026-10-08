@@ -112,6 +112,7 @@ const en = {
   habit_name: 'Habit Name',
   habit_placeholder: 'e.g. Deep Work, Read Book',
   priority_class: 'Priority Class',
+  no_priority: 'No priority',
   daily_quota: 'Daily Quota',
   quota_desc: 'Will generate {n} blocks daily.',
   habit_duration: 'Duration (Min)',

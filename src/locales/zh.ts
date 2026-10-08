@@ -112,6 +112,7 @@ const zh = {
   habit_name: '习惯名称',
   habit_placeholder: '例如：深度工作、阅读、健身',
   priority_class: '优先级',
+  no_priority: '无优先级',
   daily_quota: '每日数量',
   quota_desc: '每天会生成 {n} 个任务块。',
   habit_duration: '单次时长（分钟）',

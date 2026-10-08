@@ -1,5 +1,6 @@
+import { normalizeTaskPriority } from './taskPriority';
 import { revisionCache } from './storage/revisionCache';
-import { DailyData, Priority, Task } from '../types';
+import { DailyData, TaskPriority, Task } from '../types';
 import { FocusSession, validateFocusSessions } from '../main/focus-session';
 import { getDailyLogsSnapshot } from './storage/dailyLogRepository';
 import { KEYS, getStorageItem } from './storage/localStorageStore';
@@ -8,7 +9,7 @@ export type FocusPeriod = 'week' | 'rolling';
 export interface FocusDay { date: string; plannedSeconds: number; measuredSeconds: number; historicalSeconds: number; deviationSeconds: number; }
 export interface FocusReport {
   from: string; to: string; measuredSeconds: number; historicalSeconds: number;
-  goalSeconds: Record<string, number>; prioritySeconds: Record<Priority, number>;
+  goalSeconds: Record<string, number>; prioritySeconds: Record<TaskPriority, number>;
   days: FocusDay[]; tasks: Task[]; sessions: FocusSession[];
 }
 const sessions = revisionCache([KEYS.FOCUS_SESSIONS], ([raw]) => validateFocusSessions(JSON.parse(raw || '[]')));
@@ -23,7 +24,8 @@ export function focusPeriodRange(anchor: string, period: FocusPeriod): { from: s
 }
 /** Task date owns attribution, including sessions that cross local midnight. */
 export function summarizeFocus(logs: Record<string, DailyData>, sessions: FocusSession[], from: string, to: string): FocusReport {
-  const report: FocusReport = { from, to, measuredSeconds: 0, historicalSeconds: 0, goalSeconds: {}, prioritySeconds: { P1: 0, P2: 0, P3: 0 }, days: [], tasks: [], sessions: [] };
+  const report: FocusReport = { from, to, measuredSeconds: 0, historicalSeconds: 0, goalSeconds: {}, prioritySeconds: { P1: 0, P2: 0, P3: 0, none: 0 }, days: [], tasks: [], sessions: [] };
+  const manualTaskIds = new Set(Object.values(logs).flatMap(day => day.tasks.filter(task => normalizeTaskPriority(task).priority === 'none').map(task => `${task.date}:${task.id}`)));
   const days = new Map<string, FocusDay>();
   const day = (date: string) => {
     if (!days.has(date)) days.set(date, { date, plannedSeconds: 0, measuredSeconds: 0, historicalSeconds: 0, deviationSeconds: 0 });
@@ -54,7 +56,8 @@ export function summarizeFocus(logs: Record<string, DailyData>, sessions: FocusS
     day(session.taskDate).measuredSeconds += session.actualFocusSeconds;
     const goal = session.goalId || '';
     report.goalSeconds[goal] = (report.goalSeconds[goal] || 0) + session.actualFocusSeconds;
-    if (session.priority) report.prioritySeconds[session.priority] += session.actualFocusSeconds;
+    const priority = session.taskId && manualTaskIds.has(`${session.taskDate}:${session.taskId}`) ? 'none' : session.priority;
+    if (priority) report.prioritySeconds[priority] += session.actualFocusSeconds;
   }
   for (const value of Array.from(days.values())) value.deviationSeconds = value.measuredSeconds - value.plannedSeconds;
   report.days = Array.from(days.values()).sort((a, b) => a.date.localeCompare(b.date));

@@ -136,6 +136,18 @@ describe('useAppController scheduling guards', () => {
     vi.useRealTimers();
   });
 
+  it('restores a legacy active manual timer as unprioritized while keeping its remaining time', async () => {
+    getActiveTimersMock.mockResolvedValue([{ timerId: 'old-active', taskId: 'manual', taskName: 'Legacy manual',
+      taskDate: '2026-04-22', taskPriority: 'P1', taskDurationMinutes: 25, duration: 1500,
+      remaining: 61000, endTime: Date.now()+61000, elapsed: 1439000, isFinished: false, isActive: false, isFocusMode: true }]);
+    await act(async () => {
+      root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+      await drainMicrotasks();
+    });
+    expect(controller?.state.restoredTimerState).toMatchObject({ taskPriority: 'none', remainingSeconds: 61 });
+    expect(controller?.state.activeTask?.priority).toBe('none');
+  });
+
   it('checks pending recoveries on startup without logging an error', async () => {
     const errorSpy = vi.spyOn(console, 'error');
     try {
@@ -191,7 +203,7 @@ describe('useAppController scheduling guards', () => {
         await drainMicrotasks();
       });
       await act(async () => { controller?.actions.selectDate(day); });
-      expect(controller?.state.dailyData?.tasks).toEqual([task]);
+      expect(controller?.state.dailyData?.tasks).toEqual([{ ...task, priority: 'none' }]);
       expect(localStorage.getItem(DAILY_LOGS_KEY)).toBe(durable);
       expect(controller?.state.alertConfig.isOpen).toBe(false);
     } finally { setStorageReadOnly(false); }

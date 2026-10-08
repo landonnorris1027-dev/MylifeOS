@@ -28,7 +28,7 @@ describe('task operation boundaries', () => {
     const result = getAllDailyLogs()['2026-10-02'].tasks;
     expect(result.find(t => t.id === 'a')).toMatchObject({ status: 'inbox', note: 'New note' });
     expect(result.find(t => t.id === 'other')?.startTime).toBe('09:00');
-    expect(result.find(t => t.id === 'b')).toEqual(b);
+    expect(result.find(t => t.id === 'b')).toEqual({ ...b, priority: 'none' });
   });
   it('rejects undo after a later completion and keeps the history for review', async () => {
     const a = task('a'); seed([a]); const ops = new TaskOperations();

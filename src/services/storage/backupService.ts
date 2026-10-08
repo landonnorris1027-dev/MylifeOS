@@ -1,5 +1,6 @@
 import { FocusSession, validateFocusSessions } from '../../main/focus-session';
 import { getStorageItem } from './localStorageStore';
+import { normalizeTaskPriorities } from '../taskPriority';
 import { DailyData, Goal, Habit, Priority, Task, TaskStatus } from '../../types';
 import { DATA_SCHEMA_VERSION, KEYS, commitStorageSnapshot } from './localStorageStore';
 import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSettings } from './backupSettings';
@@ -154,7 +155,7 @@ const sanitizeTask = (
     !isNonEmptyString(value.id) ||
     seenTaskIds.has(value.id) ||
     !isNonEmptyString(value.name) ||
-    !isValidPriority(value.priority) ||
+    !(isValidPriority(value.priority) || origin === 'manual' && value.priority === 'none') ||
     !isValidStatus(value.status) ||
     !isPositiveInteger(value.durationMinutes) ||
     (value.actualFocusMinutes !== undefined && !isPositiveInteger(value.actualFocusMinutes)) ||
@@ -180,7 +181,7 @@ const sanitizeTask = (
     goalId,
     origin,
     name: value.name.trim(),
-    priority: value.priority,
+    priority: origin === 'manual' ? 'none' : value.priority as Priority,
     status: value.status,
     date: taskDate,
     startTime: typeof value.startTime === 'string' ? value.startTime : undefined,
@@ -306,7 +307,7 @@ const normalizeBackupPayload = (
       timestamp,
       goals,
       habits,
-      dailyLogs,
+      dailyLogs: normalizeTaskPriorities(dailyLogs),
       settings,
       focusSessions,
     },
@@ -370,7 +371,7 @@ export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, Dail
       timestamp: new Date().toISOString(),
       goals,
       habits,
-      dailyLogs,
+      dailyLogs: normalizeTaskPriorities(dailyLogs),
       settings,
       focusSessions: validateFocusSessions(JSON.parse(getStorageItem(KEYS.FOCUS_SESSIONS) || '[]')),
     },
@@ -420,6 +421,9 @@ const omitRetainedHistory = (payload: BackupPayloadV2) => {
 export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
   const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
   payload.schemaVersion = 6;
+  for (const day of Object.values(payload.dailyLogs) as DailyData[]) for (const task of day.tasks) {
+    if (task.priority === 'none') task.priority = 'P3';
+  }
   delete payload.focusSessions;
   delete payload.settings.planner.intervalMinutes;
   delete payload.settings.focus.vibrationEnabled;
@@ -429,7 +433,11 @@ export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Re
 
 export const exportAndroidCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
   const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
-  payload.schemaVersion = 7; delete payload.focusSessions; delete payload.settings.planner.intervalMinutes;
+  payload.schemaVersion = 7;
+  for (const day of Object.values(payload.dailyLogs) as DailyData[]) for (const task of day.tasks) {
+    if (task.priority === 'none') task.priority = 'P3';
+  }
+  delete payload.focusSessions; delete payload.settings.planner.intervalMinutes;
   omitRetainedHistory(payload);
   return JSON.stringify(payload, null, 2);
 };

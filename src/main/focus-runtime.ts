@@ -55,7 +55,7 @@ function isTimerMetadata(value: unknown): boolean {
     && optional('goalId', isSessionId)
     && optional('taskDate', isTaskDate, true)
     && optional('taskName', v => typeof v === 'string' && v.length <= 2000, true)
-    && optional('taskPriority', v => ['P1', 'P2', 'P3'].includes(String(v)), true)
+    && optional('taskPriority', v => ['P1', 'P2', 'P3', 'none'].includes(String(v)), true)
     && optional('taskDurationMinutes', v => typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 1440, true)
     && optional('breakDurationSeconds', seconds, true)
     && ['isActive', 'isFinished', 'isFocusMode', 'notificationsEnabled', 'soundEnabled', 'vibrationEnabled', 'completionPersisted', 'stopped', 'taskMissing']
@@ -258,6 +258,7 @@ export class DurableFocusRuntime {
       const task = logs[session.taskDate]?.tasks?.find((t: { id: string }) => t.id === session.taskId);
       if (!sessions.some(s => s.id === session.id)) {
         if (task && session.result === 'completed') {
+          if (task.origin === 'manual' || !task.habitId) task.priority = 'none';
           task.status = 'completed';
           task.actualFocusMinutes = Math.max(1, Math.round(session.actualFocusSeconds / 60));
         }

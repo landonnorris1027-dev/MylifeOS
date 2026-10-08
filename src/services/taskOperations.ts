@@ -1,3 +1,4 @@
+import { normalizeTaskPriority } from './taskPriority';
 import { Task } from '../types';
 import { getAllDailyLogs, saveAllDailyLogs } from './storage/dailyLogRepository';
 import { flushStorageWrites } from './storage/localStorageStore';
@@ -21,6 +22,7 @@ export class TaskOperations {
   get count() { return this.history.length; }
   clear() { this.history = []; }
   private async persist(changes: Change[], label: string): Promise<void> {
+    changes = changes.map(({ before, after }) => ({ before: normalizeTaskPriority(before), after: normalizeTaskPriority(after) }));
     if (this.busy) throw new Error('A task operation is already in progress');
     this.busy = true;
     try {

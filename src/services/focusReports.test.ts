@@ -3,6 +3,18 @@ import { FocusSession } from '../main/focus-session';
 import { DailyData, Task } from '../types';
 const session = (id: string, extra: Partial<FocusSession> = {}): FocusSession => ({ id, timerId: id, taskId: 'task', taskDate: '2026-09-28', taskName: 'Focus', priority: 'P1', goalId: 'deleted-goal', plannedSeconds: 1500, actualFocusSeconds: 91.5, startedAt: new Date(2026, 8, 28, 23, 59).getTime(), endedAt: new Date(2026, 8, 29, 0, 2).getTime(), result: 'completed', measurement: 'measured', ...extra });
 describe('precise focus reporting', () => {
+  it('reclassifies old manual session priority without changing measured time', () => {
+    const task: Task = { id: 'task', date: '2026-09-28', name: 'Legacy manual', origin: 'manual', priority: 'P1', status: 'completed', durationMinutes: 25 };
+    const report = summarizeFocus({ [task.date]: { date: task.date, tasks: [task] } }, [session('manual')], task.date, task.date);
+    expect(report.measuredSeconds).toBe(91.5);
+    expect(report.prioritySeconds).toEqual({ P1: 0, P2: 0, P3: 0, none: 91.5 });
+    expect(task.priority).toBe('P1');
+  });
+  it('preserves the priority recorded by a habit session after the habit changes', () => {
+    const task: Task = { id: 'task', date: '2026-09-28', name: 'Habit', origin: 'habit', habitId: 'h', priority: 'P2', status: 'scheduled', durationMinutes: 25 };
+    const report = summarizeFocus({ [task.date]: { date: task.date, tasks: [task] } }, [session('habit', { priority: 'P1', taskHabitId: 'h' })], task.date, task.date);
+    expect(report.prioritySeconds).toEqual({ P1: 91.5, P2: 0, P3: 0, none: 0 });
+  });
   it('uses local Monday through Sunday independently of the rolling seven days', () => {
     expect(focusPeriodRange('2026-10-04', 'week')).toEqual({ from: '2026-09-28', to: '2026-10-04' });
     expect(focusPeriodRange('2026-10-05', 'week')).toEqual({ from: '2026-10-05', to: '2026-10-11' });

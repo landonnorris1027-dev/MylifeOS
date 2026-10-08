@@ -33,7 +33,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
     className={`motion-task motion-ui ${task.status === 'completed' ? 'is-completed' : ''}`}>
     <div className="motion-task-heading">
       <span className="motion-task-name">{task.status === 'completed' && <CheckCircle2 size={16}/>}<span>{task.name}</span></span>
-      <span className={`motion-priority-tag priority-${task.priority}`}>{task.priority}</span>
+      {task.priority === 'none' ? <span role="img" aria-label={t('no_priority')} title={t('no_priority')} className="motion-unprioritized-dot"/> : <span className={`motion-priority-tag priority-${task.priority}`}>{task.priority}</span>}
     </div>
     <div className="motion-task-meta">
       <Timer size={14} aria-hidden="true"/>

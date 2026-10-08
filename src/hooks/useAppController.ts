@@ -31,7 +31,7 @@ import {
   isTaskWithinDay,
 } from '../services/scheduling';
 import { getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
-import { DailyData, Task, isPriority } from '../types';
+import { DailyData, Task, isTaskPriority } from '../types';
 import { flushStorageWrites, isStorageReadOnly } from '../services/storage/localStorageStore';
 import { isAndroid } from '../services/platform';
 
@@ -288,7 +288,7 @@ const isRestoredSessionAlive = async (snapshot: TimerSessionSnapshot): Promise<b
 };
 
 export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | null => {
-  if (!recovery.taskId || !recovery.taskName || !recovery.taskDate || !isPriority(recovery.taskPriority) || !recovery.taskDurationMinutes) {
+  if (!recovery.taskId || !recovery.taskName || !recovery.taskDate || !isTaskPriority(recovery.taskPriority) || !recovery.taskDurationMinutes) {
     return null;
   }
 
@@ -300,7 +300,7 @@ export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | nu
     habitId: habitId || undefined,
     origin: habitId ? 'habit' : 'manual',
     name: recovery.taskName,
-    priority: recovery.taskPriority,
+    priority: habitId ? recovery.taskPriority : 'none',
     status: 'scheduled',
     date: recovery.taskDate,
     startTime: storedTask?.startTime,
@@ -313,7 +313,7 @@ export const buildTimerDisplayTask = (timer: PomodoroUpdateData, fallbackName: s
   const stored = timer.taskId && timer.taskDate ? findStoredTimerTask(timer.taskId, timer.taskDate) : null;
   return stored || {
     id: timer.taskId || timer.timerId, date: timer.taskDate || getTodayStr(),
-    name: timer.taskName || fallbackName, priority: isPriority(timer.taskPriority) ? timer.taskPriority : 'P2',
+    name: timer.taskName || fallbackName, priority: getTimerTaskHabitId(timer) && isTaskPriority(timer.taskPriority) ? timer.taskPriority : 'none',
     habitId: getTimerTaskHabitId(timer) || undefined, origin: timer.taskHabitId ? 'habit' : 'manual',
     status: 'scheduled', durationMinutes: timer.taskDurationMinutes || Math.max(1, Math.ceil(timer.duration / 60)),
   };
@@ -535,7 +535,7 @@ export const useAppController = () => {
 
   const handleManualTaskCreate = useCallback((input: {
     name: string;
-    priority: Task['priority'];
+    priority?: Task['priority'];
     durationMinutes: number;
     goalName?: string;
     note?: string;

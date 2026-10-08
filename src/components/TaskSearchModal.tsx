@@ -51,7 +51,7 @@ const TaskSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
           </label>
           <label className="text-xs">{t('priority_class')}
             <select value={filters.priority || ''} onChange={(event) => update({ priority: event.target.value as TaskSearchFilters['priority'] || undefined })} className="block w-full rounded-lg border p-2">
-              <option value="">{t('search_all')}</option><option>P1</option><option>P2</option><option>P3</option>
+              <option value="">{t('search_all')}</option><option>P1</option><option>P2</option><option>P3</option><option value="none">{t('no_priority')}</option>
             </select>
           </label>
           <label className="text-xs">{t('task_search_status')}
@@ -70,7 +70,7 @@ const TaskSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
             <button key={`${task.date}-${task.id}`} type="button" onClick={() => onSelect(task)}
               className="motion-search-result">
               <span className="font-semibold">{task.name}</span>
-              <span className="text-xs text-gray-500">{task.date} · {task.priority} · {t(`task_status_${task.status}`)}</span>
+              <span className="text-xs text-gray-500">{task.date} · {task.priority === 'none' ? t('no_priority') : task.priority} · {t(`task_status_${task.status}`)}</span>
               {(task.note || task.review) && <span className="motion-search-note">{task.note || task.review}</span>}
             </button>
           ))}

@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, FileText, Plus, Target, X } from 'lucide-react';
-import { Priority } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getGoals } from '../services/storage';
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import PrioritySelector from './PrioritySelector';
 
 interface ManualTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (input: {
     name: string;
-    priority: Priority;
     durationMinutes: number;
     goalName?: string;
     note?: string;
@@ -22,7 +19,6 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [goalName, setGoalName] = useState('');
-  const [priority, setPriority] = useState<Priority>('P1');
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [note, setNote] = useState('');
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
@@ -39,7 +35,6 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   const reset = () => {
     setName('');
     setGoalName('');
-    setPriority('P1');
     setDurationMinutes(25);
     setNote('');
   };
@@ -56,7 +51,6 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
 
     onCreate({
       name: taskName,
-      priority,
       durationMinutes: Math.max(1, Math.min(180, durationMinutes || 25)),
       goalName: goalName.trim() || undefined,
       note: note.trim() || undefined,
@@ -118,12 +112,6 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
             </datalist>
           </label>
 
-          <div>
-            <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              {t('priority_class')}
-            </span>
-            <PrioritySelector value={priority} onChange={setPriority} />
-          </div>
 
           <label className="block">
             <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">

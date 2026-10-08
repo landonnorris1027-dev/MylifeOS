@@ -1,6 +1,6 @@
 import type { FocusRuntime } from './platformAdapters';
 import { setActiveTaskIds } from './taskActivity';
-import type { Priority } from '../types';
+import type { TaskPriority } from '../types';
 import { isAndroid } from './platform';
 import { NativePomodoroManager } from './nativePomodoro';
 import { setNativeTimerVisible } from './nativeReminder';
@@ -61,7 +61,7 @@ interface BrowserTimer {
   taskHabitId?: string | null;
   taskName?: string | null;
   taskDate?: string | null;
-  taskPriority?: Priority | null;
+  taskPriority?: TaskPriority | null;
   taskDurationMinutes?: number | null;
   notificationMessages?: PomodoroNotificationMessages | null;
 }
