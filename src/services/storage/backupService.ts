@@ -1,3 +1,4 @@
+import { normalizeTaskPriorities } from '../taskPriority';
 import { DailyData, Goal, Habit, Priority, Task, TaskStatus } from '../../types';
 import { DATA_SCHEMA_VERSION, KEYS, commitStorageSnapshot } from './localStorageStore';
 import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSettings } from './backupSettings';
@@ -151,7 +152,7 @@ const sanitizeTask = (
     !isNonEmptyString(value.id) ||
     seenTaskIds.has(value.id) ||
     !isNonEmptyString(value.name) ||
-    !isValidPriority(value.priority) ||
+    !(isValidPriority(value.priority) || origin === 'manual' && value.priority === 'none') ||
     !isValidStatus(value.status) ||
     !isPositiveInteger(value.durationMinutes) ||
     (value.actualFocusMinutes !== undefined && !isPositiveInteger(value.actualFocusMinutes)) ||
@@ -176,7 +177,7 @@ const sanitizeTask = (
     goalId,
     origin,
     name: value.name.trim(),
-    priority: value.priority,
+    priority: origin === 'manual' ? 'none' : value.priority as Priority,
     status: value.status,
     date: taskDate,
     startTime: typeof value.startTime === 'string' ? value.startTime : undefined,
@@ -294,7 +295,7 @@ const normalizeBackupPayload = (
       timestamp,
       goals,
       habits,
-      dailyLogs,
+      dailyLogs: normalizeTaskPriorities(dailyLogs),
       settings,
     },
     migratedFromVersion: schemaVersion < DATA_SCHEMA_VERSION ? schemaVersion : null,
@@ -357,7 +358,7 @@ export const exportBackupJSON = (habits: Habit[], dailyLogs: Record<string, Dail
       timestamp: new Date().toISOString(),
       goals,
       habits,
-      dailyLogs,
+      dailyLogs: normalizeTaskPriorities(dailyLogs),
       settings,
     },
     null,
@@ -402,6 +403,9 @@ export const importBackupJSON = async (jsonStr: string, recover = false): Promis
 export const exportDesktopCompatibleBackupJSON = (habits: Habit[], dailyLogs: Record<string, DailyData>, goals: Goal[] = []) => {
   const payload = JSON.parse(exportBackupJSON(habits, dailyLogs, goals));
   payload.schemaVersion = 6;
+  for (const day of Object.values(payload.dailyLogs) as DailyData[]) for (const task of day.tasks) {
+    if (task.priority === 'none') task.priority = 'P3';
+  }
   delete payload.settings.focus.vibrationEnabled;
   return JSON.stringify(payload, null, 2);
 };

@@ -96,7 +96,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
             {task.status === 'completed' ? (
               <CheckCircle2 size={16} className={`${styles.text} opacity-60 flex-shrink-0`} />
             ) : (
-              <div className={`w-2 h-2 rounded-full ${styles.accent} opacity-50 flex-shrink-0`} />
+              <div role={task.priority === 'none' ? 'img' : undefined} aria-label={task.priority === 'none' ? t('no_priority') : undefined} className={`w-2 h-2 rounded-full ${styles.accent} ${task.priority === 'none' ? '' : 'opacity-50'} flex-shrink-0`} />
             )}
 
             <span
@@ -193,7 +193,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 bg-white/50 ${styles.text} border border-white/20
               `}
             >
-              {task.priority}
+              {task.priority === 'none' ? t('no_priority') : task.priority}
             </span>
             <Timer size={14} className={`${styles.text} opacity-40 flex-shrink-0`} />
           </div>

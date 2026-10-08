@@ -1,12 +1,13 @@
+import { normalizeTaskPriorities } from '../taskPriority';
 import { DailyData } from '../../types';
 import { KEYS, getStorageItem, safeParse, setStorageItem } from './localStorageStore';
 
 export const getAllDailyLogs = (): Record<string, DailyData> => {
-  return safeParse<Record<string, DailyData>>(getStorageItem(KEYS.DAILY_LOGS), {});
+  return normalizeTaskPriorities(safeParse<Record<string, DailyData>>(getStorageItem(KEYS.DAILY_LOGS), {}));
 };
 
 export const saveAllDailyLogs = (logs: Record<string, DailyData>) => {
-  setStorageItem(KEYS.DAILY_LOGS, JSON.stringify(logs));
+  setStorageItem(KEYS.DAILY_LOGS, JSON.stringify(normalizeTaskPriorities(logs)));
 };
 
 export const getDailyLogByDate = (date: string): DailyData | null => {

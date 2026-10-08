@@ -1,4 +1,4 @@
-import { DailyData, Goal, Habit, Priority, Task } from '../types';
+import { DailyData, Goal, Habit, Priority, Task, TaskPriority } from '../types';
 import { exportBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
 import { flushStorageWrites } from './storage/localStorageStore';
 import { formatDateLocal, generateId, getTodayStr, parseDateLocal } from './storage/dateUtils';
@@ -32,7 +32,7 @@ export interface ProfileStats {
     date: string | null;
     minutes: number;
   };
-  priorityMinutes: Record<Priority, number>;
+  priorityMinutes: Record<TaskPriority, number>;
   goalMinutes: Record<string, number>;
   recentWeek: Array<{
     date: string;
@@ -42,7 +42,8 @@ export interface ProfileStats {
 
 export interface ManualTaskInput {
   name: string;
-  priority: Priority;
+  /** Kept for old callers; manual tasks always have no priority. */
+  priority?: TaskPriority;
   durationMinutes: number;
   goalId?: string;
   note?: string;
@@ -53,7 +54,7 @@ export interface TaskSearchFilters {
   from?: string;
   to?: string;
   goalId?: string;
-  priority?: Priority;
+  priority?: TaskPriority;
   status?: Task['status'];
 }
 
@@ -160,7 +161,7 @@ export const addManualTask = (date: string, input: ManualTaskInput) => {
     goalId: input.goalId,
     origin: 'manual',
     name: taskName,
-    priority: input.priority,
+    priority: 'none',
     status: 'inbox',
     date,
     durationMinutes: input.durationMinutes,
@@ -218,10 +219,11 @@ export const getProfileStats = (): ProfileStats => {
     .sort();
   const completedMinutesByDate = getCompletedMinutesByDate();
 
-  const priorityMinutes: Record<Priority, number> = {
+  const priorityMinutes: Record<TaskPriority, number> = {
     P1: 0,
     P2: 0,
     P3: 0,
+    none: 0,
   };
   const goalMinutes: Record<string, number> = {};
 

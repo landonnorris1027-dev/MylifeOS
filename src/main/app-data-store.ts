@@ -51,7 +51,7 @@ export const isAppDataRecord = (value: unknown): value is Record<string, string>
       const logs: unknown = JSON.parse(record.mylifeos_daily_logs);
       if (!object(logs) || Object.values(logs).some(day => !object(day) || !Array.isArray(day.tasks)
         || typeof day.date !== 'string' || day.tasks.some(task => !object(task) || typeof task.name !== 'string'
-          || !text(task.id) || !positive(task.durationMinutes) || !priority(task.priority)
+          || !text(task.id) || !positive(task.durationMinutes) || !(priority(task.priority) || task.priority === 'none' && (task.origin === 'manual' || !task.habitId))
           || !['inbox', 'scheduled', 'completed', 'deleted'].includes(String(task.status))
           || typeof task.date !== 'string' || (task.actualFocusMinutes !== undefined && (typeof task.actualFocusMinutes !== 'number' || !Number.isFinite(task.actualFocusMinutes) || task.actualFocusMinutes < 0))))) return false;
     }

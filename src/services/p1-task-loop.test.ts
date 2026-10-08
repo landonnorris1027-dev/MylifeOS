@@ -5,7 +5,7 @@ import {
 import { Task } from '../types';
 
 const manual = (id: string, date: string, overrides: Partial<Task> = {}): Task => ({
-  id, name: 'Submit form', origin: 'manual', priority: 'P2', status: 'inbox',
+  id, name: 'Submit form', origin: 'manual', priority: 'none', status: 'inbox',
   date, durationMinutes: 25, note: 'Bring ID', review: 'Advisor approved', ...overrides,
 });
 const logsKey = 'mylifeos_daily_logs';
@@ -24,7 +24,7 @@ describe('P1 task execution loop', () => {
       '2026-04-20': { date: '2026-04-20', tasks: [manual('old', '2026-04-20', { status: 'completed', goalId: 'g1' })] },
       '2026-04-22': { date: '2026-04-22', tasks: [manual('new', '2026-04-22', { goalId: 'g2' })] },
     }));
-    expect(searchTasks({ query: 'advisor', from: '2026-04-19', to: '2026-04-21', goalId: 'g1', priority: 'P2', status: 'completed' }).map((task) => task.id)).toEqual(['old']);
+    expect(searchTasks({ query: 'advisor', from: '2026-04-19', to: '2026-04-21', goalId: 'g1', priority: 'none', status: 'completed' }).map((task) => task.id)).toEqual(['old']);
     expect(searchTasks({ query: 'bring' })).toHaveLength(2);
   });
 
