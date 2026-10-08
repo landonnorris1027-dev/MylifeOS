@@ -9,7 +9,7 @@ interface TimePickerModalProps {
   task: Task | null;
   dailyTasks: Task[];
   timelineMode: TimelineMode;
-  intervalMinutes?: 5 | 15 | 30;
+  intervalMinutes?: 15 | 30;
   onClose: () => void;
   onConfirm: (time: string) => void;
 }

@@ -3,7 +3,7 @@ import { KEYS, getStorageItem, safeParse, setStorageItem } from './storage/local
 
 export interface PlannerSettings {
   timelineMode: TimelineMode;
-  intervalMinutes: 5 | 15 | 30;
+  intervalMinutes: 15 | 30;
 }
 
 export const DEFAULT_PLANNER_SETTINGS: PlannerSettings = {
@@ -13,7 +13,8 @@ export const DEFAULT_PLANNER_SETTINGS: PlannerSettings = {
 
 const normalizePlannerSettings = (value: Partial<PlannerSettings>): PlannerSettings => ({
   timelineMode: value.timelineMode === 'fullDay' ? 'fullDay' : DEFAULT_PLANNER_SETTINGS.timelineMode,
-  intervalMinutes: value.intervalMinutes === 5 || value.intervalMinutes === 15 || value.intervalMinutes === 30 ? value.intervalMinutes : 30,
+  intervalMinutes: value.intervalMinutes === 15 || value.intervalMinutes === 30 ? value.intervalMinutes
+    : (value.intervalMinutes as number | undefined) === 5 ? 15 : 30,
 });
 
 export const getPlannerSettings = (): PlannerSettings => {

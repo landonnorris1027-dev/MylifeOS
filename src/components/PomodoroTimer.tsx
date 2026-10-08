@@ -465,8 +465,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
 
   const totalTime = mode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds;
   const visibleTimeLeft = hasStarted || focusSaved ? timeLeft : totalTime;
-  const minutes = Math.floor(visibleTimeLeft / 60);
-  const seconds = visibleTimeLeft % 60;
+  const minutes = Math.max(0, Math.ceil(visibleTimeLeft / 60));
   const progress = totalTime > 0 ? 100 - (visibleTimeLeft / totalTime) * 100 : 0;
   const isBreak = mode === 'break';
   const busy = isStarting || isCommandPending || isSaving;
@@ -484,7 +483,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
             <circle cx="120" cy="120" r="112" className="motion-clock-track"/>
             <circle cx="120" cy="120" r="112" className="motion-clock-progress" strokeDasharray={2*Math.PI*112} strokeDashoffset={2*Math.PI*112*(1-Math.min(100,Math.max(0,progress))/100)}/>
           </svg>
-          <div className="motion-clock-content"><span className="motion-clock-digits">{focusSaved && !isBreak ? <CheckCircle size={64} className="motion-completion-mark" aria-hidden="true"/> : `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`}</span><span className="motion-clock-status" role="status" aria-live="polite">{statusLabel}</span></div>
+          <div className="motion-clock-content"><span className="motion-clock-digits">{focusSaved && !isBreak ? <CheckCircle size={64} className="motion-completion-mark" aria-hidden="true"/> : <>{minutes}<span className="motion-clock-unit"> {t('minute_unit_short')}</span></>}</span><span className="motion-clock-status" role="status" aria-live="polite">{statusLabel}</span></div>
         </div>
         <div className="motion-focus-controls" data-state={focusSaved && !isBreak ? 'saved' : 'timer'}>
           {managed && focusSaved && !isBreak ? <div className="motion-saved-actions">

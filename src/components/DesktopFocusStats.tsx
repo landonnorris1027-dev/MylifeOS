@@ -3,10 +3,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { formatDateLocal, getGoals, getProfileStats } from '../services/storage';
 import { getProfileSettings } from '../services/profileSettings';
 import { FocusPeriod, getFocusReport, getFocusTotals } from '../services/focusReports';
-const minutes = (seconds: number) => (seconds / 60).toFixed(1);
-const duration = (seconds: number) => `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m ${(seconds % 60).toFixed(1)}s`;
+const minutes = (seconds: number) => String(Math.trunc(seconds / 60) || 0);
 export default function DesktopFocusStats({ refreshToken = 0 }: { refreshToken?: number }) {
   const { t, language } = useLanguage(); const zh = language === 'zh';
+  const duration = (seconds: number) => {
+    const wholeMinutes = Math.max(0, Math.floor(seconds / 60));
+    const hours = Math.floor(wholeMinutes / 60), mins = wholeMinutes % 60;
+    return zh ? `${hours}小时 ${mins}分钟` : `${hours}h ${mins}m`;
+  };
   const [period, setPeriod] = useState<FocusPeriod>('week');
   const [anchor, setAnchor] = useState(formatDateLocal(new Date()));
   const [page, setPage] = useState(0);

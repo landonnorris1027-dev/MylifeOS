@@ -75,7 +75,7 @@ interface AppControllerState {
   dailyData: DailyData | null;
   graphRefreshToken: number;
   timelineMode: TimelineMode;
-  intervalMinutes: 5 | 15 | 30;
+  intervalMinutes: 15 | 30;
   autoStartFocus: boolean;
   isHabitConfigOpen: boolean;
   isManualTaskOpen: boolean;
@@ -93,7 +93,7 @@ type AppControllerAction =
   | { type: 'SET_VIEW'; view: ViewMode }
   | { type: 'SET_SELECTED_DATE'; date: string }
   | { type: 'LOAD_DAY_DATA'; dailyData: DailyData }
-  | { type: 'SET_INTERVAL'; intervalMinutes: 5 | 15 | 30 }
+  | { type: 'SET_INTERVAL'; intervalMinutes: 15 | 30 }
   | { type: 'SET_TIMELINE_MODE'; timelineMode: TimelineMode }
   | { type: 'SET_HABIT_CONFIG_OPEN'; isOpen: boolean }
   | { type: 'SET_MANUAL_TASK_OPEN'; isOpen: boolean }
@@ -961,7 +961,7 @@ export const useAppController = () => {
     [state.selectedDate, t],
   );
 
-  const setIntervalMinutes = useCallback((intervalMinutes: 5 | 15 | 30) => {
+  const setIntervalMinutes = useCallback((intervalMinutes: 15 | 30) => {
     try { savePlannerSettings({ intervalMinutes }); dispatch({ type: 'SET_INTERVAL', intervalMinutes }); }
     catch (error) { reportStorageError(error); }
   }, [reportStorageError]);

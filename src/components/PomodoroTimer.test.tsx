@@ -45,6 +45,28 @@ describe('PomodoroTimer task completion', () => {
     vi.restoreAllMocks();
   });
 
+  it.each([
+    ['zh', 'focus', 61, '2 分钟'],
+    ['zh', 'focus', 60, '1 分钟'],
+    ['zh', 'focus', 1, '1 分钟'],
+    ['en', 'break', 61, '2 min'],
+    ['en', 'break', 60, '1 min'],
+    ['en', 'break', 1, '1 min'],
+  ] as const)('shows whole remaining minutes in %s %s at %i seconds', async (language, mode, remainingSeconds, expected) => {
+    setStorageItem(KEYS.LANGUAGE, language);
+    const onSessionStateChange = vi.fn();
+    const onComplete = vi.fn();
+    await act(async () => root.render(<LanguageProvider><PomodoroTimer task={task}
+      onClose={vi.fn()} onComplete={onComplete} onSessionStateChange={onSessionStateChange}
+      restoredState={{ timerId: 'minute-display', taskId: task.id, taskName: task.name,
+        taskDate: task.date, taskPriority: task.priority, taskDurationMinutes: 25,
+        mode, remainingSeconds, isActive: false }} /></LanguageProvider>));
+    expect(container.textContent).toContain(expected);
+    expect(container.textContent).not.toMatch(/\d+:\d{2}/);
+    expect(onSessionStateChange).toHaveBeenCalledWith(expect.objectContaining({ remainingSeconds, mode }));
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
   it('completes the task immediately when the user marks it done early', async () => {
     const onComplete = vi.fn();
 

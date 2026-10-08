@@ -150,7 +150,7 @@ describe('useAppController scheduling guards', () => {
     }
   });
 
-  it.each([5, 15] as const)('counts remaining capacity using %i-minute precision at 10:02', async intervalMinutes => {
+  it.each([15, 30] as const)('counts remaining capacity using %i-minute precision at 10:02', async intervalMinutes => {
     vi.setSystemTime(new Date(2026, 3, 22, 10, 2));
     savePlannerSettings({ intervalMinutes, timelineMode: 'fullDay' });
     await act(async () => {
@@ -158,7 +158,7 @@ describe('useAppController scheduling guards', () => {
       await drainMicrotasks();
     });
     await act(async () => { controller?.actions.selectDate('2026-04-22'); });
-    expect(controller?.state.dayLoadSummary.freeTimelineMinutes).toBe(1440 - (intervalMinutes === 5 ? 605 : 615));
+    expect(controller?.state.dayLoadSummary.freeTimelineMinutes).toBe(1440 - (intervalMinutes === 15 ? 615 : 630));
   });
 
   it('clears an acknowledged standalone recovery and opens a break panel without creating a daily task', async () => {
