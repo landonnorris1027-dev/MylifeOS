@@ -92,11 +92,11 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
     if (isEmpty) return 'opacity-0 pointer-events-none'; // Invisible padding
     switch (level) {
       case 0: return 'bg-gray-100 border-gray-200'; // Empty
-      case 1: return 'bg-orange-200 border-orange-300'; // 0-2h
-      case 2: return 'bg-orange-300 border-orange-400'; // 2-5h
-      case 3: return 'bg-orange-500 border-orange-600'; // 5-8h
-      case 4: return 'bg-orange-700 border-orange-800'; // 8-11h
-      case 5: return 'bg-orange-900 border-orange-950'; // >11h
+      case 1: return 'bg-blue-200 border-blue-300'; // 0-2h
+      case 2: return 'bg-blue-300 border-blue-400'; // 2-5h
+      case 3: return 'bg-blue-500 border-blue-600'; // 5-8h
+      case 4: return 'bg-blue-700 border-blue-800'; // 8-11h
+      case 5: return 'bg-blue-900 border-blue-950'; // >11h
       default: return 'bg-gray-100 border-gray-200';
     }
   };
