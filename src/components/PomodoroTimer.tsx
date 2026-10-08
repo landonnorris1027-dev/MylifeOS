@@ -432,8 +432,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
   if (!task) return null;
 
   const styles = PRIORITY_STYLES[task.priority];
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
+  const minutes = Math.max(0, Math.ceil(timeLeft / 60));
   const totalTime = mode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds;
   const progress = 100 - (timeLeft / totalTime) * 100;
 
@@ -493,7 +492,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, restoredState, onCl
           </svg>
 
           <div className={`text-5xl font-mono font-bold ${textColor} relative z-10`}>
-            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+            {minutes}<span className="ml-2 text-base font-sans font-medium"> {t('minute_unit_short')}</span>
           </div>
         </div>
 
