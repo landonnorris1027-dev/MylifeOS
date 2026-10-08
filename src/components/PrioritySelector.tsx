@@ -31,7 +31,7 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({ value, onChange }) 
             role="radio"
             aria-checked={isSelected}
             onClick={() => onChange(priority)}
-            className={`relative p-3 rounded-lg border text-sm font-medium transition-all ${
+            className={`motion-priority-choice priority-${priority} relative p-3 rounded-lg border text-sm font-medium transition-all ${
               isSelected
                 ? `${styles.bg} ${styles.border} ${styles.text} ring-1 ring-offset-1`
                 : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'

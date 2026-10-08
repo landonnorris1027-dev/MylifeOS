@@ -194,4 +194,81 @@ describe('PomodoroTimer task completion', () => {
     await act(async () => { (container.querySelector('button') as HTMLButtonElement).click(); });
     expect(onClose).toHaveBeenCalledTimes(1); expect(stop).not.toHaveBeenCalled();
   });
+  it('does not republish unchanged timer state when the parent recreates its callback and task', async () => {
+    const published = vi.fn();
+    const Harness = () => {
+      const [, setSnapshot] = React.useState<unknown>(null);
+      return <PomodoroTimer task={{...task}} onClose={vi.fn()} onComplete={vi.fn()}
+        restoredState={{ timerId:'stable', taskId:task.id, taskName:task.name, taskDate:task.date,
+          taskPriority:task.priority, taskDurationMinutes:25, mode:'focus', remainingSeconds:120, isActive:false }}
+        onSessionStateChange={snapshot => {
+          published(snapshot);
+          // Bound a regression so a failed test cannot hang in a render loop.
+          if (published.mock.calls.length < 6) setSnapshot(snapshot);
+        }} />;
+    };
+    await act(async () => root.render(<LanguageProvider><Harness /></LanguageProvider>));
+    expect(published).toHaveBeenCalledTimes(1);
+    expect(published).toHaveBeenCalledWith(expect.objectContaining({remainingSeconds:120,isActive:false}));
+  });
+
+  it('disables pending start and pause commands and sends each only once', async () => {
+    vi.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
+    let acceptStart: (value: PomodoroUpdateData) => void = () => undefined;
+    const start = vi.spyOn(electronIPC, 'startPomodoro').mockImplementation(() => new Promise(resolve => {acceptStart=resolve;}));
+    let acceptToggle: () => void = () => undefined;
+    const toggle = vi.spyOn(electronIPC, 'togglePomodoro').mockImplementation(() => new Promise<void>(resolve => {acceptToggle=resolve;}));
+    let update: ((data:PomodoroUpdateData)=>void) | undefined;
+    vi.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation(callback => {update=callback;return vi.fn();});
+    await act(async () => root.render(<LanguageProvider><PomodoroTimer task={task} onClose={vi.fn()}
+      onComplete={vi.fn()} onSessionStateChange={vi.fn()}/></LanguageProvider>));
+    const primary = container.querySelector('.motion-focus-primary') as HTMLButtonElement;
+    await act(async () => {primary.click();primary.click();});
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(primary.disabled).toBe(true);
+    expect(primary.textContent).toContain('正在启动');
+    const timerId = start.mock.calls[0][0].timerId;
+    const active = {timerId,duration:1500,remaining:1500000,endTime:Date.now()+1500000,elapsed:0,isFinished:false,isActive:true};
+    await act(async () => {acceptStart(active);});
+    expect(primary.textContent).toBe('暂停');
+    await act(async () => {primary.click();primary.click();});
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(primary.disabled).toBe(true);
+    await act(async () => {update?.({...active,isActive:false});acceptToggle();});
+    expect(primary.disabled).toBe(false);
+    expect(primary.textContent).toBe('继续');
+  });
+
+  it('retains failed completion and exposes break actions only after a successful retry', async () => {
+    vi.spyOn(electronIPC, 'getIsElectron').mockReturnValue(true);
+    let update: ((data:PomodoroUpdateData)=>void) | undefined;
+    vi.spyOn(electronIPC, 'onPomodoroUpdate').mockImplementation(callback => {update=callback;return vi.fn();});
+    const start = vi.spyOn(electronIPC, 'startPomodoro').mockImplementation(async payload => ({...payload,
+      remaining:1500000,endTime:Date.now()+1500000,elapsed:0,isFinished:false,isActive:true}));
+    let acknowledge: (saved:boolean)=>void = () => undefined;
+    const complete = vi.fn(() => new Promise<boolean>(resolve => {acknowledge=resolve;}));
+    const onClose = vi.fn();
+    await act(async () => root.render(<LanguageProvider><PomodoroTimer autoStart task={task} onClose={onClose}
+      onComplete={complete} onSessionStateChange={vi.fn()}/></LanguageProvider>));
+    const timerId = start.mock.calls[0][0].timerId;
+    await act(async () => {update?.({timerId,duration:1500,remaining:0,endTime:Date.now(),elapsed:1500000,
+      isFinished:true,isActive:false,completionPersisted:true,suppressCompletionAlert:true});});
+    expect(container.querySelector('.motion-focus-primary')?.textContent).toContain('正在保存');
+    expect(container.querySelector('.motion-saved-actions')).toBeNull();
+    await act(async () => {acknowledge(false);});
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.textContent).toContain(task.name);
+    expect(container.querySelector('.motion-saved-actions')).toBeNull();
+    const primary = container.querySelector('.motion-focus-primary') as HTMLButtonElement;
+    expect(primary.textContent).toBe('重试保存');
+    await act(async () => {primary.click();primary.click();});
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(primary.disabled).toBe(true);
+    await act(async () => {acknowledge(true);});
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector('.motion-saved-actions')?.textContent).toContain('开始休息');
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
 });

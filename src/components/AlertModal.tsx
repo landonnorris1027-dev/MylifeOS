@@ -29,7 +29,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
 
   if (isSuccess) {
     return (
-      <div className="fixed right-4 top-4 z-[100] w-[min(24rem,calc(100%-2rem))] animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="motion-success-toast">
         <div className={`bg-white rounded-2xl shadow-2xl border ${borderClass} overflow-hidden`} role="status">
           <div className="p-5">
             <div className="flex items-start gap-3">
@@ -46,6 +46,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
               </div>
               <button
                 onClick={onClose}
+                aria-label={t('close')}
                 className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
               >
                 ×

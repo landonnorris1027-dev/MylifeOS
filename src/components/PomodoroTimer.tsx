@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Play, Pause, CheckCircle, Coffee, SkipForward } from 'lucide-react';
-import { Task, PRIORITY_STYLES } from '../types';
+import { X, Play, Pause, CheckCircle, Coffee, SkipForward, Loader2, Undo2 } from 'lucide-react';
+import { Task } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { electronIPC, focusRuntime, PomodoroTimerData } from '../services/electronIPC';
 import { DEFAULT_FOCUS_SETTINGS, FocusSettings, getFocusSettings } from '../services/focusSettings';
@@ -34,6 +34,13 @@ interface PomodoroTimerProps {
 
 const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, restoredState, onClose, onComplete, onSessionStateChange }) => {
   const { t } = useLanguage();
+  const [isCommandPending, setCommandPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const commandInFlightRef = useRef(false);
+  // The controller supplies a new callback each render; it is not a timer change.
+  const sessionChangeRef = useRef(onSessionStateChange);
+  sessionChangeRef.current = onSessionStateChange;
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [mode, setMode] = useState<'focus' | 'break'>('focus');
@@ -57,7 +64,17 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
   const isElectron = electronIPC.getIsElectron();
   const android = isAndroid();
   const managed = isElectron || android;
+  const executeCommand = async (command: () => Promise<void>) => {
+    if (commandInFlightRef.current || startInFlightRef.current || isSaving) return;
+    commandInFlightRef.current = true;
+    setCommandPending(true);
+    setTimerError(null);
+    try { await command(); }
+    catch { setTimerError(t('storage_write_failed')); }
+    finally { commandInFlightRef.current = false; setCommandPending(false); }
+  };
   const closePanel = async () => {
+    if (isStarting || isSaving || commandInFlightRef.current) return;
     if (managed && focusSaved && mode === 'focus') {
       try { await focusRuntime.stop(currentTimerIdRef.current); }
       catch { setTimerError(t('storage_write_failed')); return; }
@@ -130,6 +147,9 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
       ? task.durationMinutes * 60
       : null;
     setIsStarting(false);
+    setCommandPending(false);
+    setIsSaving(false);
+    setSaveFailed(false);
     setTimerError(null);
     setFocusSaved(false);
     setFocusSettings(getFocusSettings());
@@ -190,7 +210,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
   useEffect(() => {
     if (!task || !hasStarted || !currentTimerIdRef.current) return;
 
-    onSessionStateChange({
+    sessionChangeRef.current({
       timerId: currentTimerIdRef.current,
       taskId: task.id,
       taskHabitId: task.habitId,
@@ -203,7 +223,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
       remainingSeconds: timeLeft,
       isActive,
     });
-  }, [task, hasStarted, mode, timeLeft, isActive, onSessionStateChange]);
+  }, [task?.id, task?.habitId, task?.name, task?.priority, task?.date, task?.startTime, task?.durationMinutes, hasStarted, mode, timeLeft, isActive]);
 
   useEffect(() => {
     if (!task) return;
@@ -343,9 +363,13 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
       }
       if (managed && task) {
         const minutes = Math.max(1, Math.round((completedFocusSecondsRef.current ?? task.durationMinutes * 60) / 60));
-        const saved = await onComplete(task, minutes);
-        if (saved === false) { setTimerError(t('storage_write_failed')); return; }
-        setFocusSaved(true); setHasStarted(false); onSessionStateChange(null);
+        setIsSaving(true); setSaveFailed(false);
+        try {
+          const saved = await onComplete(task, minutes);
+          if (saved === false) { setSaveFailed(true); setTimerError(t('storage_write_failed')); return; }
+          setFocusSaved(true); setHasStarted(false); onSessionStateChange(null);
+        } catch { setSaveFailed(true); setTimerError(t('storage_write_failed')); }
+        finally { setIsSaving(false); }
       } else await startTimer('break');
       return;
     }
@@ -437,132 +461,49 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
     await finishBreak();
   };
 
-  const skipBreak = () => {
-    if (mode !== 'break') return;
-    void finishBreak();
-  };
-
   if (!task) return null;
 
-  const styles = PRIORITY_STYLES[task.priority];
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
   const totalTime = mode === 'focus' ? task.durationMinutes * 60 : breakDurationSeconds;
-  const progress = 100 - (timeLeft / totalTime) * 100;
-
+  const visibleTimeLeft = hasStarted || focusSaved ? timeLeft : totalTime;
+  const minutes = Math.floor(visibleTimeLeft / 60);
+  const seconds = visibleTimeLeft % 60;
+  const progress = totalTime > 0 ? 100 - (visibleTimeLeft / totalTime) * 100 : 0;
   const isBreak = mode === 'break';
-  const containerBg = isBreak ? 'bg-emerald-50' : styles.bg;
-  const containerBorder = isBreak ? 'border-emerald-100' : styles.border;
-  const textColor = isBreak ? 'text-emerald-900' : styles.text;
-  const accentColor = isBreak ? 'text-emerald-600' : styles.text;
+  const busy = isStarting || isCommandPending || isSaving;
+  const primaryLabel = saveFailed ? t('ui_retry_save') : isStarting ? t('ui_starting') : isSaving ? t('ui_saving') : isCommandPending ? t('ui_processing') : isActive ? t('ui_pause') : hasStarted ? t('ui_resume') : t(isBreak ? 'start_break' : 'start_focus');
+  const statusLabel = saveFailed ? t('ui_save_failed') : isSaving ? t('ui_saving') : focusSaved && !isBreak ? t('ui_saved') : isStarting ? t('ui_starting') : isActive ? t(isBreak ? 'ui_resting' : 'ui_running') : hasStarted ? t('ui_paused') : t('ui_ready');
 
   return (
-    <div
-      {...dialogProps}
-      ref={containerRef}
-      className="safe-area-padding fixed inset-0 overflow-y-auto bg-white/80 backdrop-blur-md z-50 flex flex-col items-center justify-center"
-    >
-      <button
-        onClick={() => void closePanel()}
-        aria-label={t('cancel')}
-        className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-      >
-        <X size={24} className="text-gray-600" />
-      </button>
-
-      <div className={`p-8 rounded-3xl max-w-sm w-full text-center ${containerBg} border ${containerBorder} shadow-2xl transition-colors duration-500`}>
-        <div className={`inline-block px-3 py-1 rounded text-xs font-bold uppercase tracking-widest mb-4 bg-white/60 ${textColor} flex items-center gap-2 mx-auto`}>
-          {isBreak ? <Coffee size={12} /> : null}
-          {t(isBreak ? 'break_mode' : 'focus_mode')}
-        </div>
-
-        <h2 className={`text-2xl font-bold mb-8 ${textColor}`}>
-          {isBreak ? t('break_task_name') : task.name}
-        </h2>
-
-        <div className="relative w-48 h-48 mx-auto mb-8 flex items-center justify-center">
-          <svg className="absolute w-full h-full -rotate-90 transform" viewBox="0 0 192 192">
-            <circle
-              cx="96"
-              cy="96"
-              r="88"
-              stroke="currentColor"
-              strokeWidth="12"
-              fill="transparent"
-              className={`${textColor} opacity-10`}
-            />
-            <circle
-              cx="96"
-              cy="96"
-              r="88"
-              stroke="currentColor"
-              strokeWidth="12"
-              fill="transparent"
-              strokeDasharray={2 * Math.PI * 88}
-              strokeDashoffset={2 * Math.PI * 88 * (1 - progress / 100)}
-              strokeLinecap="round"
-              className={`${accentColor} transition-all duration-1000 ease-linear`}
-            />
+    <div {...dialogProps} ref={containerRef} aria-label={t(isBreak ? 'break_mode' : 'focus_mode')} className="motion-ui motion-focus-overlay safe-area-padding">
+      <button type="button" onClick={() => void closePanel()} disabled={busy} aria-label={t('cancel')} className="motion-focus-close motion-icon-button"><X size={22}/></button>
+      <section className={`motion-focus-panel ${focusSaved && !isBreak ? 'is-saved' : ''}`} aria-busy={busy}>
+        <div className="motion-focus-eyebrow">{isBreak ? <Coffee size={16}/> : <span className={`motion-focus-dot priority-${task.priority}`}/>}<span>{t(isBreak ? 'break_mode' : 'focus_mode')}</span></div>
+        <h2 className="motion-focus-title">{isBreak ? t('break_task_name') : task.name}</h2>
+        <div className="motion-clock">
+          <svg viewBox="0 0 240 240" aria-hidden="true">
+            <circle cx="120" cy="120" r="112" className="motion-clock-track"/>
+            <circle cx="120" cy="120" r="112" className="motion-clock-progress" strokeDasharray={2*Math.PI*112} strokeDashoffset={2*Math.PI*112*(1-Math.min(100,Math.max(0,progress))/100)}/>
           </svg>
-
-          <div className={`text-5xl font-mono font-bold ${textColor} relative z-10`}>
-            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-          </div>
+          <div className="motion-clock-content"><span className="motion-clock-digits">{focusSaved && !isBreak ? <CheckCircle size={64} className="motion-completion-mark" aria-hidden="true"/> : `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`}</span><span className="motion-clock-status" role="status" aria-live="polite">{statusLabel}</span></div>
         </div>
-
-        {managed && focusSaved && !isBreak ? <div className="space-y-3">
-          <p role="status" className="font-semibold text-green-700">{t('focus_saved')}</p>
-          <button className="min-h-[48px] w-full rounded-xl bg-emerald-600 px-4 text-white" onClick={() => void startTimer('break')}>{t('start_break')}</button>
-          <button className="min-h-[48px] w-full rounded-xl border bg-white px-4" onClick={() => void closePanel()}>{t('close_timer')}</button>
-        </div> : <div className="flex justify-center gap-4">
-          <button
-            onClick={toggleTimer}
-            disabled={isStarting}
-            className={`
-              w-16 h-16 rounded-full flex items-center justify-center
-              bg-white shadow-lg border border-gray-100
-              ${textColor} hover:scale-105 transition-transform
-              ${isStarting ? 'opacity-70 cursor-wait hover:scale-100' : ''}
-            `}
-          >
-            {isActive ? <Pause fill="currentColor" /> : <Play fill="currentColor" className="ml-1" />}
-          </button>
-
-          {isBreak ? (
-            <button
-              onClick={skipBreak}
-              className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-lg border border-gray-100 text-gray-500 hover:scale-105 transition-transform hover:bg-gray-50"
-              title={t('skip_break')}
-            >
-              <SkipForward size={24} />
+        <div className="motion-focus-controls" data-state={focusSaved && !isBreak ? 'saved' : 'timer'}>
+          {managed && focusSaved && !isBreak ? <div className="motion-saved-actions">
+            <p className="motion-saved-message"><CheckCircle size={18}/>{t('focus_saved')}</p>
+            <button type="button" className="motion-button motion-primary" disabled={busy} onClick={() => void executeCommand(() => startTimer('break'))}>{busy && <Loader2 size={17} className="motion-spinner"/>}{t('start_break')}</button>
+            <button type="button" className="motion-button motion-secondary" disabled={busy} onClick={() => void closePanel()}>{t('close_timer')}</button>
+          </div> : <>
+            <button type="button" className="motion-button motion-primary motion-focus-primary" disabled={busy} aria-label={primaryLabel}
+              onClick={() => void executeCommand(() => saveFailed ? handleTimerFinish('focus', true) : toggleTimer())}>
+              <span className="motion-control-icon" key={busy ? 'busy' : isActive ? 'pause' : 'play'}>{busy ? <Loader2 size={18} className="motion-spinner"/> : isActive ? <Pause size={18} fill="currentColor"/> : saveFailed ? <Undo2 size={18}/> : <Play size={17} fill="currentColor"/>}</span>{primaryLabel}
             </button>
-          ) : (
-            <button
-              onClick={markEarlyComplete}
-              disabled={managed && !hasStarted}
-              className="w-16 h-16 rounded-full flex items-center justify-center bg-white shadow-lg border border-gray-100 text-green-600 hover:scale-105 transition-transform hover:bg-green-50"
-              title={t('mark_early')}
-            >
-              <CheckCircle size={24} />
-            </button>
-          )}
-        </div>}
-      </div>
-
-      {managed && hasStarted && !focusSaved && !isBreak && <button type="button" className="mt-5 rounded border px-3 py-2 text-sm" onClick={async () => {
-        try { await focusRuntime.stop(currentTimerIdRef.current); onSessionStateChange(null); onClose(); }
-        catch (error) { setTimerError(t('storage_write_failed')); }
-      }}>{t('stop_focus')}</button>}
-
-      {timerError ? (
-        <p role="alert" className="mt-4 text-red-600 text-sm font-medium">
-          {timerError}
-        </p>
-      ) : null}
-
-      <p className="mt-8 text-gray-400 text-sm font-medium">
-        {t(isBreak ? 'enjoy_break' : 'stay_focused')}
-      </p>
+            {isBreak ? <button type="button" className="motion-button motion-secondary" disabled={busy} title={t('skip_break')} onClick={() => void executeCommand(finishBreak)}><SkipForward size={16}/>{t('skip_break')}</button>
+              : <button type="button" className="motion-button motion-secondary" disabled={busy || saveFailed || (managed && !hasStarted)} title={t('mark_early')} onClick={() => void executeCommand(markEarlyComplete)}><CheckCircle size={16}/>{t('mark_early')}</button>}
+          </>}
+        </div>
+        {timerError && <p role="alert" className="motion-timer-error">{timerError}</p>}
+        {managed && hasStarted && !focusSaved && !isBreak && !saveFailed && <button type="button" className="motion-stop-focus" disabled={busy} onClick={() => void executeCommand(async () => {await focusRuntime.stop(currentTimerIdRef.current); onSessionStateChange(null); onClose();})}>{t('stop_focus')}</button>}
+        {(!focusSaved || isBreak) && <p className="motion-focus-caption">{t(isBreak ? 'enjoy_break' : 'stay_focused')}</p>}
+      </section>
     </div>
   );
 };

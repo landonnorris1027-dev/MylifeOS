@@ -1,7 +1,9 @@
+import './ui-motion.css';
+import SegmentedControl from './components/SegmentedControl';
 import BatchRescheduleModal from './components/BatchRescheduleModal';
 import React from 'react';
 import { isStorageReadOnly } from './services/storage/localStorageStore';
-import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search } from 'lucide-react';
+import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search, Timer, Undo2 } from 'lucide-react';
 import { Priority, PRIORITY_STYLES, Task } from './types';
 import type { TranslationKey } from './locales';
 import { useLanguage } from './contexts/LanguageContext';
@@ -32,6 +34,8 @@ const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
 };
 
 export default function App() {
+  const [introActive, setIntroActive] = React.useState(true);
+  React.useEffect(() => { const timer = window.setTimeout(() => setIntroActive(false), 600); return () => window.clearTimeout(timer); }, []);
   const [batchOpen, setBatchOpen] = React.useState(false);
   const [mobilePane, setMobilePane] = React.useState<'inbox' | 'timeline'>('inbox');
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
@@ -247,159 +251,73 @@ export default function App() {
   ]);
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] pb-24 font-sans text-[#37352F]">
+    <div className={`motion-ui min-h-screen pb-24 font-sans ${view === 'planner' ? `motion-shell ${introActive ? 'motion-intro' : ''}` : 'bg-white text-[#202124]'}`}>
       <div className="safe-area-status-bar" aria-hidden="true" />
-      <header className="safe-area-sticky-top sticky z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-4 mb-6 md:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('planner')}>
-              <div className="bg-gray-900 text-white p-2 rounded-lg">
-                <LayoutGrid size={20} />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">{t('app_title')}</h1>
-                <p className="hidden text-xs font-medium text-gray-500 md:block">{t('app_subtitle')}</p>
-              </div>
-            </div>
-
-            <div className="hidden md:flex bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => setView('planner')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${view === 'planner' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                {t('view_planner')}
-              </button>
-              <button
-                onClick={() => setView('profile')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${view === 'profile' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                {t('view_profile')}
-              </button>
-            </div>
-          </div>
-
-          {view === 'planner' && (
-            <div className="flex flex-1 max-w-xl mx-auto gap-4 w-full">
-              {(['P1', 'P2', 'P3'] as const).map((priority) => {
-                const pct = progressByPriority[priority];
-                const style = PRIORITY_STYLES[priority];
-                const labelKey = PRIORITY_LABEL_KEYS[priority];
-                return (
-                  <div key={priority} className="flex-1 flex flex-col gap-1">
-                    <div className="flex justify-between text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                      <span>{t(labelKey)}</span>
-                      <span>{pct}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full transition-all duration-500 ease-out ${style.accent}`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {view === 'profile' && <div className="flex-1" />}
-
-          <div className="flex items-center gap-2">
-            <button onClick={openTaskSearch} aria-label={t('task_search_title')} title={t('task_search_title')}
-              className="flex h-10 items-center gap-2 rounded-lg px-2 text-sm text-gray-500 hover:bg-gray-100">
-              <Search size={16} /><span className="hidden sm:inline">{t('task_search_title')}</span>
+      <header className="motion-topbar safe-area-sticky-top">
+        <div className="motion-container motion-topbar-inner">
+          <button type="button" className="motion-brand" onClick={() => setView('planner')} aria-label={t('app_title')}>
+            <span className="motion-brand-mark"><LayoutGrid size={19} strokeWidth={1.7} /></span>
+            <span>{t('app_title')}</span>
+          </button>
+          <SegmentedControl className="motion-main-nav" label={t('ui_navigation')} value={view}
+            options={[{value:'planner',label:t('view_planner')},{value:'profile',label:t('view_profile')}]}
+            onChange={value => setView(value as 'planner' | 'profile')} />
+          <div className="motion-header-actions">
+            <button type="button" onClick={openTaskSearch} className="motion-button motion-quiet" aria-label={t('task_search_title')} title={t('task_search_title')}>
+              <Search size={17} /><span className="motion-tool-label">{t('task_search_title')}</span><kbd className="motion-shortcut">Ctrl K</kbd>
             </button>
-            <button
-              onClick={() => {
-                try {
-                  setLanguage(language === 'en' ? 'zh' : 'en');
-                } catch (error) {
-                  reportStorageError(error);
-                }
-              }}
-              className="flex items-center justify-center p-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors w-10 h-10"
-              title={t('switch_language')}
-              aria-label={t('switch_language')}
-            >
-              {language === 'en' ? '中文' : 'EN'}
+            <button type="button" className="motion-button motion-quiet" onClick={() => { try { setLanguage(language === 'en' ? 'zh' : 'en'); } catch(error) { reportStorageError(error); } }}
+              title={t('switch_language')} aria-label={t('switch_language')}>{language === 'en' ? '中文' : 'EN'}</button>
+            <button type="button" className="motion-button motion-quiet" onClick={openHabitConfig} title={t('config_habits')} aria-label={t('config_habits')}>
+              <Settings2 size={17} /><span className="motion-tool-label">{t('mobile_nav_habits')}</span>
             </button>
-
-            {view === 'planner' && (
-              pendingRecovery && !isRecoveryModalOpen && (
-                <button
-                  onClick={openRecoveryPrompt}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                >
-                  {t('recovery_reopen')}
-                </button>
-              )
-            )}
-
-            {view === 'planner' && (
-              <button
-                onClick={openHabitConfig}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                title={t('config_habits')}
-                aria-label={t('config_habits')}
-              >
-                <Settings2 size={16} />
-                <span className="hidden sm:inline">{t('config_habits')}</span>
-              </button>
-            )}
-            <button onClick={() => setSettingsOpen(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
-              title={t('settings_title')} aria-label={t('settings_title')}>
-              <Settings2 size={16} /><span className="hidden sm:inline">{t('settings_title')}</span>
+            <button type="button" className="motion-button motion-quiet" onClick={() => setSettingsOpen(true)} title={t('settings_title')} aria-label={t('settings_title')}>
+              <User size={17} /><span className="motion-tool-label">{t('settings_title')}</span>
             </button>
-
-            <div
-              className="hidden md:flex w-9 h-9 bg-orange-100 text-orange-600 rounded-full items-center justify-center border border-orange-200 cursor-pointer hover:bg-orange-200 transition-colors"
-              onClick={() => setView('profile')}
-              title={t('view_profile')}
-              aria-label={t('view_profile')}
-            >
-              <User size={18} />
-            </div>
-          </div>
-
-          <div className="md:hidden grid grid-cols-4 gap-2 w-full border-t border-gray-100 pt-3">
-            <button
-              onClick={() => setView('planner')}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${view === 'planner' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
-              aria-label={t('view_planner')}
-            >
-              <LayoutGrid size={15} />
-              <span>{t('view_planner')}</span>
-            </button>
-            <button
-              onClick={() => setView('profile')}
-              className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${view === 'profile' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
-              aria-label={t('view_profile')}
-            >
-              <User size={15} />
-              <span>{t('view_profile')}</span>
-            </button>
-            <button
-              onClick={openHabitConfig}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 px-2 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-200"
-              aria-label={t('config_habits')}
-            >
-              <Settings2 size={15} />
-              <span>{t('mobile_nav_habits')}</span>
-            </button>
-            <button onClick={() => setSettingsOpen(true)}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 px-2 py-2 text-xs font-semibold text-gray-600"
-              aria-label={t('settings_title')}>
-              <Settings2 size={15} /><span>{t('settings_title')}</span>
-            </button>
+            {view === 'planner' && <button type="button" onClick={openManualTask} className="motion-button motion-primary motion-desktop-create"><Plus size={17}/>{t('ui_new_task')}</button>}
           </div>
         </div>
       </header>
+      {view === 'planner' && <div className="motion-container">
+        {pendingRecovery && !isRecoveryModalOpen && <button type="button" className="motion-recovery-entry" onClick={openRecoveryPrompt}>{t('recovery_reopen')}</button>}
+        <section className="motion-overview" aria-label={t('today_load_title')}>
+          <div className="motion-page-title"><p>{t('ui_daily_plan')}</p><h1>{formattedDate}</h1></div>
+          <div className={`motion-load ${dayLoadSummary.isOverloaded ? 'is-overloaded' : ''}`}>
+            <div><strong>{formatHours(dayLoadSummary.totalPlannedMinutes)}<small>{t('hours_suffix')}</small></strong><span>{t('today_load_planned')}</span></div>
+            <div><strong>{formatHours(dayLoadSummary.freeTimelineMinutes)}<small>{t('hours_suffix')}</small></strong><span>{t('today_load_free')}</span></div>
+          </div>
+          <div className="motion-priorities">
+            {(['P1','P2','P3'] as const).map(priority => <div key={priority} className={`motion-priority-progress priority-${priority}`}>
+              <div><span>{t(PRIORITY_LABEL_KEYS[priority])}</span><span>{progressByPriority[priority]}%</span></div>
+              <div className="motion-progress-track"><span className={PRIORITY_STYLES[priority].accent} style={{width:`${progressByPriority[priority]}%`}} /></div>
+            </div>)}
+          </div>
+        </section>
+        {dayLoadSummary.isOverloaded && <p role="status" className="motion-overload-note">{t('today_load_overloaded', {inbox:formatHours(dayLoadSummary.inboxMinutes),free:formatHours(dayLoadSummary.freeTimelineMinutes)})}</p>}
+        <div className="motion-planner-toolbar">
+          <div className="motion-date-tools">
+            <button type="button" className="motion-icon-button" onClick={() => changeDate(-7)} title={t('previous_week')} aria-label={t('previous_week')}>−7</button>
+            <button type="button" className="motion-icon-button" onClick={() => changeDate(-1)} aria-label={t('ui_previous_day')}><ChevronLeft size={17}/></button>
+            <label className="motion-date-input"><input type="date" value={selectedDate} aria-label={t('select_date')} title={t('select_date')} onChange={event => {if(event.target.value) selectDate(event.target.value);}} /></label>
+            <button type="button" className="motion-icon-button" onClick={() => changeDate(1)} aria-label={t('ui_next_day')}><ChevronRight size={17}/></button>
+            <button type="button" className="motion-icon-button" onClick={() => changeDate(7)} title={t('next_week')} aria-label={t('next_week')}>+7</button>
+            <button type="button" onClick={goToToday} className="motion-button motion-today" aria-pressed={isToday}>{t('today_btn')}</button>
+          </div>
+          <div className="motion-schedule-tools">
+            <SegmentedControl label={t('timeline')} value={timelineMode} options={[{value:'daytime',label:t('timeline_mode_daytime')},{value:'fullDay',label:t('timeline_mode_full_day')}]}
+              onChange={value => setTimelineMode(value as 'daytime' | 'fullDay')} />
+            <label className="motion-interval-label">{t('ui_schedule_interval')}<select value={intervalMinutes} onChange={e => setIntervalMinutes(Number(e.target.value) as 5 | 15 | 30)}>{[5,15,30].map(value => <option key={value} value={value}>{value} {t('minute_unit_short')}</option>)}</select></label>
+          </div>
+        </div>
+        <div className="motion-operation-toolbar">
+          <button type="button" className="motion-button motion-quiet" onClick={() => void openCurrentSession()}><Timer size={16}/>{t('ui_current_session')}<kbd className="motion-shortcut">Ctrl J</kbd></button>
+          <button type="button" disabled={!undoCount} className="motion-button motion-quiet" onClick={() => void handleUndoTaskOperation()}><Undo2 size={16}/>{t('ui_undo')}<span className="motion-count">{undoCount}/20</span></button>
+          <button type="button" className="motion-button motion-quiet" onClick={() => setBatchOpen(true)}><Calendar size={16}/>{t('ui_batch_reschedule')}</button>
+          <details className="motion-shortcut-help"><summary>{t('ui_shortcuts')}</summary><p>N: {t('ui_new_task')} · Ctrl+K: {t('task_search_title')} · Ctrl+J: {t('ui_current_session')} · Ctrl+Z: {t('ui_undo')} · Ctrl+1/2: {t('view_planner')}/{t('view_profile')} · Esc: {t('close')}</p></details>
+        </div>
+      </div>}
 
-      <div className="mx-auto mb-4 flex max-w-6xl flex-wrap items-center gap-3 px-4 text-sm">
-        <button className="rounded border bg-white px-3 py-2" onClick={() => void openCurrentSession()}>{language === 'zh' ? '当前会话' : 'Current session'} · Ctrl+J</button>
-        <button disabled={!undoCount} className="rounded border bg-white px-3 py-2 disabled:opacity-40" onClick={() => void handleUndoTaskOperation()}>{language === 'zh' ? '撤销' : 'Undo'} ({undoCount}/20)</button>
-        {view === 'planner' && <button className="rounded border bg-white px-3 py-2" onClick={() => setBatchOpen(true)}>{language === 'zh' ? '批量改期' : 'Batch reschedule'}</button>}
-        <label>{language === 'zh' ? '排期精度' : 'Schedule interval'} <select className="rounded border bg-white p-2" value={intervalMinutes} onChange={e => setIntervalMinutes(Number(e.target.value) as 5 | 15 | 30)}>{[5, 15, 30].map(value => <option key={value} value={value}>{value} min</option>)}</select></label>
-        <details><summary className="cursor-pointer">{language === 'zh' ? '快捷键' : 'Keyboard shortcuts'}</summary><p>N: {language === 'zh' ? '新建任务' : 'New task'} · Ctrl+K: {language === 'zh' ? '搜索' : 'Search'} · Ctrl+J: {language === 'zh' ? '当前会话' : 'Current session'} · Ctrl+Z: {language === 'zh' ? '撤销' : 'Undo'} · Ctrl+1/2: {language === 'zh' ? '计划/画像' : 'Planner/Profile'} · Esc: {language === 'zh' ? '关闭弹窗' : 'Close dialog'}</p></details>
-      </div>
-      <main className="max-w-6xl mx-auto px-3 md:px-6">
+      <main className={view === 'planner' ? 'motion-container' : 'max-w-6xl mx-auto px-3 md:px-6'}>
         {selectedSearchTask?.date === selectedDate && (
           <div ref={searchResultRef} tabIndex={-1} className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             <div className="flex items-start justify-between gap-3">
@@ -444,55 +362,21 @@ export default function App() {
             </ErrorBoundary>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in duration-300">
-            <div className="flex gap-2 md:hidden">
-              <button onClick={() => setMobilePane('inbox')} aria-pressed={mobilePane === 'inbox'}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm ${mobilePane === 'inbox' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}>{t('inbox')}</button>
-              <button onClick={() => setMobilePane('timeline')} aria-pressed={mobilePane === 'timeline'}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm ${mobilePane === 'timeline' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}`}>{t('timeline')}</button>
-              <button onClick={jumpToCurrentTime} className="rounded-lg bg-white px-3 text-sm text-gray-700">{t('jump_current_time')}</button>
+          <div className="motion-planner-grid">
+            <div className="motion-mobile-panes">
+              <SegmentedControl label={t('ui_navigation')} value={mobilePane} options={[{value:'inbox',label:t('inbox')},{value:'timeline',label:t('timeline')}]} onChange={value => setMobilePane(value as 'inbox' | 'timeline')} />
+              <button type="button" className="motion-icon-button" onClick={jumpToCurrentTime} aria-label={t('jump_current_time')} title={t('jump_current_time')}><Timer size={18}/></button>
             </div>
-            <div className={`${mobilePane === 'inbox' ? 'flex' : 'hidden'} flex-col gap-6 md:col-span-4 md:flex lg:col-span-3`}>
-              <div className="bg-white rounded-2xl p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] min-h-[500px] border border-gray-100/50">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="font-semibold text-gray-700 flex items-center gap-2">
-                    <InboxIcon size={18} className="text-gray-400" />
-                    {t('inbox')}
-                  </h2>
-                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full font-medium">{inboxTasks.length}</span>
-                </div>
-
-                <div className={`mb-5 rounded-xl border p-3 ${dayLoadSummary.isOverloaded ? 'border-red-100 bg-red-50 text-red-900' : 'border-blue-100 bg-blue-50 text-blue-900'}`}>
-                  <div className="mb-2 text-xs font-bold uppercase tracking-wider">
-                    {t('today_load_title')}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <div className="font-semibold">{formatHours(dayLoadSummary.totalPlannedMinutes)} {t('hours_suffix')}</div>
-                      <div className="opacity-70">{t('today_load_planned')}</div>
-                    </div>
-                    <div>
-                      <div className="font-semibold">{formatHours(dayLoadSummary.freeTimelineMinutes)} {t('hours_suffix')}</div>
-                      <div className="opacity-70">{t('today_load_free')}</div>
-                    </div>
-                  </div>
-                  {dayLoadSummary.isOverloaded && (
-                    <div className="mt-2 text-xs font-medium">
-                      {t('today_load_overloaded', {
-                        inbox: formatHours(dayLoadSummary.inboxMinutes),
-                        free: formatHours(dayLoadSummary.freeTimelineMinutes),
-                      })}
-                    </div>
-                  )}
-                </div>
-
+            <div className={`motion-inbox-column ${mobilePane !== 'inbox' ? 'is-hidden' : ''}`}>
+              <div className="motion-panel motion-inbox-panel">
+                <div className="motion-panel-heading"><h2><InboxIcon size={18}/>{t('inbox')}</h2><span className="motion-panel-count">{inboxTasks.length}</span></div>
                 <div className="space-y-3">
                   {inboxTasks.length === 0 ? (
-                    <div className="text-center py-10 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl">
+                    <div className="motion-empty">
                       {isToday ? (
                         <>
-                          <p>{t('all_dispatched')}</p>
-                          <p className="text-xs mt-1">{t('check_settings')}</p>
+                          <p>{t('ui_inbox_empty')}</p>
+                          <p>{t('ui_inbox_hint')}</p>
                         </>
                       ) : (
                         <p className="text-xs">{t('no_tasks_past_day')}</p>
@@ -517,92 +401,13 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                  <button
-                    onClick={openManualTask}
-                    className="mb-3 w-full py-2 flex items-center justify-center gap-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg border border-gray-200 transition-all"
-                  >
-                    <Plus size={16} /> {t('add_manual_task')}
-                  </button>
-                  <button
-                    onClick={openHabitConfig}
-                    className="w-full py-2 flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg border border-dashed border-gray-200 transition-all"
-                  >
-                    <Plus size={16} /> {t('add_routine')}
-                  </button>
-                </div>
+                <div className="motion-inbox-footer"><button type="button" onClick={openHabitConfig} className="motion-button motion-quiet"><Plus size={16}/>{t('add_routine')}</button></div>
               </div>
             </div>
 
-            <div className={`${mobilePane === 'timeline' ? 'block' : 'hidden'} md:col-span-8 md:block lg:col-span-9`}>
-              <div className="bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                  <h2 className="font-semibold text-gray-700 flex items-center gap-2">
-                    <BarChart3 size={18} className="text-gray-400" />
-                    {t('timeline')}
-                  </h2>
-
-                  <div className="flex flex-wrap items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                    <div className="mr-1 flex rounded-md bg-white border border-gray-100 p-0.5">
-                      <button
-                        onClick={() => setTimelineMode('daytime')}
-                        className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${timelineMode === 'daytime' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                      >
-                        {t('timeline_mode_daytime')}
-                      </button>
-                      <button
-                        onClick={() => setTimelineMode('fullDay')}
-                        className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${timelineMode === 'fullDay' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                      >
-                        {t('timeline_mode_full_day')}
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => changeDate(-7)}
-                      className="px-2 py-1.5 text-xs font-semibold hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
-                      title={t('previous_week')}
-                    >
-                      -7
-                    </button>
-                    <button onClick={() => changeDate(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
-                      <ChevronLeft size={16} />
-                    </button>
-
-                    <label className="px-3 text-sm font-medium text-gray-700 min-w-[150px] text-center flex items-center justify-center gap-2">
-                      <Calendar size={14} className="text-gray-400" />
-                      <span className="hidden sm:inline">{formattedDate}</span>
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(event) => {
-                          if (event.target.value) selectDate(event.target.value);
-                        }}
-                        className="w-[130px] bg-transparent text-xs font-semibold text-gray-700 outline-none"
-                        title={t('select_date')}
-                      />
-                    </label>
-
-                    <button onClick={() => changeDate(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all">
-                      <ChevronRight size={16} />
-                    </button>
-
-                    <button
-                      onClick={() => changeDate(7)}
-                      className="px-2 py-1.5 text-xs font-semibold hover:bg-white hover:shadow-sm rounded-md text-gray-500 transition-all"
-                      title={t('next_week')}
-                    >
-                      +7
-                    </button>
-
-                    <button
-                      onClick={goToToday}
-                      className={`ml-1 px-2 py-1 text-xs font-semibold rounded border transition-colors ${isToday ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'}`}
-                    >
-                      {t('today_btn')}
-                    </button>
-                  </div>
-                </div>
-
+            <div className={`motion-timeline-column ${mobilePane !== 'timeline' ? 'is-hidden' : ''}`}>
+              <div className="motion-panel motion-timeline-panel">
+                <div className="motion-panel-heading"><h2><BarChart3 size={18}/>{t('timeline')}</h2><span className="motion-panel-count">{scheduledTasks.length}</span></div>
                 <div className="relative pl-4 space-y-6">
                   {timelineSlots.map((slot) => {
                     const timeLabel = slot.time;
@@ -614,28 +419,27 @@ export default function App() {
                           <span className="text-xs font-mono text-gray-400 group-hover:text-gray-900 transition-colors">{timeLabel}</span>
                         </div>
 
-                        <div className="flex-1 relative border-t border-gray-100 pt-1">
-                          <div
-                            className="absolute inset-0 -mt-1 rounded-lg"
-                            onDragOver={(event) => {
-                              event.preventDefault();
-                              event.dataTransfer.dropEffect = 'move';
-                            }}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              const taskId = event.dataTransfer.getData('text/plain');
-                              if (taskId) handleTaskDropToTime(taskId, timeLabel);
-                            }}
-                          />
+                        <div
+                          className="flex-1 relative border-t border-gray-100 pt-1"
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const taskId = event.dataTransfer.getData('text/plain');
+                            if (taskId) handleTaskDropToTime(taskId, timeLabel);
+                          }}
+                        >
                           {tasksInSlot.length > 0 ? (
-                            <div className="relative grid grid-cols-1 md:grid-cols-2 gap-3 pr-2">
+                            <div className="motion-timeline-tasks">
                               {tasksInSlot.map((task) => (
                                 <TaskCard
                                   key={task.id}
                                   task={task}
                                   mode="schedule"
                                   onClick={handleTaskCardClick}
-                        onFocus={isToday ? handleDirectFocus : undefined}
+                                  onFocus={isToday ? handleDirectFocus : undefined}
                                   onUnschedule={handleTaskUnschedule}
                                   onEditReview={openTaskReview}
                                   onReschedule={openReschedule}

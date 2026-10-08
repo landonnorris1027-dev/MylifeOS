@@ -1,0 +1,34 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyLifeOS UI 对比与证据</title><style>body{margin:0;padding:32px;color:#202124;background:white;font:15px/1.6 "Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1600px;margin:auto}h1{font-size:26px}h2{font-size:20px;margin-top:36px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.frames{grid-template-columns:repeat(3,minmax(0,1fr))}figure{margin:0}img{width:100%;height:auto;border:1px solid #dadce0;border-radius:12px}figcaption{padding:8px 0;color:#5f6368}a{color:#0b57d0}.phone img{max-width:390px}@media(max-width:800px){body{padding:16px}.grid{grid-template-columns:1fr}} </style><main><h1>MyLifeOS Windows 主流程 UI</h1><p>纯白底、谷歌日历配色；保留待办池／时间线布局。截图内容为隔离测试数据。</p><p><a href="/">打开开发预览</a> · <a href="validation.json">查看验证记录</a> · <a href="../../UI_MOTION.md">设计说明</a></p>
+<h2>同尺寸前后对比</h2><div class="grid ">
+<figure><a href="baseline-planner.png"><img loading="lazy" src="baseline-planner.png" alt="实施前 · af05698 · 1440×900"></a><figcaption>实施前 · af05698 · 1440×900</figcaption></figure>
+<figure><a href="planner-1440.png"><img loading="lazy" src="planner-1440.png" alt="当前分支 · 1440×900"></a><figcaption>当前分支 · 1440×900</figcaption></figure>
+</div>
+<h2>窄窗口与搜索</h2><div class="grid phone">
+<figure><a href="planner-390.png"><img loading="lazy" src="planner-390.png" alt="390×844 · 最终手机布局"></a><figcaption>390×844 · 最终手机布局</figcaption></figure>
+<figure><a href="search-mobile-en.png"><img loading="lazy" src="search-mobile-en.png" alt="390×844 · 英文搜索"></a><figcaption>390×844 · 英文搜索</figcaption></figure>
+</div>
+<h2>搜索与原生专注</h2><div class="grid ">
+<figure><a href="search-results.png"><img loading="lazy" src="search-results.png" alt="桌面搜索结果"></a><figcaption>桌面搜索结果</figcaption></figure>
+<figure><a href="native-focus-saved.png"><img loading="lazy" src="native-focus-saved.png" alt="Windows 原生保存后的完成态"></a><figcaption>Windows 原生保存后的完成态</figcaption></figure>
+</div>
+<h2>Windows 200% 缩放与会话恢复</h2><div class="grid ">
+<figure><a href="native-planner-zoom200.png"><img loading="lazy" src="native-planner-zoom200.png" alt="Electron 实际 200% 缩放"></a><figcaption>Electron 实际 200% 缩放</figcaption></figure>
+<figure><a href="native-focus-paused.png"><img loading="lazy" src="native-focus-paused.png" alt="Windows 暂停与重开会话"></a><figcaption>Windows 暂停与重开会话</figcaption></figure>
+</div>
+<h2>实际动效过程帧</h2><p>以下为开始／中间／结束截图，不是连续录像；实际变换与动画运行状态见验证记录。</p>
+<h2>点击日间／全天：选中底板移动</h2><div class="grid frames">
+<figure><a href="motion-selection-start.png"><img loading="lazy" src="motion-selection-start.png" alt="开始"></a><figcaption>开始</figcaption></figure>
+<figure><a href="motion-selection-middle.png"><img loading="lazy" src="motion-selection-middle.png" alt="中间"></a><figcaption>中间</figcaption></figure>
+<figure><a href="motion-selection-end.png"><img loading="lazy" src="motion-selection-end.png" alt="结束"></a><figcaption>结束</figcaption></figure>
+</div>
+<h2>点击开始专注：面板出场</h2><div class="grid frames">
+<figure><a href="motion-entrance-start.png"><img loading="lazy" src="motion-entrance-start.png" alt="开始"></a><figcaption>开始</figcaption></figure>
+<figure><a href="motion-entrance-middle.png"><img loading="lazy" src="motion-entrance-middle.png" alt="中间"></a><figcaption>中间</figcaption></figure>
+<figure><a href="motion-entrance-end.png"><img loading="lazy" src="motion-entrance-end.png" alt="结束"></a><figcaption>结束</figcaption></figure>
+</div>
+<h2>按下暂停并松开：主按钮变为继续</h2><div class="grid frames">
+<figure><a href="motion-primary-start.png"><img loading="lazy" src="motion-primary-start.png" alt="开始"></a><figcaption>开始</figcaption></figure>
+<figure><a href="motion-primary-middle.png"><img loading="lazy" src="motion-primary-middle.png" alt="中间"></a><figcaption>中间</figcaption></figure>
+<figure><a href="motion-primary-end.png"><img loading="lazy" src="motion-primary-end.png" alt="结束"></a><figcaption>结束</figcaption></figure>
+</div>
+</main></html>

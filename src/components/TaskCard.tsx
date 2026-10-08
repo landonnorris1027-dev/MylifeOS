@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { Task, PRIORITY_STYLES } from '../types';
-import { FileText, Timer, CheckCircle2, X, Trash2, Undo2, CalendarDays } from 'lucide-react';
+import { FileText, Timer, CheckCircle2, X, Trash2, Undo2, CalendarDays, Play } from 'lucide-react';
+import { Task } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTaskTimeLabel } from '../services/scheduling';
 
@@ -18,193 +18,40 @@ interface TaskCardProps {
   mode?: 'pool' | 'schedule';
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({
-  task,
-  onClick,
-  onFocus,
-  onDeleteToday,
-  onDeletePermanent,
-  onUnschedule,
-  onEditReview,
-  onReschedule,
-  draggable = false,
-  onDragStart,
-  mode = 'pool',
-}) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteToday, onDeletePermanent, onUnschedule, onEditReview, onReschedule, draggable = false, onDragStart, mode = 'pool' }) => {
   const { t } = useLanguage();
-  const styles = PRIORITY_STYLES[task.priority];
   const timeLabel = getTaskTimeLabel(task);
-
-  const stopEvent = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDeleteToday = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onDeleteToday) {
-      onDeleteToday(task.id);
-    }
-  }, [onDeleteToday, task.id]);
-
-  const handleDeletePermanent = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onDeletePermanent && task.habitId) {
-      onDeletePermanent(task.id, task.habitId);
-    }
-  }, [onDeletePermanent, task.id, task.habitId]);
-
-  const handleUnschedule = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onUnschedule) {
-      onUnschedule(task);
-    }
-  }, [onUnschedule, task]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Let native buttons inside the card handle their own keys.
-    if (e.target !== e.currentTarget) return;
-
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-      e.preventDefault();
-      onClick(task);
-    }
+  const activate = useCallback(() => onClick(task), [onClick, task]);
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (['Enter', ' ', 'Spacebar'].includes(event.key)) { event.preventDefault(); onClick(task); }
   }, [onClick, task]);
+  const action = (event: React.MouseEvent, callback: () => void) => { event.preventDefault(); event.stopPropagation(); callback(); };
 
-  const handleClick = useCallback(() => {
-    onClick(task);
-  }, [onClick, task]);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      draggable={draggable}
-      onDragStart={(event) => onDragStart?.(task, event)}
-      className={`
-        group relative w-full cursor-pointer transition-all duration-200
-        ${styles.bg} border ${styles.border} ${styles.hover}
-        p-3 rounded-lg mb-2 shadow-sm hover:shadow-md
-      `}
-    >
-      <div className="flex flex-col gap-2 min-w-0">
-        <div className="task-heading flex items-start justify-between gap-2 min-w-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {task.status === 'completed' ? (
-              <CheckCircle2 size={16} className={`${styles.text} opacity-60 flex-shrink-0`} />
-            ) : (
-              <div className={`w-2 h-2 rounded-full ${styles.accent} opacity-50 flex-shrink-0`} />
-            )}
-
-            <span
-              className={`
-                font-medium leading-snug break-words min-w-0 ${styles.text}
-                ${task.status === 'completed' ? 'line-through opacity-50' : ''}
-                text-sm
-              `}
-            >
-              {task.name}
-            </span>
-          </div>
-
-          <div
-              className="task-actions flex items-center gap-1.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0"
-              onClick={stopEvent}
-            >
-              {onEditReview && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onEditReview(task);
-                  }}
-                  className="p-1.5 bg-white/80 hover:bg-white shadow-sm rounded-md text-gray-500 hover:text-blue-600 transition-all border border-gray-100 relative z-50"
-                  title={t('task_review_edit')}
-                  aria-label={t('task_review_edit')}
-                >
-                  <FileText size={14} className="pointer-events-none" />
-                </button>
-              )}
-              {onReschedule && (task.origin === 'manual' || !task.habitId) && task.status !== 'completed' && (
-                <button type="button" onClick={(event) => { stopEvent(event); onReschedule(task); }}
-                  className="relative z-50 rounded-md border border-gray-100 bg-white/80 p-1.5 text-gray-500 hover:text-blue-600"
-                  title={t('reschedule_title')} aria-label={t('reschedule_title')}>
-                  <CalendarDays size={14} />
-                </button>
-              )}
-              {onDeleteToday && (
-                <button type="button" onClick={handleDeleteToday}
-                  className="relative z-50 rounded-md border border-gray-100 bg-white/80 p-1.5 text-gray-500 hover:text-gray-800"
-                  title={t('delete_today')} aria-label={t('delete_today')}>
-                  <X size={14} />
-                </button>
-              )}
-              {mode === 'pool' ? (
-                <>
-                  {onDeletePermanent && task.habitId && (
-                    <button
-                      type="button"
-                      onClick={handleDeletePermanent}
-                      className="p-1.5 bg-red-50/80 hover:bg-red-100 shadow-sm rounded-md text-red-400 hover:text-red-600 transition-all border border-red-100 relative z-50"
-                      title={t('delete_permanent_block')}
-                      aria-label={t('delete_permanent_block')}
-                    >
-                      <Trash2 size={14} className="pointer-events-none" />
-                    </button>
-                  )}
-                </>
-              ) : (
-                onUnschedule && (
-                  <button
-                    type="button"
-                    onClick={handleUnschedule}
-                    className="p-1.5 bg-white/80 hover:bg-white shadow-sm rounded-md text-gray-500 hover:text-gray-800 transition-all border border-gray-100 relative z-50"
-                    title={t('unschedule')}
-                    aria-label={t('unschedule')}
-                  >
-                    <Undo2 size={14} className="pointer-events-none" />
-                  </button>
-                )
-              )}
-            </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 pl-4">
-            {onFocus && task.status !== 'completed' && <button type="button" className="mr-auto rounded bg-white px-2 py-1 text-xs font-semibold" onClick={event => { stopEvent(event); onFocus(task); }}>
-              {t('start_focus')}
-            </button>}
-            {timeLabel && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
-                {timeLabel}
-              </span>
-            )}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
-              {t('minutes_short', { minutes: task.durationMinutes })}
-            </span>
-            {(task.note || task.review) && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
-                {t('task_review_badge')}
-              </span>
-            )}
-            <span
-              className={`
-                text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider
-                bg-white/50 ${styles.text} border border-white/20
-              `}
-            >
-              {task.priority}
-            </span>
-            <Timer size={14} className={`${styles.text} opacity-40 flex-shrink-0`} />
-          </div>
+  return <div role="button" tabIndex={0} onClick={activate} onKeyDown={handleKeyDown} draggable={draggable}
+    onDragStart={event => onDragStart?.(task, event)} data-task-id={task.id}
+    className={`motion-task motion-ui ${task.status === 'completed' ? 'is-completed' : ''}`}>
+    <div className="motion-task-heading">
+      <span className="motion-task-name">{task.status === 'completed' && <CheckCircle2 size={16}/>}<span>{task.name}</span></span>
+      <span className={`motion-priority-tag priority-${task.priority}`}>{task.priority}</span>
+    </div>
+    <div className="motion-task-meta">
+      <Timer size={14} aria-hidden="true"/>
+      {timeLabel && <span>{timeLabel}</span>}
+      <span>{t('minutes_short', {minutes:task.durationMinutes})}</span>
+      {(task.note || task.review) && <span className="motion-note-badge">{t('task_review_badge')}</span>}
+    </div>
+    <div className="motion-task-footer">
+      {onFocus && task.status !== 'completed' && <button type="button" className="motion-task-focus" onClick={event => action(event, () => onFocus(task))}><Play size={12} fill="currentColor"/>{t('start_focus')}</button>}
+      <div className="motion-task-actions" onClick={event => event.stopPropagation()}>
+        {onEditReview && <button type="button" className="motion-icon-button" title={t('task_review_edit')} aria-label={t('task_review_edit')} onClick={event => action(event, () => onEditReview(task))}><FileText size={15}/></button>}
+        {onReschedule && (task.origin === 'manual' || !task.habitId) && task.status !== 'completed' && <button type="button" className="motion-icon-button" title={t('reschedule_title')} aria-label={t('reschedule_title')} onClick={event => action(event, () => onReschedule(task))}><CalendarDays size={15}/></button>}
+        {onDeleteToday && <button type="button" className="motion-icon-button" title={t('delete_today')} aria-label={t('delete_today')} onClick={event => action(event, () => onDeleteToday(task.id))}><X size={15}/></button>}
+        {mode === 'pool' && onDeletePermanent && task.habitId && <button type="button" className="motion-icon-button motion-danger" title={t('delete_permanent_block')} aria-label={t('delete_permanent_block')} onClick={event => action(event, () => onDeletePermanent(task.id, task.habitId!))}><Trash2 size={15}/></button>}
+        {mode === 'schedule' && onUnschedule && <button type="button" className="motion-icon-button" title={t('unschedule')} aria-label={t('unschedule')} onClick={event => action(event, () => onUnschedule(task))}><Undo2 size={15}/></button>}
       </div>
     </div>
-  );
+  </div>;
 };
 
 export default React.memo(TaskCard);

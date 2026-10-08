@@ -45,3 +45,7 @@ tmp/
 *.lnk
 main.js
 .git.broken-worktree
+
+# Isolated UI validation artifacts (representative evidence lives in docs)
+.playwright-cli/
+output/playwright/ui-motion/
