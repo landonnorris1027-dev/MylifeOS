@@ -790,3 +790,8 @@
     align-self: flex-start;
   }
 }
+@media (max-width: 767px) {
+  .profile-pagination .motion-button {
+    min-height: 48px;
+  }
+}

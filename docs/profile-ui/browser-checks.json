@@ -1,0 +1,101 @@
+{
+  "results": [
+    {
+      "language": "zh",
+      "width": 390,
+      "height": 844,
+      "zoom": [
+        1
+      ],
+      "overflow": false
+    },
+    {
+      "language": "zh",
+      "width": 768,
+      "height": 1024,
+      "zoom": [
+        1
+      ],
+      "overflow": false
+    },
+    {
+      "language": "zh",
+      "width": 1280,
+      "height": 800,
+      "zoom": [
+        1,
+        2
+      ],
+      "overflow": false
+    },
+    {
+      "language": "zh",
+      "width": 1440,
+      "height": 900,
+      "zoom": [
+        1,
+        2
+      ],
+      "overflow": false
+    },
+    {
+      "language": "zh",
+      "width": 1920,
+      "height": 1080,
+      "zoom": [
+        1,
+        2
+      ],
+      "overflow": false
+    },
+    {
+      "language": "en",
+      "width": 390,
+      "height": 844,
+      "zoom": [
+        1
+      ],
+      "overflow": false
+    },
+    {
+      "language": "en",
+      "width": 768,
+      "height": 1024,
+      "zoom": [
+        1
+      ],
+      "overflow": false
+    },
+    {
+      "language": "en",
+      "width": 1280,
+      "height": 800,
+      "zoom": [
+        1,
+        2
+      ],
+      "overflow": false
+    },
+    {
+      "language": "en",
+      "width": 1440,
+      "height": 900,
+      "zoom": [
+        1,
+        2
+      ],
+      "overflow": false
+    },
+    {
+      "language": "en",
+      "width": 1920,
+      "height": 1080,
+      "zoom": [
+        1,
+        2
+      ],
+      "overflow": false
+    }
+  ],
+  "errors": []
+}
