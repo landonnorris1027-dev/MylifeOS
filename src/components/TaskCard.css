@@ -1,0 +1,53 @@
+/* Match each platform's existing label colors. Completion is a visual state;
+   it never delays or initiates persistence. */
+.task-card.priority-P1 { --task-completion-color: var(--motion-p1, #ef4444); }
+.task-card.priority-P2 { --task-completion-color: var(--motion-p2, #f59e0b); }
+.task-card.priority-P3 { --task-completion-color: var(--motion-p3, #10b981); }
+.task-card.priority-none { --task-completion-color: #8e24aa; }
+
+.task-card,
+.task-card.motion-task {
+  transition: background-color 400ms ease, border-color 400ms ease,
+    color 400ms ease, box-shadow 200ms ease;
+}
+.task-card .task-title,
+.task-card .task-meta,
+.task-card .task-label,
+.task-card .task-check {
+  transition: color 400ms ease, background-color 400ms ease, border-color 400ms ease;
+}
+.task-card.is-completed,
+.task-card.is-completed:hover,
+.task-card.is-completed:focus-within {
+  background-color: var(--task-completion-color);
+  border-color: var(--task-completion-color);
+  color: #fff;
+}
+.task-card.is-completed .task-title,
+.task-card.is-completed .task-meta,
+.task-card.is-completed .task-label,
+.task-card.is-completed .task-check {
+  color: #fff;
+  opacity: 1;
+}
+.task-card.is-completed .task-meta,
+.task-card.is-completed .task-label {
+  background-color: transparent;
+  border-color: #ffffff60;
+}
+.task-card.is-completed .motion-unprioritized-dot { background-color: #fff; }
+.task-card.is-completed button {
+  color: #fff;
+  border-color: #ffffff60;
+  background-color: transparent;
+  transition: color 400ms ease, background-color 160ms ease, border-color 400ms ease;
+}
+.task-card.is-completed button:hover,
+.task-card.is-completed button:focus-visible { background-color: #ffffff26; }
+/* The existing yellow label stays yellow; a fine shadow keeps white type legible. */
+.task-card.is-completed.priority-P2 { text-shadow: 0 1px 2px #5b3900b3; }
+.task-card.is-completed :focus-visible { outline-color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .task-card, .task-card * { transition: none !important; }
+}

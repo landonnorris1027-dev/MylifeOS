@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import './TaskCard.css';
 import { FileText, Timer, CheckCircle2, X, Trash2, Undo2, CalendarDays, Play } from 'lucide-react';
 import { Task } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -30,12 +31,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
 
   return <div role="button" tabIndex={0} onClick={activate} onKeyDown={handleKeyDown} draggable={draggable}
     onDragStart={event => onDragStart?.(task, event)} data-task-id={task.id}
-    className={`motion-task motion-ui ${task.status === 'completed' ? 'is-completed' : ''}`}>
+    className={`motion-task motion-ui task-card priority-${task.priority} ${task.status === 'completed' ? 'is-completed' : ''}`}>
     <div className="motion-task-heading">
-      <span className="motion-task-name">{task.status === 'completed' && <CheckCircle2 size={16}/>}<span>{task.name}</span></span>
-      {task.priority === 'none' ? <span role="img" aria-label={t('no_priority')} title={t('no_priority')} className="motion-unprioritized-dot"/> : <span className={`motion-priority-tag priority-${task.priority}`}>{task.priority}</span>}
+      <span className="motion-task-name task-title">{task.status === 'completed' && <CheckCircle2 size={16}/>}<span>{task.name}</span></span>
+      {task.priority === 'none' ? <span role="img" aria-label={t('no_priority')} title={t('no_priority')} className="motion-unprioritized-dot"/> : <span className={`motion-priority-tag task-label priority-${task.priority}`}>{task.priority}</span>}
     </div>
-    <div className="motion-task-meta">
+    <div className="motion-task-meta task-meta">
       <Timer size={14} aria-hidden="true"/>
       {timeLabel && <span>{timeLabel}</span>}
       <span>{t('minutes_short', {minutes:task.durationMinutes})}</span>
