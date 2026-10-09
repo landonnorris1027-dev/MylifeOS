@@ -22,6 +22,7 @@ interface TaskCardProps {
 const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteToday, onDeletePermanent, onUnschedule, onEditReview, onReschedule, draggable = false, onDragStart, mode = 'pool' }) => {
   const { t } = useLanguage();
   const timeLabel = getTaskTimeLabel(task);
+  const isCompleted = task.status === 'completed';
   const activate = useCallback(() => onClick(task), [onClick, task]);
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
@@ -29,8 +30,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
   }, [onClick, task]);
   const action = (event: React.MouseEvent, callback: () => void) => { event.preventDefault(); event.stopPropagation(); callback(); };
 
-  return <div role="button" tabIndex={0} onClick={activate} onKeyDown={handleKeyDown} draggable={draggable}
-    onDragStart={event => onDragStart?.(task, event)} data-task-id={task.id}
+  return <div role={isCompleted ? "group" : "button"} tabIndex={isCompleted ? undefined : 0} onClick={isCompleted ? undefined : activate} onKeyDown={isCompleted ? undefined : handleKeyDown} draggable={draggable && !isCompleted}
+    onDragStart={isCompleted ? undefined : event => onDragStart?.(task, event)} data-task-id={task.id}
     className={`motion-task motion-ui task-card priority-${task.priority} ${task.status === 'completed' ? 'is-completed' : ''}`}>
     <div className="motion-task-heading">
       <span className="motion-task-name task-title">{task.status === 'completed' && <CheckCircle2 size={16}/>}<span>{task.name}</span></span>
@@ -49,7 +50,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
         {onReschedule && (task.origin === 'manual' || !task.habitId) && task.status !== 'completed' && <button type="button" className="motion-icon-button" title={t('reschedule_title')} aria-label={t('reschedule_title')} onClick={event => action(event, () => onReschedule(task))}><CalendarDays size={15}/></button>}
         {onDeleteToday && <button type="button" className="motion-icon-button" title={t('delete_today')} aria-label={t('delete_today')} onClick={event => action(event, () => onDeleteToday(task.id))}><X size={15}/></button>}
         {mode === 'pool' && onDeletePermanent && task.habitId && <button type="button" className="motion-icon-button motion-danger" title={t('delete_permanent_block')} aria-label={t('delete_permanent_block')} onClick={event => action(event, () => onDeletePermanent(task.id, task.habitId!))}><Trash2 size={15}/></button>}
-        {mode === 'schedule' && onUnschedule && <button type="button" className="motion-icon-button" title={t('unschedule')} aria-label={t('unschedule')} onClick={event => action(event, () => onUnschedule(task))}><Undo2 size={15}/></button>}
+        {mode === 'schedule' && !isCompleted && onUnschedule && <button type="button" className="motion-icon-button" title={t('unschedule')} aria-label={t('unschedule')} onClick={event => action(event, () => onUnschedule(task))}><Undo2 size={15}/></button>}
       </div>
     </div>
   </div>;

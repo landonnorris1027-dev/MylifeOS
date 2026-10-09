@@ -272,6 +272,9 @@ const findStoredTimerTask = (taskId?: string | null, taskDate?: string | null): 
   return getDailyData(taskDate)?.tasks.find((task) => task.id === taskId) || null;
 };
 
+const isTaskCompleted = (task: Task): boolean => task.status === 'completed'
+  || findStoredTimerTask(task.id, task.date)?.status === 'completed';
+
 const getTimerTaskHabitId = (timer: Pick<PomodoroUpdateData | PomodoroRecoveryData, 'taskId' | 'taskDate' | 'taskHabitId'>) => {
   if (typeof timer.taskHabitId === 'string' && timer.taskHabitId) {
     return timer.taskHabitId;
@@ -579,6 +582,7 @@ export const useAppController = () => {
   }, [state.timerPanel.restoredState]);
 
   const handleTaskClick = useCallback((task: Task) => {
+    if (isTaskCompleted(task)) return;
     if (task.status === 'inbox') {
       dispatch({ type: 'SET_SCHEDULING_TASK', task });
       return;
@@ -592,6 +596,7 @@ export const useAppController = () => {
 
     void (async () => {
       const isSessionAlive = await isRestoredSessionAlive(restoredTimerState);
+      if (isTaskCompleted(task)) return;
       if (!isSessionAlive) {
         dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
         dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
@@ -880,6 +885,7 @@ export const useAppController = () => {
   }, [state.recoveryPrompt.pending]);
 
   const handleTaskUnschedule = useCallback(async (task: Task) => {
+    if (isTaskCompleted(task)) return;
     try {
       await operations.current.change(task, { date: task.date, status: 'inbox', startTime: undefined }, 'unschedule');
       loadData(state.selectedDate);
@@ -975,9 +981,11 @@ export const useAppController = () => {
     } catch (error) { reportStorageError(error); }
   }, [reportStorageError, t]);
   const handleDirectFocus = useCallback(async (task: Task) => {
+    if (isTaskCompleted(task)) return;
     if (task.date !== getTodayStr() || !['inbox', 'scheduled'].includes(task.status)) return;
     try {
       if ((await electronIPC.getActiveTimers(true)).length) { await openCurrentSession(); return; }
+      if (isTaskCompleted(task)) return;
       dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
       dispatch({ type: 'OPEN_TIMER_FOR_TASK', task, autoStart: true });
     } catch (error) { reportStorageError(error); }
