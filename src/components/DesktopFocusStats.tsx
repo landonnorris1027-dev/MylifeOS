@@ -8,11 +8,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import {
-  formatDateLocal,
-  getGoals,
-  getProfileStats,
-} from '../services/storage';
+import { formatDateLocal, getProfileStats } from '../services/storage';
 import { getProfileSettings } from '../services/profileSettings';
 import {
   FocusPeriod,
@@ -21,8 +17,7 @@ import {
 } from '../services/focusReports';
 import SegmentedControl from './SegmentedControl';
 import FocusCharts from './FocusCharts';
-
-import { reportMinutes } from './focusDisplay';
+import CompletedFocusDistribution from './CompletedFocusDistribution';
 
 export default function DesktopFocusStats({
   refreshToken = 0,
@@ -46,10 +41,6 @@ export default function DesktopFocusStats({
   );
   const totals = useMemo(() => getFocusTotals(), [refreshToken]);
   const tasks = useMemo(() => getProfileStats(), [refreshToken]);
-  const goals = useMemo(
-    () => new Map(getGoals().map((g) => [g.id, g.name])),
-    [refreshToken],
-  );
   const target = useMemo(
     () => getProfileSettings().weeklyTargetMinutes * 60,
     [refreshToken],
@@ -59,9 +50,6 @@ export default function DesktopFocusStats({
     [anchor, refreshToken],
   );
   const progress = Math.round((week.measuredSeconds / target) * 100);
-  const goalRows = Object.entries(report.goalSeconds).sort(
-    (a, b) => b[1] - a[1],
-  );
   const planned = report.days.reduce((sum, day) => sum + day.plannedSeconds, 0);
 
   return (
@@ -206,80 +194,7 @@ export default function DesktopFocusStats({
         zh={zh}
       />
 
-      <section className="profile-panel">
-        <div className="profile-section-heading">
-          <div>
-            <h2>{zh ? '目标投入分布' : 'Goal allocation (measured)'}</h2>
-            <p className="profile-caption">
-              {zh ? '仅统计实际计时' : 'Measured focus only'}
-            </p>
-          </div>
-          <span className="profile-muted">
-            {duration(report.measuredSeconds)}
-          </span>
-        </div>
-        {goalRows.length ? (
-          <div className="profile-goals">
-            {goalRows.map(([id, seconds], index) => (
-              <div key={id}>
-                <div className="profile-goal-label">
-                  <span>
-                    {id
-                      ? goals.get(id) ||
-                        (zh ? '已删除目标' : 'Deleted goal') + ` (${id})`
-                      : zh
-                        ? '未关联目标'
-                        : 'No goal'}
-                  </span>
-                  <strong>
-                    {duration(seconds)}
-                    <small>
-                      {report.measuredSeconds
-                        ? Math.round((seconds / report.measuredSeconds) * 100)
-                        : 0}
-                      %
-                    </small>
-                  </strong>
-                </div>
-                <div className="profile-track">
-                  <span
-                    className={`profile-goal-shade-${index % 3}`}
-                    style={{
-                      width: `${report.measuredSeconds ? (seconds / report.measuredSeconds) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="profile-empty">
-            <Clock3 size={24} aria-hidden="true" />
-            <p>
-              {zh
-                ? '本时段暂无实际计时。'
-                : 'No measured focus in this period.'}
-            </p>
-            <p className="profile-caption">
-              {zh
-                ? '完成或主动停止一次专注后，这里会显示目标分布。'
-                : 'Complete or stop a focus session to see its goal allocation.'}
-            </p>
-          </div>
-        )}
-        <div className="profile-priority-summary">
-          {(['P1', 'P2', 'P3', 'none'] as const).map((priority) => (
-            <span key={priority}>
-              <i className={`priority-${priority}`} aria-hidden="true" />
-              {priority === 'none' ? t('no_priority') : priority}
-              <strong>
-                {reportMinutes(report.prioritySeconds[priority])}{' '}
-                {zh ? '分钟' : 'min'}
-              </strong>
-            </span>
-          ))}
-        </div>
-      </section>
+      <CompletedFocusDistribution week={week} anchor={anchor} />
 
       <WeeklyReview
         key={`review:${anchor}:${period}`}
