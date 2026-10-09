@@ -21,7 +21,7 @@ interface ContributionGraphProps {
 }
 
 const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const currentYear = new Date().getFullYear();
   const stats = useMemo(() => isAndroid() ? getYearlyStats() : getMeasuredMinutesByDate(), [refreshToken]);
 
@@ -32,7 +32,7 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
     const today = new Date();
 
     const startDayOfWeek = startDate.getDay();
-    
+
     const weeksArray: DayData[][] = [];
     let currentWeek: DayData[] = [];
     let grandTotal = 0;
@@ -126,7 +126,7 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
   const activityTitle = t('focus_activity_year', { year: currentYear });
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
+    <div className="profile-activity bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{activityTitle}</h2>
@@ -134,21 +134,22 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
             {t('total_focus_hours')}: <span className="font-bold text-gray-900">{totalHours} {t('hours_suffix')}</span>
           </p>
         </div>
-        <div className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm shadow-blue-200">
+        <div className="profile-year">
           {currentYear}
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-4 pt-2">
-        <div className="min-w-[720px] pr-4">
+      <p className="profile-activity-scroll-hint">{language === 'zh' ? '横向滑动查看全年记录' : 'Scroll horizontally to see the full year'}</p>
+      <div className="overflow-x-auto pb-4 pt-2" tabIndex={0} role="region" aria-label={activityTitle}>
+        <div className="profile-activity-body min-w-[720px] pr-4">
 
           {/* Month Labels Container */}
-          <div className="flex relative h-6 mb-2 ml-8 text-xs text-gray-400 font-medium z-0">
+          <div className="flex relative h-6 mb-2 ml-10 profile-activity-label text-xs text-gray-400 font-medium z-0">
             {months.map((m, i) => (
               <span
                 key={i}
                 className="absolute top-0 transform"
-                style={{ left: `${m.index * 13}px` }}
+                style={{ left: `${m.index / weeks.length * 100}%` }}
               >
                 {m.label}
               </span>
@@ -157,14 +158,14 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
 
           <div className="flex gap-1 relative z-10">
             {/* Day Labels - Fixed width w-8 */}
-            <div className="flex flex-col justify-between text-[10px] text-gray-400 font-medium pb-3 pt-[1px] w-8 h-[96px]">
-              <span>{t('weekday_monday_short')}</span>
-              <span>{t('weekday_wednesday_short')}</span>
-              <span>{t('weekday_friday_short')}</span>
+            <div className="profile-activity-weekdays profile-activity-label w-9">
+              <span style={{ top: '21.428%' }}>{t('weekday_monday_short')}</span>
+              <span style={{ top: '50%' }}>{t('weekday_wednesday_short')}</span>
+              <span style={{ top: '78.571%' }}>{t('weekday_friday_short')}</span>
             </div>
 
             {/* The Grid */}
-            <div className="flex gap-[3px]">
+            <div className="profile-activity-grid" style={{ gridTemplateColumns: `repeat(${weeks.length},minmax(0,1fr))` }}>
               {weeks.map((week, wIndex) => (
                 <div key={wIndex} className="flex flex-col gap-[3px]">
                   {week.map((day, dayIndex) => {
@@ -190,9 +191,10 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
                     return (
                       <div
                         key={day.date || `empty-${wIndex}-${dayIndex}`}
+                        title={day.date ? `${day.date} · ${Math.floor(day.minutes)} ${t('minute_unit_short')}` : undefined}
                         className={`
-                           w-[10px] h-[10px] rounded-[2px] border 
-                           ${getColorClass(day.level, day.isFuture, day.date === '')} 
+                           profile-activity-cell rounded-[2px] border
+                           ${getColorClass(day.level, day.isFuture, day.date === '')}
                            transition-all group relative
                            hover:scale-125 hover:z-50 cursor-default
                          `}
@@ -225,8 +227,11 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
             </div>
           </div>
 
+
+        </div>
+      </div>
           {/* Legend */}
-          <div className="flex items-center justify-end gap-2 mt-6 text-xs text-gray-500">
+          <div className="flex items-center justify-end gap-2 mt-6 profile-activity-label text-xs text-gray-500">
             <span>{t('less')}</span>
             <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(0, false, false)}`}></div>
             <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(1, false, false)}`}></div>
@@ -237,8 +242,6 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
             <span>{t('more')}</span>
           </div>
 
-        </div>
-      </div>
     </div>
   );
 };

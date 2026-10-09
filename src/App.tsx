@@ -1,4 +1,5 @@
 import './ui-motion.css';
+import './profile.css';
 import SegmentedControl from './components/SegmentedControl';
 import BatchRescheduleModal from './components/BatchRescheduleModal';
 import React from 'react';
@@ -317,7 +318,7 @@ export default function App() {
         </div>
       </div>}
 
-      <main className={view === 'planner' ? 'motion-container' : 'max-w-6xl mx-auto px-3 md:px-6'}>
+      <main className="motion-container">
         {selectedSearchTask?.date === selectedDate && (
           <div ref={searchResultRef} tabIndex={-1} className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             <div className="flex items-start justify-between gap-3">
@@ -339,14 +340,13 @@ export default function App() {
           className="bg-transparent"
         >
         {view === 'profile' ? (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-100 to-amber-200 flex items-center justify-center text-orange-600 shadow-sm border border-orange-100">
-                <User size={40} />
+          <div className="profile-view">
+            <div className="profile-page-heading">
+              <div className="profile-avatar">
+                <User size={28} aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">{t('profile_title')}</h2>
-                <p className="text-gray-500">{t('profile_subtitle')}</p>
+                <h1>{t('profile_title')}</h1>
               </div>
             </div>
 
