@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import './TaskCard.css';
 import { Task, PRIORITY_STYLES } from '../types';
 import { FileText, Timer, CheckCircle2, X, Trash2, Undo2, CalendarDays } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -82,9 +83,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      data-task-id={task.id}
       draggable={draggable}
       onDragStart={(event) => onDragStart?.(task, event)}
       className={`
+        task-card priority-${task.priority} ${task.status === 'completed' ? 'is-completed' : ''}
         group relative w-full cursor-pointer transition-all duration-200
         ${styles.bg} border ${styles.border} ${styles.hover}
         p-3 rounded-lg mb-2 shadow-sm hover:shadow-md
@@ -94,15 +97,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
         <div className="task-heading flex items-start justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {task.status === 'completed' ? (
-              <CheckCircle2 size={16} className={`${styles.text} opacity-60 flex-shrink-0`} />
+              <CheckCircle2 size={16} className={`task-check ${styles.text} flex-shrink-0`} />
             ) : (
               <div role={task.priority === 'none' ? 'img' : undefined} aria-label={task.priority === 'none' ? t('no_priority') : undefined} className={`w-2 h-2 rounded-full ${styles.accent} ${task.priority === 'none' ? '' : 'opacity-50'} flex-shrink-0`} />
             )}
 
             <span
               className={`
-                font-medium leading-snug break-words min-w-0 ${styles.text}
-                ${task.status === 'completed' ? 'line-through opacity-50' : ''}
+                task-title font-medium leading-snug break-words min-w-0 ${styles.text}
                 text-sm
               `}
             >
@@ -175,27 +177,27 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
         <div className="flex items-center justify-end gap-2 pl-4">
             {timeLabel && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
+              <span className={`task-meta text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
                 {timeLabel}
               </span>
             )}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
+            <span className={`task-meta text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
               {t('minutes_short', { minutes: task.durationMinutes })}
             </span>
             {(task.note || task.review) && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
+              <span className={`task-meta text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/60 ${styles.text} border border-white/30`}>
                 {t('task_review_badge')}
               </span>
             )}
             <span
               className={`
-                text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider
+                task-label text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider
                 bg-white/50 ${styles.text} border border-white/20
               `}
             >
               {task.priority === 'none' ? t('no_priority') : task.priority}
             </span>
-            <Timer size={14} className={`${styles.text} opacity-40 flex-shrink-0`} />
+            <Timer size={14} className={`task-check ${styles.text} opacity-40 flex-shrink-0`} />
           </div>
       </div>
     </div>

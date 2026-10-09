@@ -1,0 +1,194 @@
+[
+  {
+    "platform": "windows",
+    "checks": [
+      "four label colors",
+      "white title metadata and buttons",
+      "distinct intermediate frame",
+      "hover and focus retain completed colors",
+      "interruptible transition",
+      "no replay for historical completions",
+      "reduced motion",
+      "no horizontal overflow"
+    ],
+    "before": [
+      {
+        "background": "rgb(255, 255, 255)",
+        "title": "rgb(32, 33, 36)",
+        "meta": "rgb(95, 99, 104)",
+        "button": "rgb(32, 33, 36)",
+        "animations": []
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "title": "rgb(32, 33, 36)",
+        "meta": "rgb(95, 99, 104)",
+        "button": "rgb(32, 33, 36)",
+        "animations": []
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "title": "rgb(32, 33, 36)",
+        "meta": "rgb(95, 99, 104)",
+        "button": "rgb(32, 33, 36)",
+        "animations": []
+      },
+      {
+        "background": "rgb(255, 255, 255)",
+        "title": "rgb(32, 33, 36)",
+        "meta": "rgb(95, 99, 104)",
+        "button": "rgb(32, 33, 36)",
+        "animations": []
+      }
+    ],
+    "middle": [
+      {
+        "background": "rgb(221, 50, 50)",
+        "title": "rgb(211, 211, 212)",
+        "count": 32
+      },
+      {
+        "background": "rgb(248, 204, 81)",
+        "title": "rgb(211, 211, 212)",
+        "count": 33
+      },
+      {
+        "background": "rgb(59, 153, 104)",
+        "title": "rgb(211, 211, 212)",
+        "count": 32
+      },
+      {
+        "background": "rgb(164, 79, 187)",
+        "title": "rgb(211, 211, 212)",
+        "count": 27
+      }
+    ],
+    "end": [
+      {
+        "background": "rgb(213, 0, 0)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      },
+      {
+        "background": "rgb(246, 191, 38)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      },
+      {
+        "background": "rgb(11, 128, 67)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      },
+      {
+        "background": "rgb(142, 36, 170)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      }
+    ],
+    "errors": []
+  },
+  {
+    "platform": "android",
+    "checks": [
+      "four label colors",
+      "white title metadata and buttons",
+      "distinct intermediate frame",
+      "hover and focus retain completed colors",
+      "interruptible transition",
+      "no replay for historical completions",
+      "reduced motion",
+      "no horizontal overflow"
+    ],
+    "before": [
+      {
+        "background": "rgb(254, 242, 242)",
+        "title": "rgb(127, 29, 29)",
+        "meta": "rgb(127, 29, 29)",
+        "button": "rgb(107, 114, 128)",
+        "animations": []
+      },
+      {
+        "background": "rgb(255, 251, 235)",
+        "title": "rgb(120, 53, 15)",
+        "meta": "rgb(120, 53, 15)",
+        "button": "rgb(107, 114, 128)",
+        "animations": []
+      },
+      {
+        "background": "rgb(236, 253, 245)",
+        "title": "rgb(6, 78, 59)",
+        "meta": "rgb(6, 78, 59)",
+        "button": "rgb(107, 114, 128)",
+        "animations": []
+      },
+      {
+        "background": "rgb(250, 245, 255)",
+        "title": "rgb(88, 28, 135)",
+        "meta": "rgb(88, 28, 135)",
+        "button": "rgb(107, 114, 128)",
+        "animations": []
+      }
+    ],
+    "middle": [
+      {
+        "background": "rgb(242, 102, 102)",
+        "title": "rgb(230, 210, 210)",
+        "count": 43
+      },
+      {
+        "background": "rgb(247, 176, 55)",
+        "title": "rgb(228, 215, 208)",
+        "count": 43
+      },
+      {
+        "background": "rgb(59, 198, 152)",
+        "title": "rgb(206, 220, 216)",
+        "count": 43
+      },
+      {
+        "background": "rgb(163, 77, 187)",
+        "title": "rgb(222, 210, 231)",
+        "count": 43
+      }
+    ],
+    "end": [
+      {
+        "background": "rgb(239, 68, 68)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      },
+      {
+        "background": "rgb(245, 158, 11)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      },
+      {
+        "background": "rgb(16, 185, 129)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      },
+      {
+        "background": "rgb(142, 36, 170)",
+        "title": "rgb(255, 255, 255)",
+        "meta": "rgb(255, 255, 255)",
+        "button": "rgb(255, 255, 255)",
+        "animations": []
+      }
+    ],
+    "errors": []
+  }
+]
