@@ -33,6 +33,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const { t } = useLanguage();
   const styles = PRIORITY_STYLES[task.priority];
   const timeLabel = getTaskTimeLabel(task);
+  const isCompleted = task.status === 'completed';
 
   const stopEvent = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -79,16 +80,16 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
+      role={isCompleted ? "group" : "button"}
+      tabIndex={isCompleted ? undefined : 0}
+      onClick={isCompleted ? undefined : handleClick}
+      onKeyDown={isCompleted ? undefined : handleKeyDown}
       data-task-id={task.id}
-      draggable={draggable}
-      onDragStart={(event) => onDragStart?.(task, event)}
+      draggable={draggable && !isCompleted}
+      onDragStart={isCompleted ? undefined : (event) => onDragStart?.(task, event)}
       className={`
         task-card priority-${task.priority} ${task.status === 'completed' ? 'is-completed' : ''}
-        group relative w-full cursor-pointer transition-all duration-200
+        group relative w-full cursor-pointer
         ${styles.bg} border ${styles.border} ${styles.hover}
         p-3 rounded-lg mb-2 shadow-sm hover:shadow-md
       `}
@@ -160,7 +161,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   )}
                 </>
               ) : (
-                onUnschedule && (
+                !isCompleted && onUnschedule && (
                   <button
                     type="button"
                     onClick={handleUnschedule}

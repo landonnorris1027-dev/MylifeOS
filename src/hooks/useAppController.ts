@@ -263,6 +263,9 @@ const findStoredTimerTask = (taskId?: string | null, taskDate?: string | null): 
   return getDailyData(taskDate)?.tasks.find((task) => task.id === taskId) || null;
 };
 
+const isTaskCompleted = (task: Task): boolean => task.status === 'completed'
+  || findStoredTimerTask(task.id, task.date)?.status === 'completed';
+
 const getTimerTaskHabitId = (timer: Pick<PomodoroUpdateData | PomodoroRecoveryData, 'taskId' | 'taskDate' | 'taskHabitId'>) => {
   if (typeof timer.taskHabitId === 'string' && timer.taskHabitId) {
     return timer.taskHabitId;
@@ -539,6 +542,7 @@ export const useAppController = () => {
   }, [state.timerPanel.restoredState]);
 
   const handleTaskClick = useCallback((task: Task) => {
+    if (isTaskCompleted(task)) return;
     if (task.status === 'inbox') {
       dispatch({ type: 'SET_SCHEDULING_TASK', task });
       return;
@@ -552,6 +556,7 @@ export const useAppController = () => {
 
     void (async () => {
       const isSessionAlive = await isRestoredSessionAlive(restoredTimerState);
+      if (isTaskCompleted(task)) return;
       if (!isSessionAlive) {
         dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
         dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
@@ -841,6 +846,7 @@ export const useAppController = () => {
   }, [state.recoveryPrompt.pending]);
 
   const handleTaskUnschedule = useCallback((task: Task) => {
+    if (isTaskCompleted(task)) return;
     try {
       updateTask({
         ...task,

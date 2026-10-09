@@ -146,6 +146,25 @@ describe('useAppController scheduling guards', () => {
     expect(controller?.state.activeTask?.priority).toBe('none');
   });
 
+  it.each(['completed', 'scheduled'] as const)('does not reopen a completed stored task from a %s card snapshot', async status => {
+    const task: Task = { id: 'finished', name: 'Finished task', origin: 'manual', priority: 'none', status: 'completed', date: '2026-04-22', startTime: '23:30', durationMinutes: 25, actualFocusMinutes: 20 };
+    localStorage.setItem(DAILY_LOGS_KEY, JSON.stringify({ [task.date]: { date: task.date, tasks: [task] } }));
+    await act(async () => {
+      root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+      await drainMicrotasks();
+    });
+    const snapshot: Task = { ...task, status };
+    await act(async () => {
+      controller?.actions.handleTaskClick(snapshot);
+      await controller?.actions.handleTaskUnschedule(snapshot);
+      await drainMicrotasks();
+    });
+    expect(controller?.state.activeTask).toBeNull();
+    expect(controller?.state.restoredTimerState).toBeNull();
+    expect(getDailyData(task.date)?.tasks[0]).toMatchObject({ status: 'completed', startTime: '23:30', actualFocusMinutes: 20 });
+    expect(electronIPC.startPomodoro).not.toHaveBeenCalled();
+  });
+
   it('checks pending recoveries on startup without logging an error', async () => {
     const errorSpy = jest.spyOn(console, 'error');
     try {
