@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // End-to-end checks against the real packaged renderer and IPC, using disposable data.
 const assert = require('assert/strict');
+const { findButton } = require('./packaged-ui');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -79,9 +80,16 @@ async function until(check, timeout = 10000) {
   while (Date.now() < end) { if (await check()) return; await delay(100); }
   throw new Error(`Condition timed out: ${String(check)}`);
 }
-async function clickText(text) {
-  await until(() => current.evaluate(`Array.from(document.querySelectorAll('button')).some(b => b.innerText.trim() === ${JSON.stringify(text)} && !b.disabled)`));
-  await current.evaluate(`(() => { const b = Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === ${JSON.stringify(text)} && !b.disabled); if (!b) throw Error('Missing button: ' + ${JSON.stringify(text)}); b.click(); })()`);
+const buttonQuery = (name, selector = 'button') => `(${findButton.toString()})(${JSON.stringify(name)}, ${JSON.stringify(selector)})`;
+async function clickText(text, selector = 'button') {
+  const query = buttonQuery(text, selector);
+  try {
+    await until(() => current.evaluate(`!!${query}`));
+  } catch (error) {
+    const buttons = await current.evaluate("Array.from(document.querySelectorAll('button')).map(b => ({ text: b.innerText.trim(), label: b.getAttribute('aria-label'), disabled: b.disabled }))");
+    throw new Error(`Button unavailable: ${text} (${selector}); buttons: ${JSON.stringify(buttons)}`, { cause: error });
+  }
+  await current.evaluate(`(() => { const button = ${query}; if (!button) throw Error('Missing button: ' + ${JSON.stringify(text)}); button.click(); })()`);
   await delay(150);
 }
 async function fill(selector, value) {
@@ -139,13 +147,14 @@ async function main() {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
   await fill('input[type=date]', day);
-  await clickText('Add one-time task');
+  await clickText('New task');
   const taskName = `Windows upgrade regression ${Date.now()}`;
   await fill('input[placeholder="e.g. Submit form, call advisor"]', taskName);
   await clickText('Create Task');
   let logs = await readLogs();
   const task = logs[day].tasks.find(t => t.name === taskName);
   assert.ok(task, 'Task created through the UI must persist');
+  assert.equal(task.priority, 'none', 'One-time tasks must not acquire a habit priority');
   await current.evaluate(`Array.from(document.querySelectorAll('span')).find(e => e.textContent.trim() === ${JSON.stringify(taskName)}).click()`);
   await delay(200);
   await current.evaluate("(() => { const b = Array.from(document.querySelectorAll('button')).find(b => !b.disabled && b.innerText.includes('No overlap detected')); if (!b) throw Error('No available schedule slot'); b.click(); })()");
@@ -157,8 +166,8 @@ async function main() {
 
   const movedDateValue = new Date(tomorrow); movedDateValue.setDate(movedDateValue.getDate() + 1);
   const movedDate = `${movedDateValue.getFullYear()}-${String(movedDateValue.getMonth()+1).padStart(2,'0')}-${String(movedDateValue.getDate()).padStart(2,'0')}`;
-  await clickText('Add one-time task');
-  const moveName = `P1 task move ${Date.now()}`;
+  await clickText('New task');
+  const moveName = `One-time task move ${Date.now()}`;
   await fill('input[placeholder="e.g. Submit form, call advisor"]', moveName);
   await clickText('Create Task');
   const moveTask = (await readLogs())[day].tasks.find(t => t.name === moveName);
@@ -246,7 +255,7 @@ async function main() {
   log('PASS restart persistence and profile rendering');
 
   const timer = { timerId: 'upgrade-timer', duration: 60, isFocusMode: true, notificationsEnabled: false,
-    taskId: task.id, taskName: task.name, taskDate: day, taskPriority: 'P1', taskDurationMinutes: 25, breakDurationSeconds: 10 };
+    taskId: task.id, taskName: task.name, taskDate: day, taskPriority: task.priority, taskDurationMinutes: task.durationMinutes, breakDurationSeconds: 10 };
   await invoke('pomodoro-start', timer);
   assert.equal((await invoke('pomodoro-get-active-timers'))[0].isActive, true);
   await current.evaluate("window.electronAPI.invoke('pomodoro-toggle', {timerId:'upgrade-timer'})");
@@ -288,6 +297,34 @@ async function main() {
   assert.equal((await invoke('pomodoro-get-pending-recoveries')).length, 0);
   assert.equal((await readLogs())[day].tasks.find(t => t.id === task.id).status, 'completed');
   log('PASS offline expiry recovery and task completion through UI');
+
+  await fill('input[type=date]', day);
+  await current.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  const completedSelector = `[data-task-id="${task.id}"]`;
+  await until(() => current.evaluate(`document.querySelector(${JSON.stringify(completedSelector)})?.getAttribute('role') === 'group'`));
+  const completedCard = await current.evaluate(`(() => {
+    const card = document.querySelector(${JSON.stringify(completedSelector)});
+    const before = { draggable: card.draggable, tabIndex: card.hasAttribute('tabindex'),
+      transitionProperties: getComputedStyle(card).transitionProperty.split(',').map(value => value.trim()),
+      transitionDurations: getComputedStyle(card).transitionDuration.split(',').map(value => value.trim()),
+      hasFocusAction: Array.from(card.querySelectorAll('button')).some(b => b.innerText.trim() === 'Start focus') };
+    card.click();
+    card.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true}));
+    card.dispatchEvent(new KeyboardEvent('keydown', {key:' ', bubbles:true}));
+    return before;
+  })()`);
+  assert.equal(completedCard.draggable, false);
+  assert.equal(completedCard.tabIndex, false);
+  assert.equal(completedCard.hasFocusAction, false);
+  for (const property of ['background-color', 'color', 'border-color']) {
+    const index = completedCard.transitionProperties.findLastIndex(value => value === property || value === 'all');
+    assert.ok(index >= 0, `Missing completion transition: ${property}`);
+    assert.equal(completedCard.transitionDurations[index % completedCard.transitionDurations.length], '0.8s', `${property} must transition for 800 ms`);
+  }
+  await delay(200);
+  assert.equal(await current.evaluate("!!document.querySelector('[role=dialog]')"), false, 'Completed card activation must not reopen focus');
+  assert.equal((await invoke('pomodoro-get-active-timers')).length, 0, 'Completed task must not restart');
+  log('PASS completed card cannot restart by mouse or keyboard; 800 ms completion transition');
 
   const appDataPath = path.join(profile, 'app-data.json');
   await current.evaluate("window.electronAPI.sendSync('storage-set-sync', {key:'durability_probe', value:'baseline'})");
@@ -397,7 +434,7 @@ async function main() {
   await fill('input[type=date]', todayDate);
   const efficiencyNames = ['A', 'B'].map(letter => `Efficiency ${letter} ${Date.now()}`);
   for (const name of efficiencyNames) {
-    await clickText('Add one-time task'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
+    await clickText('New task'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
   }
   const efficiencyTasks = (await readLogs())[todayDate].tasks.filter(t => efficiencyNames.includes(t.name));
   const efficiencyLogs = await readLogs();
@@ -405,10 +442,13 @@ async function main() {
   efficiencyLogs[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime = '09:07';
   await current.evaluate(`window.electronAPI.sendSync('storage-set-sync', {key:'mylifeos_daily_logs', value:${JSON.stringify(JSON.stringify(efficiencyLogs))}})`);
   await fill('input[type=date]', day); await fill('input[type=date]', todayDate);
-  for (const interval of [5,15,30]) {
+  assert.deepEqual(await current.evaluate("Array.from(document.querySelector('select').options).map(option => option.value)"), ['15', '30'], 'Only supported scheduling intervals may be offered');
+  for (const interval of [15,30]) {
     await current.evaluate(`(() => { const e = document.querySelector('select'); e.value = '${interval}'; e.dispatchEvent(new Event('change',{bubbles:true})); })()`);
     await delay(100);
+    assert.equal(await current.evaluate("document.querySelector('select').value"), String(interval));
     assert.ok(await current.evaluate("!!document.querySelector('[data-timeline-time=\"09:07\"]')"));
+    assert.equal((await readLogs())[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime, '09:07');
   }
   const focusCard = async name => current.evaluate(`(() => { const card = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(name)})); Array.from(card.querySelectorAll('button')).find(b => b.innerText.trim() === 'Start focus').click(); })()`);
   await focusCard(efficiencyNames[0]); await until(async () => (await invoke('pomodoro-get-active-timers')).length === 1);
@@ -428,7 +468,7 @@ async function main() {
     await fill('[role=dialog] input[type=date]', day); await clickText('Move selected tasks');
     await until(async () => (await readLogs())[day].tasks.some(t => t.id === efficiencyTasks[0].id));
     if (round === 1) {
-      await clickText('Add one-time task'); const beforeEditingUndo = JSON.stringify(await readLogs());
+      await clickText('New task'); const beforeEditingUndo = JSON.stringify(await readLogs());
       await current.evaluate("document.querySelector('input[placeholder=\"e.g. Submit form, call advisor\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
       assert.equal(JSON.stringify(await readLogs()), beforeEditingUndo);
       await current.evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))");
