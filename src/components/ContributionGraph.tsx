@@ -231,7 +231,7 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
         </div>
       </div>
           {/* Legend */}
-          <div className="flex items-center justify-end gap-2 mt-6 profile-activity-label text-xs text-gray-500">
+          <div className="profile-activity-legend flex items-center justify-end gap-2 mt-6 profile-activity-label text-xs text-gray-500">
             <span>{t('less')}</span>
             <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(0, false, false)}`}></div>
             <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(1, false, false)}`}></div>

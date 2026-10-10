@@ -675,9 +675,11 @@
   min-width: 0;
   gap: 3px;
 }
-.profile-activity-compact .profile-activity-body {
+.profile-activity-compact .profile-activity-body,
+.profile-activity-compact .profile-activity-legend {
   width: 100%;
-  max-width: 800px;
+  max-width: 1008px;
+  margin-inline: auto;
 }
 .profile-activity-compact .profile-activity-grid,
 .profile-activity-compact .profile-activity-grid > div {
