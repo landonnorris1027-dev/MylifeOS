@@ -6,8 +6,7 @@ import {
   completedFocusDistribution,
 } from './completedFocusSummary';
 
-const RADIUS = 80;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+import { donutSegmentPath } from './donutGeometry';
 
 export default function CompletedFocusDistribution({
   week,
@@ -83,60 +82,61 @@ function DistributionCard({
           : 'Measured focus on completed tasks'}
       </p>
       <div className="profile-distribution-content">
-        <ul className="profile-distribution-legend">
-          {categories.map((category) => (
-            <li key={category.priority}>
-              <div>
-                <i
-                  className={`profile-distribution-key priority-${category.priority}`}
-                  aria-hidden="true"
-                />
-                <span>{category.label}</span>
-                <strong>
-                  {(category.proportion * 100).toFixed(1)}
-                  <small>%</small>
-                </strong>
-              </div>
-              <p>{minuteLabel(category.seconds)}</p>
-            </li>
-          ))}
-        </ul>
         <div className="profile-donut">
           <svg
             viewBox="0 0 200 200"
             role="img"
             aria-label={`${title} · ${range} · ${zh ? '总计' : 'Total'} ${minuteLabel(totalSeconds)} · ${summary}`}
           >
-            <circle
-              className="profile-donut-track"
-              cx="100"
-              cy="100"
-              r={RADIUS}
-            />
+            {!totalSeconds && (
+              <circle
+                className="profile-donut-track"
+                cx="100"
+                cy="100"
+                r="76"
+              />
+            )}
             {categories
               .filter((category) => category.seconds > 0)
               .map((category) => {
                 const start = offset;
-                offset += category.proportion * CIRCUMFERENCE;
+                offset += category.proportion;
                 return (
-                  <circle
+                  <path
                     key={category.priority}
                     className={`profile-donut-segment priority-${category.priority}`}
-                    cx="100"
-                    cy="100"
-                    r={RADIUS}
-                    transform="rotate(-90 100 100)"
-                    strokeDasharray={`${category.proportion * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
-                    strokeDashoffset={-start}
+                    d={donutSegmentPath(start, category.proportion)}
+                    fillRule="evenodd"
                   />
                 );
               })}
           </svg>
           <div className="profile-donut-total" aria-hidden="true">
+            <span>{zh ? '实际专注' : 'Measured focus'}</span>
             <strong>{totalLabel}</strong>
             <span>{zh ? '分钟' : 'min'}</span>
           </div>
         </div>
+        <ul className="profile-distribution-legend">
+          {categories.map((category) => (
+            <li key={category.priority}>
+              <div className="profile-distribution-category">
+                <i
+                  className={`profile-distribution-key priority-${category.priority}`}
+                  aria-hidden="true"
+                />
+                <span>{category.label}</span>
+              </div>
+              <span className="profile-distribution-duration">
+                {minuteLabel(category.seconds)}
+              </span>
+              <strong>
+                {(category.proportion * 100).toFixed(1)}
+                <small>%</small>
+              </strong>
+            </li>
+          ))}
+        </ul>
       </div>
       {!totalSeconds && (
         <p className="profile-caption profile-distribution-empty">

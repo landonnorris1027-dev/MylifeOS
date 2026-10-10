@@ -91,10 +91,21 @@ describe('daily and weekly completion rings', () => {
       expect(cards[0].querySelectorAll('.profile-donut-segment')).toHaveLength(
         4,
       );
-      const lengths = Array.from(
-        cards[0].querySelectorAll('circle[stroke-dasharray]'),
-      ).map((el) => Number(el.getAttribute('stroke-dasharray')!.split(' ')[0]));
-      expect(lengths[0] / lengths.reduce((a, b) => a + b, 0)).toBeCloseTo(0.1);
+      expect(
+        cards[0].querySelectorAll('path.profile-donut-segment'),
+      ).toHaveLength(4);
+      expect(cards[0].querySelector('.profile-donut')!.nextElementSibling).toBe(
+        cards[0].querySelector('ul'),
+      );
+      expect(
+        Array.from(
+          cards[0].querySelectorAll('.profile-distribution-duration'),
+        ).map((el) => el.textContent),
+      ).toEqual(
+        language === 'zh'
+          ? ['10 分钟', '20 分钟', '30 分钟', '40 分钟']
+          : ['10 min', '20 min', '30 min', '40 min'],
+      );
       expect(
         cards[0].querySelector('.profile-donut-total strong')?.textContent,
       ).toBe('100');
