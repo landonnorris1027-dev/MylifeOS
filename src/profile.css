@@ -675,6 +675,14 @@
   min-width: 0;
   gap: 3px;
 }
+.profile-activity-compact .profile-activity-body {
+  width: 100%;
+  max-width: 800px;
+}
+.profile-activity-compact .profile-activity-grid,
+.profile-activity-compact .profile-activity-grid > div {
+  gap: 2px;
+}
 .profile-activity-cell {
   width: 100%;
   aspect-ratio: 1;

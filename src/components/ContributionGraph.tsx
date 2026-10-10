@@ -126,7 +126,7 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
   const activityTitle = t('focus_activity_year', { year: currentYear });
 
   return (
-    <div className="profile-activity bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
+    <div className={`profile-activity ${!isAndroid() ? 'profile-activity-compact' : ''} bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{activityTitle}</h2>

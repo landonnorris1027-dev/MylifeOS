@@ -1,0 +1,112 @@
+[
+  {
+    "language": "zh",
+    "width": 390,
+    "cellWidth": 10.5625,
+    "cellHeight": 10.5625,
+    "gridGap": "2px",
+    "bodyWidth": 720,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "zh",
+    "width": 768,
+    "cellWidth": 10.5625,
+    "cellHeight": 10.5625,
+    "gridGap": "2px",
+    "bodyWidth": 720,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "zh",
+    "width": 1280,
+    "cellWidth": 12.0625,
+    "cellHeight": 12.0625,
+    "gridGap": "2px",
+    "bodyWidth": 800,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "zh",
+    "width": 1440,
+    "cellWidth": 12.0625,
+    "cellHeight": 12.0625,
+    "gridGap": "2px",
+    "bodyWidth": 800,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "zh",
+    "width": 1920,
+    "cellWidth": 12.0625,
+    "cellHeight": 12.0625,
+    "gridGap": "2px",
+    "bodyWidth": 800,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "cellWidth": 10.5625,
+    "cellHeight": 10.5625,
+    "gridGap": "2px",
+    "bodyWidth": 720,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "cellWidth": 10.5625,
+    "cellHeight": 10.5625,
+    "gridGap": "2px",
+    "bodyWidth": 720,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "en",
+    "width": 1280,
+    "cellWidth": 12.0625,
+    "cellHeight": 12.0625,
+    "gridGap": "2px",
+    "bodyWidth": 800,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "cellWidth": 12.0625,
+    "cellHeight": 12.0625,
+    "gridGap": "2px",
+    "bodyWidth": 800,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  },
+  {
+    "language": "en",
+    "width": 1920,
+    "cellWidth": 12.0625,
+    "cellHeight": 12.0625,
+    "gridGap": "2px",
+    "bodyWidth": 800,
+    "cells": 365,
+    "overflow": false,
+    "yearEndVisibleAfterScroll": true
+  }
+]
