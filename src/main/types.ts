@@ -1,4 +1,4 @@
-export type Priority = 'P1' | 'P2' | 'P3';
+export type Priority = 'P1' | 'P2' | 'P3' | 'none';
 
 export interface PomodoroNotificationMessages {
   focusCompleteTitle: string;

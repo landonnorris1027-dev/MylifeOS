@@ -20,6 +20,21 @@ describe('durable focus operations', () => {
     return { store, runtime, filePath, advance: (ms: number) => { now += ms; }, reload: () => new DurableFocusRuntime({ filePath, store, now: () => now }) };
   };
 
+  it('persists and restores an unprioritized manual session through completion', () => {
+    const { runtime, store, advance, reload } = setup();
+    const entry = JSON.parse(store.get('mylifeos_daily_logs')!);
+    entry[timer.taskDate].tasks[0].priority = 'P1'; // Legacy on disk; completion must persist the new semantics.
+    entry[timer.taskDate].tasks[0].origin = 'manual';
+    store.commit({ mylifeos_daily_logs: JSON.stringify(entry) });
+    runtime.start({ ...timer, taskPriority: 'none' }); advance(1500);
+    runtime.toggle(timer.timerId);
+    const restored = reload(); restored.initialize();
+    expect(restored.active()[0]).toMatchObject({ taskPriority: 'none', isActive: false });
+    restored.complete(timer.timerId);
+    expect(JSON.parse(store.get(FOCUS_SESSIONS_KEY)!)[0]).toMatchObject({ priority: 'none', actualFocusSeconds: 1.5 });
+    expect(JSON.parse(store.get('mylifeos_daily_logs')!)[timer.taskDate].tasks[0]).toMatchObject({ priority: 'none', status: 'completed' });
+  });
+
   it('commits completion without a renderer and excludes paused seconds', () => {
     const { runtime, store, advance, reload } = setup();
     runtime.start(timer); advance(15500); runtime.toggle(timer.timerId);

@@ -1,0 +1,312 @@
+{
+  "date": "2026-10-08",
+  "branch": "codex/windows-ui-motion",
+  "baseline": "af056980a1b6823a27408c9a5ed47ca765107600",
+  "typecheck": "passed",
+  "targetedTests": {
+    "files": 5,
+    "tests": 36,
+    "status": "passed"
+  },
+  "browser": {
+    "checks": [
+      "next day displays an empty list",
+      "09:07 is retained at 5-minute precision",
+      "09:07 is retained at 15-minute precision",
+      "09:07 is retained at 30-minute precision",
+      "full day exposes midnight",
+      "search focuses the query input",
+      "submitted empty search has no results",
+      "search submit returns both matching tasks",
+      "search result jumps to its task",
+      "keyboard focus reveals secondary actions",
+      "reschedule moves the selected task",
+      "undo restores the original date",
+      "card click opens working schedule selection",
+      "undo restores inbox after scheduling",
+      "batch reschedule moves both selected tasks",
+      "undo restores the full batch",
+      "drag and drop schedules into its original time-slot target",
+      "undo restores inbox after drag and drop",
+      "browser focus starts, pauses and closes with Escape",
+      "English narrow layout has no horizontal overflow",
+      "Tab remains inside search dialog",
+      "reduced motion disables moving selection plate",
+      "200 percent equivalent layout has no horizontal overflow",
+      "no renderer exceptions or console warnings during UI regression"
+    ],
+    "errors": []
+  },
+  "stress": {
+    "checks": [
+      "dense/long content fits 1440px",
+      "long unbroken task name wraps at 1440px",
+      "dense/long content fits 1280px",
+      "long unbroken task name wraps at 1280px",
+      "dense/long content fits 900px",
+      "long unbroken task name wraps at 900px",
+      "dense/long content fits 390px",
+      "long unbroken task name wraps at 390px",
+      "coarse pointer is active",
+      "coarse pointer layout has no horizontal overflow",
+      "all touch secondary actions are visible",
+      "touch task actions reach 48px",
+      "long-title focus has no horizontal overflow",
+      "long-title focus begins within the scrollable overlay"
+    ]
+  },
+  "layouts": {
+    "layouts": [
+      {
+        "width": 1440,
+        "height": 900,
+        "overflow": false,
+        "contentWidth": 1440,
+        "title": "10月8日星期四",
+        "cards": 8
+      },
+      {
+        "width": 1280,
+        "height": 800,
+        "overflow": false,
+        "contentWidth": 1280,
+        "title": "10月8日星期四",
+        "cards": 8
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "overflow": false,
+        "contentWidth": 1920,
+        "title": "10月8日星期四",
+        "cards": 8
+      },
+      {
+        "width": 900,
+        "height": 900,
+        "overflow": false,
+        "contentWidth": 900,
+        "title": "10月8日星期四",
+        "cards": 8
+      },
+      {
+        "width": 390,
+        "height": 844,
+        "overflow": false,
+        "contentWidth": 390,
+        "title": "10月8日星期四",
+        "cards": 8
+      }
+    ],
+    "errors": [],
+    "searchResults": 2
+  },
+  "motion": {
+    "format": "actual start/middle/end screenshots, not a video",
+    "frames": [
+      {
+        "action": "selection",
+        "state": "start",
+        "file": "output/playwright/ui-motion/motion-selection-start.png",
+        "at": 503.89999997615814,
+        "animations": [
+          {
+            "time": 280,
+            "playState": "finished"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 0, 0)",
+        "panel": null
+      },
+      {
+        "action": "selection",
+        "state": "middle",
+        "file": "output/playwright/ui-motion/motion-selection-middle.png",
+        "at": 598.1999999880791,
+        "animations": [
+          {
+            "time": 33.25599998803808,
+            "playState": "running"
+          },
+          {
+            "time": 33.25599998803808,
+            "playState": "running"
+          },
+          {
+            "time": 33.25599998803808,
+            "playState": "running"
+          },
+          {
+            "time": 280,
+            "playState": "finished"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 36.1808, 0)",
+        "panel": null
+      },
+      {
+        "action": "selection",
+        "state": "end",
+        "file": "output/playwright/ui-motion/motion-selection-end.png",
+        "at": 908.3000000119209,
+        "animations": [],
+        "selected": "matrix(1, 0, 0, 1, 62, 0)",
+        "panel": null
+      },
+      {
+        "action": "entrance",
+        "state": "start",
+        "file": "output/playwright/ui-motion/motion-entrance-start.png",
+        "at": 957.6000000238419,
+        "animations": [
+          {
+            "time": 4.155999961029777,
+            "playState": "running"
+          },
+          {
+            "time": 4.155999961029777,
+            "playState": "running"
+          },
+          {
+            "time": 4.155999961029777,
+            "playState": "running"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 57.0576, 0)",
+        "panel": null
+      },
+      {
+        "action": "entrance",
+        "state": "middle",
+        "file": "output/playwright/ui-motion/motion-entrance-middle.png",
+        "at": 1032.5,
+        "animations": [
+          {
+            "time": 79.25599996102983,
+            "playState": "running"
+          },
+          {
+            "time": 79.25599996102983,
+            "playState": "running"
+          },
+          {
+            "time": 79.25599996102983,
+            "playState": "running"
+          },
+          {
+            "time": 29.26099995253617,
+            "playState": "running"
+          },
+          {
+            "time": 29.26099995253617,
+            "playState": "running"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 6.82118, 0)",
+        "panel": "matrix(0.98826, 0, 0, 0.98826, 0, 4.69591)",
+        "primary": "暂停"
+      },
+      {
+        "action": "entrance",
+        "state": "end",
+        "file": "output/playwright/ui-motion/motion-entrance-end.png",
+        "at": 1387.8999999761581,
+        "animations": [
+          {
+            "time": 280,
+            "playState": "finished"
+          },
+          {
+            "time": 150,
+            "playState": "finished"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 0, 0)",
+        "panel": "matrix(1, 0, 0, 1, 0, 0)",
+        "primary": "暂停"
+      },
+      {
+        "action": "primary",
+        "state": "start",
+        "file": "output/playwright/ui-motion/motion-primary-start.png",
+        "at": 1439.6000000238419,
+        "animations": [
+          {
+            "time": 280,
+            "playState": "finished"
+          },
+          {
+            "time": 150,
+            "playState": "finished"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 0, 0)",
+        "panel": "matrix(1, 0, 0, 1, 0, 0)",
+        "primary": "暂停"
+      },
+      {
+        "action": "primary",
+        "state": "middle",
+        "file": "output/playwright/ui-motion/motion-primary-middle.png",
+        "at": 1545.199999988079,
+        "animations": [
+          {
+            "time": 62.48599996669224,
+            "playState": "running"
+          },
+          {
+            "time": 62.48599996669224,
+            "playState": "running"
+          },
+          {
+            "time": 58.364999961294295,
+            "playState": "running"
+          },
+          {
+            "time": 280,
+            "playState": "finished"
+          },
+          {
+            "time": 150,
+            "playState": "finished"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 0, 0)",
+        "panel": "matrix(1, 0, 0, 1, 0, 0)",
+        "primary": "暂停"
+      },
+      {
+        "action": "primary",
+        "state": "end",
+        "file": "output/playwright/ui-motion/motion-primary-end.png",
+        "at": 1780,
+        "animations": [
+          {
+            "time": 280,
+            "playState": "finished"
+          },
+          {
+            "time": 150,
+            "playState": "finished"
+          }
+        ],
+        "selected": "matrix(1, 0, 0, 1, 0, 0)",
+        "panel": "matrix(1, 0, 0, 1, 0, 0)",
+        "primary": "继续"
+      }
+    ]
+  },
+  "native": {
+    "profile": "output\\playwright\\ui-motion\\native-profile-5oQdJE",
+    "checks": [
+      "actual Electron 200 percent zoom fits without horizontal overflow",
+      "one native session after repeated focus clicks",
+      "one pause command and acknowledged paused UI",
+      "close and reopen retains paused session",
+      "application restart restores same native session",
+      "one durable completion, original 09:07 schedule preserved, break offered after save",
+      "break skip closes without duplicate focus save"
+    ],
+    "errors": []
+  }
+}

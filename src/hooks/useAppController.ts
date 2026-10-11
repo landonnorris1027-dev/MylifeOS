@@ -31,7 +31,7 @@ import {
   isTaskWithinDay,
 } from '../services/scheduling';
 import { getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
-import { DailyData, Task, isPriority } from '../types';
+import { DailyData, Task, isTaskPriority } from '../types';
 import { flushStorageWrites, isStorageReadOnly } from '../services/storage/localStorageStore';
 import { isAndroid } from '../services/platform';
 
@@ -75,7 +75,7 @@ interface AppControllerState {
   dailyData: DailyData | null;
   graphRefreshToken: number;
   timelineMode: TimelineMode;
-  intervalMinutes: 5 | 15 | 30;
+  intervalMinutes: 15 | 30;
   autoStartFocus: boolean;
   isHabitConfigOpen: boolean;
   isManualTaskOpen: boolean;
@@ -93,7 +93,7 @@ type AppControllerAction =
   | { type: 'SET_VIEW'; view: ViewMode }
   | { type: 'SET_SELECTED_DATE'; date: string }
   | { type: 'LOAD_DAY_DATA'; dailyData: DailyData }
-  | { type: 'SET_INTERVAL'; intervalMinutes: 5 | 15 | 30 }
+  | { type: 'SET_INTERVAL'; intervalMinutes: 15 | 30 }
   | { type: 'SET_TIMELINE_MODE'; timelineMode: TimelineMode }
   | { type: 'SET_HABIT_CONFIG_OPEN'; isOpen: boolean }
   | { type: 'SET_MANUAL_TASK_OPEN'; isOpen: boolean }
@@ -272,6 +272,9 @@ const findStoredTimerTask = (taskId?: string | null, taskDate?: string | null): 
   return getDailyData(taskDate)?.tasks.find((task) => task.id === taskId) || null;
 };
 
+const isTaskCompleted = (task: Task): boolean => task.status === 'completed'
+  || findStoredTimerTask(task.id, task.date)?.status === 'completed';
+
 const getTimerTaskHabitId = (timer: Pick<PomodoroUpdateData | PomodoroRecoveryData, 'taskId' | 'taskDate' | 'taskHabitId'>) => {
   if (typeof timer.taskHabitId === 'string' && timer.taskHabitId) {
     return timer.taskHabitId;
@@ -288,7 +291,7 @@ const isRestoredSessionAlive = async (snapshot: TimerSessionSnapshot): Promise<b
 };
 
 export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | null => {
-  if (!recovery.taskId || !recovery.taskName || !recovery.taskDate || !isPriority(recovery.taskPriority) || !recovery.taskDurationMinutes) {
+  if (!recovery.taskId || !recovery.taskName || !recovery.taskDate || !isTaskPriority(recovery.taskPriority) || !recovery.taskDurationMinutes) {
     return null;
   }
 
@@ -300,7 +303,7 @@ export const buildTaskFromRecovery = (recovery: PomodoroRecoveryData): Task | nu
     habitId: habitId || undefined,
     origin: habitId ? 'habit' : 'manual',
     name: recovery.taskName,
-    priority: recovery.taskPriority,
+    priority: habitId ? recovery.taskPriority : 'none',
     status: 'scheduled',
     date: recovery.taskDate,
     startTime: storedTask?.startTime,
@@ -313,7 +316,7 @@ export const buildTimerDisplayTask = (timer: PomodoroUpdateData, fallbackName: s
   const stored = timer.taskId && timer.taskDate ? findStoredTimerTask(timer.taskId, timer.taskDate) : null;
   return stored || {
     id: timer.taskId || timer.timerId, date: timer.taskDate || getTodayStr(),
-    name: timer.taskName || fallbackName, priority: isPriority(timer.taskPriority) ? timer.taskPriority : 'P2',
+    name: timer.taskName || fallbackName, priority: getTimerTaskHabitId(timer) && isTaskPriority(timer.taskPriority) ? timer.taskPriority : 'none',
     habitId: getTimerTaskHabitId(timer) || undefined, origin: timer.taskHabitId ? 'habit' : 'manual',
     status: 'scheduled', durationMinutes: timer.taskDurationMinutes || Math.max(1, Math.ceil(timer.duration / 60)),
   };
@@ -535,7 +538,7 @@ export const useAppController = () => {
 
   const handleManualTaskCreate = useCallback((input: {
     name: string;
-    priority: Task['priority'];
+    priority?: Task['priority'];
     durationMinutes: number;
     goalName?: string;
     note?: string;
@@ -579,6 +582,7 @@ export const useAppController = () => {
   }, [state.timerPanel.restoredState]);
 
   const handleTaskClick = useCallback((task: Task) => {
+    if (isTaskCompleted(task)) return;
     if (task.status === 'inbox') {
       dispatch({ type: 'SET_SCHEDULING_TASK', task });
       return;
@@ -592,6 +596,7 @@ export const useAppController = () => {
 
     void (async () => {
       const isSessionAlive = await isRestoredSessionAlive(restoredTimerState);
+      if (isTaskCompleted(task)) return;
       if (!isSessionAlive) {
         dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
         dispatch({ type: 'OPEN_TIMER_FOR_TASK', task });
@@ -880,6 +885,7 @@ export const useAppController = () => {
   }, [state.recoveryPrompt.pending]);
 
   const handleTaskUnschedule = useCallback(async (task: Task) => {
+    if (isTaskCompleted(task)) return;
     try {
       await operations.current.change(task, { date: task.date, status: 'inbox', startTime: undefined }, 'unschedule');
       loadData(state.selectedDate);
@@ -961,7 +967,7 @@ export const useAppController = () => {
     [state.selectedDate, t],
   );
 
-  const setIntervalMinutes = useCallback((intervalMinutes: 5 | 15 | 30) => {
+  const setIntervalMinutes = useCallback((intervalMinutes: 15 | 30) => {
     try { savePlannerSettings({ intervalMinutes }); dispatch({ type: 'SET_INTERVAL', intervalMinutes }); }
     catch (error) { reportStorageError(error); }
   }, [reportStorageError]);
@@ -975,9 +981,11 @@ export const useAppController = () => {
     } catch (error) { reportStorageError(error); }
   }, [reportStorageError, t]);
   const handleDirectFocus = useCallback(async (task: Task) => {
+    if (isTaskCompleted(task)) return;
     if (task.date !== getTodayStr() || !['inbox', 'scheduled'].includes(task.status)) return;
     try {
       if ((await electronIPC.getActiveTimers(true)).length) { await openCurrentSession(); return; }
+      if (isTaskCompleted(task)) return;
       dispatch({ type: 'SET_TIMER_SESSION', restoredState: null });
       dispatch({ type: 'OPEN_TIMER_FOR_TASK', task, autoStart: true });
     } catch (error) { reportStorageError(error); }

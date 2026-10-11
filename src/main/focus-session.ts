@@ -6,7 +6,7 @@ export interface FocusSession {
   taskName: string | null;
   taskHabitId?: string | null;
   goalId?: string;
-  priority?: 'P1' | 'P2' | 'P3';
+  priority?: 'P1' | 'P2' | 'P3' | 'none';
   plannedSeconds: number;
   actualFocusSeconds: number;
   startedAt: number;
@@ -36,7 +36,7 @@ export function isFocusSession(value: unknown): value is FocusSession {
     && (s.taskHabitId === undefined || s.taskHabitId === null || id(s.taskHabitId))
     && (s.goalId === undefined || id(s.goalId))
     && (s.notificationsEnabled === undefined || typeof s.notificationsEnabled === 'boolean')
-    && (s.priority === undefined || ['P1', 'P2', 'P3'].includes(s.priority))
+    && (s.priority === undefined || ['P1', 'P2', 'P3', 'none'].includes(s.priority))
     && Number.isFinite(s.plannedSeconds) && s.plannedSeconds > 0 && s.plannedSeconds <= 86400
     && Number.isFinite(s.actualFocusSeconds) && s.actualFocusSeconds >= 0
     && s.actualFocusSeconds <= s.plannedSeconds

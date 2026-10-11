@@ -1,15 +1,16 @@
 import { revisionCache } from './revisionCache';
+import { normalizeTaskPriorities } from '../taskPriority';
 import { DailyData } from '../../types';
 import { KEYS, getStorageItem, safeParse, setStorageItem } from './localStorageStore';
 
-const readLogs = revisionCache([KEYS.DAILY_LOGS], ([raw]) => safeParse<Record<string, DailyData>>(raw, {}));
+const readLogs = revisionCache([KEYS.DAILY_LOGS], ([raw]) => normalizeTaskPriorities(safeParse<Record<string, DailyData>>(raw, {})));
 export const getDailyLogsSnapshot = (): Readonly<Record<string, DailyData>> => readLogs();
 const copyDay = (day: DailyData): DailyData => ({ ...day, tasks: day.tasks.map(task => ({ ...task })) });
 export const getAllDailyLogs = (): Record<string, DailyData> => Object.fromEntries(
   Object.entries(readLogs()).map(([date, day]) => [date, copyDay(day)]));
 
 export const saveAllDailyLogs = (logs: Record<string, DailyData>) => {
-  setStorageItem(KEYS.DAILY_LOGS, JSON.stringify(logs));
+  setStorageItem(KEYS.DAILY_LOGS, JSON.stringify(normalizeTaskPriorities(logs)));
 };
 
 export const getDailyLogByDate = (date: string): DailyData | null => {

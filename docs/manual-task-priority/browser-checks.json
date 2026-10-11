@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "oldManualNoPriorityIcon",
+    "purpleMatchesReference",
+    "legacyManualNoPriority",
+    "habitPriorityRetained",
+    "originalStartTimeRetained",
+    "noManualPrioritySelector",
+    "newManualPurple",
+    "manualPrioritiesPersistAsNone",
+    "noPrioritySearchIncludesOldAndNew",
+    "habitExcludedFromNoPrioritySearch",
+    "focusPurpleIndicator",
+    "pausedTimerNoPriority",
+    "noMobileHorizontalOverflow",
+    "noPageExceptions"
+  ],
+  "errors": []
+}

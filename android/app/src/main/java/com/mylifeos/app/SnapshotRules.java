@@ -78,7 +78,7 @@ final class SnapshotRules {
                         JSONObject task = tasks.getJSONObject(i);
                         require(text(task.opt("id")) && ids.add(task.getString("id")) && text(task.opt("name")), "Invalid task");
                         require(dayKey.equals(task.getString("date")) && task.optInt("durationMinutes") > 0, "Invalid task date or duration");
-                        require(task.optString("status").matches("inbox|scheduled|completed|deleted") && task.optString("priority").matches("P[123]"), "Invalid task status or priority");
+                        require(task.optString("status").matches("inbox|scheduled|completed|deleted") && (task.optString("priority").matches("P[123]") || task.optString("priority").equals("none") && (task.optString("origin").equals("manual") || !task.has("habitId"))), "Invalid task status or priority");
                         if (task.has("actualFocusMinutes")) require(finite(task.get("actualFocusMinutes")) && task.getDouble("actualFocusMinutes") >= 0, "Invalid focus minutes");
                         if (task.has("startTime")) require(task.getString("startTime").matches("([01]\\d|2[0-3]):[0-5]\\d"), "Invalid scheduled time");
                     }
@@ -177,6 +177,7 @@ final class SnapshotRules {
             JSONObject task = tasks.getJSONObject(i);
             if (completion.getString("taskId").equals(task.optString("id"))) {
                 require(!"deleted".equals(task.optString("status")), "Completed session task was deleted");
+                if (task.optString("origin").equals("manual") || !task.has("habitId")) task.put("priority", "none");
                 task.put("status", "completed").put("actualFocusMinutes", completion.getInt("minutes")); found = true; break;
             }
         }

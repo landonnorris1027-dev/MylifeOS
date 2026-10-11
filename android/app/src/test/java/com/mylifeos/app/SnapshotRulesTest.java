@@ -81,4 +81,32 @@ public class SnapshotRulesTest {
         data.getJSONObject("completions").put("s", new JSONObject().put("minutes", -1));
         SnapshotRules.validate(data);
     }
+    @Test public void acceptsUnprioritizedManualTasksAndCompletesTheirTimer() throws Exception {
+        JSONObject data = fixture();
+        JSONObject logs = new JSONObject(data.getJSONObject("entries").getString(SnapshotRules.LOGS));
+        JSONObject task = logs.getJSONObject("2026-10-02").getJSONArray("tasks").getJSONObject(0);
+        task.remove("habitId"); task.put("origin", "manual").put("priority", "none");
+        data.getJSONObject("entries").put(SnapshotRules.LOGS, logs.toString());
+        data.getJSONObject("sessions").getJSONObject("s").put("taskPriority", "none");
+        SnapshotRules.validate(data);
+        assertTrue(SnapshotRules.complete(data, "s", 1500000, false));
+        assertEquals("none", SnapshotRules.findTask(data, "2026-10-02", "t").getString("priority"));
+        SnapshotRules.validate(data);
+    }
+    @Test public void completingLegacyManualTaskRemovesItsPriority() throws Exception {
+        JSONObject data = fixture();
+        JSONObject logs = new JSONObject(data.getJSONObject("entries").getString(SnapshotRules.LOGS));
+        logs.getJSONObject("2026-10-02").getJSONArray("tasks").getJSONObject(0).remove("habitId");
+        data.getJSONObject("entries").put(SnapshotRules.LOGS, logs.toString());
+        assertTrue(SnapshotRules.complete(data, "s", 1500000, false));
+        assertEquals("none", SnapshotRules.findTask(data, "2026-10-02", "t").getString("priority"));
+        SnapshotRules.validate(data);
+    }
+    @Test(expected = JSONException.class) public void rejectsUnprioritizedHabitTask() throws Exception {
+        JSONObject data = fixture();
+        JSONObject logs = new JSONObject(data.getJSONObject("entries").getString(SnapshotRules.LOGS));
+        logs.getJSONObject("2026-10-02").getJSONArray("tasks").getJSONObject(0).put("priority", "none");
+        data.getJSONObject("entries").put(SnapshotRules.LOGS, logs.toString());
+        SnapshotRules.validate(data);
+    }
 }

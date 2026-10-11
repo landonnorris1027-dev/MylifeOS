@@ -1,0 +1,15 @@
+{
+  "profile": "D:\\CodexData\\.codex\\worktrees\\windows-improvements\\MylifeOS-main\\output\\playwright\\ui-motion\\manual-priority-native\\native-profile-XSmkaP",
+  "checks": [
+    "actual Electron 200 percent zoom fits without horizontal overflow",
+    "manual native timer uses no priority and purple icon",
+    "one native session after repeated focus clicks",
+    "one pause command and acknowledged paused UI",
+    "close and reopen retains paused session",
+    "application restart restores same native session",
+    "saved task and session preserve no priority",
+    "one durable completion, original 09:07 schedule preserved, break offered after save",
+    "break skip closes without duplicate focus save"
+  ],
+  "errors": []
+}

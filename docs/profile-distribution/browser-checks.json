@@ -1,0 +1,111 @@
+{
+  "results": [
+    {
+      "language": "zh",
+      "width": 390,
+      "zooms": [
+        1
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "zh",
+      "width": 768,
+      "zooms": [
+        1
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "zh",
+      "width": 1280,
+      "zooms": [
+        1,
+        2
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "zh",
+      "width": 1440,
+      "zooms": [
+        1,
+        2
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "zh",
+      "width": 1920,
+      "zooms": [
+        1,
+        2
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "en",
+      "width": 390,
+      "zooms": [
+        1
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "en",
+      "width": 768,
+      "zooms": [
+        1
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "en",
+      "width": 1280,
+      "zooms": [
+        1,
+        2
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "en",
+      "width": 1440,
+      "zooms": [
+        1,
+        2
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    },
+    {
+      "language": "en",
+      "width": 1920,
+      "zooms": [
+        1,
+        2
+      ],
+      "overflow": false,
+      "dateChange": true,
+      "weeklyIndependentOfRolling": true
+    }
+  ],
+  "errors": []
+}

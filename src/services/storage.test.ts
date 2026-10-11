@@ -108,7 +108,7 @@ describe('storage service', () => {
 
     expect(manualTask).toMatchObject({
       name: 'Submit form',
-      priority: 'P2',
+      priority: 'none',
       durationMinutes: 20,
       origin: 'manual',
       goalId: goal?.id,

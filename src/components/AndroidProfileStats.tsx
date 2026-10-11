@@ -3,7 +3,7 @@ import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, Flame, Target, Trop
 import { useLanguage } from '../contexts/LanguageContext';
 import { formatDateLocal, getGoals, getProfileStats, parseDateLocal } from '../services/storage';
 import { getProfileSettings } from '../services/profileSettings';
-import { PRIORITY_STYLES, Priority } from '../types';
+import { PRIORITY_STYLES, TaskPriority } from '../types';
 
 interface ProfileStatsProps {
   refreshToken?: number;
@@ -15,8 +15,8 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ refreshToken = 0 }) => {
   const profileSettings = useMemo(() => getProfileSettings(), [refreshToken]);
   const goals = useMemo(() => getGoals(), [refreshToken]);
   const maxRecentMinutes = Math.max(...stats.recentWeek.map((day) => day.minutes), 1);
-  const totalPriorityMinutes = (stats.priorityMinutes.P1 + stats.priorityMinutes.P2 + stats.priorityMinutes.P3) || 1;
-  const priorityOrder: Priority[] = ['P1', 'P2', 'P3'];
+  const totalPriorityMinutes = (stats.priorityMinutes.P1 + stats.priorityMinutes.P2 + stats.priorityMinutes.P3 + stats.priorityMinutes.none) || 1;
+  const priorityOrder: TaskPriority[] = ['P1', 'P2', 'P3', 'none'];
   const weeklyTargetMinutes = profileSettings.weeklyTargetMinutes;
   const recentWeekMinutes = stats.recentWeek.reduce((sum, day) => sum + day.minutes, 0);
   const weeklyTargetPct = Math.min(100, Math.round((recentWeekMinutes / weeklyTargetMinutes) * 100));
@@ -138,7 +138,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ refreshToken = 0 }) => {
               const style = PRIORITY_STYLES[priority];
               const minutes = stats.priorityMinutes[priority];
               const pct = Math.round((minutes / totalPriorityMinutes) * 100);
-              const labelKey = `${priority.toLowerCase()}_label` as 'p1_label' | 'p2_label' | 'p3_label';
+              const labelKey = priority === 'none' ? 'no_priority' : `${priority.toLowerCase()}_label` as 'p1_label' | 'p2_label' | 'p3_label';
 
               return (
                 <div key={priority} className="space-y-2">

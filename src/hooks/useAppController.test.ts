@@ -136,6 +136,38 @@ describe('useAppController scheduling guards', () => {
     vi.useRealTimers();
   });
 
+  it('restores a legacy active manual timer as unprioritized while keeping its remaining time', async () => {
+    getActiveTimersMock.mockResolvedValue([{ timerId: 'old-active', taskId: 'manual', taskName: 'Legacy manual',
+      taskDate: '2026-04-22', taskPriority: 'P1', taskDurationMinutes: 25, duration: 1500,
+      remaining: 61000, endTime: Date.now()+61000, elapsed: 1439000, isFinished: false, isActive: false, isFocusMode: true }]);
+    await act(async () => {
+      root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+      await drainMicrotasks();
+    });
+    expect(controller?.state.restoredTimerState).toMatchObject({ taskPriority: 'none', remainingSeconds: 61 });
+    expect(controller?.state.activeTask?.priority).toBe('none');
+  });
+
+  it.each(['completed', 'scheduled'] as const)('does not reopen a completed stored task from a %s card snapshot', async status => {
+    const task: Task = { id: 'finished', name: 'Finished task', origin: 'manual', priority: 'none', status: 'completed', date: '2026-04-22', startTime: '23:30', durationMinutes: 25, actualFocusMinutes: 20 };
+    localStorage.setItem(DAILY_LOGS_KEY, JSON.stringify({ [task.date]: { date: task.date, tasks: [task] } }));
+    await act(async () => {
+      root.render(React.createElement(LanguageProvider, null, React.createElement(Harness)));
+      await drainMicrotasks();
+    });
+    const snapshot: Task = { ...task, status };
+    await act(async () => {
+      controller?.actions.handleTaskClick(snapshot);
+      await controller?.actions.handleDirectFocus(snapshot);
+      await controller?.actions.handleTaskUnschedule(snapshot);
+      await drainMicrotasks();
+    });
+    expect(controller?.state.activeTask).toBeNull();
+    expect(controller?.state.restoredTimerState).toBeNull();
+    expect(getDailyData(task.date)?.tasks[0]).toMatchObject({ status: 'completed', startTime: '23:30', actualFocusMinutes: 20 });
+    expect(electronIPC.startPomodoro).not.toHaveBeenCalled();
+  });
+
   it('checks pending recoveries on startup without logging an error', async () => {
     const errorSpy = vi.spyOn(console, 'error');
     try {
@@ -150,7 +182,7 @@ describe('useAppController scheduling guards', () => {
     }
   });
 
-  it.each([5, 15] as const)('counts remaining capacity using %i-minute precision at 10:02', async intervalMinutes => {
+  it.each([15, 30] as const)('counts remaining capacity using %i-minute precision at 10:02', async intervalMinutes => {
     vi.setSystemTime(new Date(2026, 3, 22, 10, 2));
     savePlannerSettings({ intervalMinutes, timelineMode: 'fullDay' });
     await act(async () => {
@@ -158,7 +190,7 @@ describe('useAppController scheduling guards', () => {
       await drainMicrotasks();
     });
     await act(async () => { controller?.actions.selectDate('2026-04-22'); });
-    expect(controller?.state.dayLoadSummary.freeTimelineMinutes).toBe(1440 - (intervalMinutes === 5 ? 605 : 615));
+    expect(controller?.state.dayLoadSummary.freeTimelineMinutes).toBe(1440 - (intervalMinutes === 15 ? 615 : 630));
   });
 
   it('clears an acknowledged standalone recovery and opens a break panel without creating a daily task', async () => {
@@ -191,7 +223,7 @@ describe('useAppController scheduling guards', () => {
         await drainMicrotasks();
       });
       await act(async () => { controller?.actions.selectDate(day); });
-      expect(controller?.state.dailyData?.tasks).toEqual([task]);
+      expect(controller?.state.dailyData?.tasks).toEqual([{ ...task, priority: 'none' }]);
       expect(localStorage.getItem(DAILY_LOGS_KEY)).toBe(durable);
       expect(controller?.state.alertConfig.isOpen).toBe(false);
     } finally { setStorageReadOnly(false); }

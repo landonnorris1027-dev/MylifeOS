@@ -1,7 +1,8 @@
+import { normalizeTaskPriority } from './taskPriority';
 import { revisionCache } from './storage/revisionCache';
 import { KEYS, safeParse } from './storage/localStorageStore';
 import { assertTaskInactive } from './taskActivity';
-import { DailyData, Goal, Habit, Priority, Task } from '../types';
+import { DailyData, Goal, Habit, Priority, Task, TaskPriority } from '../types';
 import { exportBackupJSON, exportAndroidCompatibleBackupJSON, exportDesktopCompatibleBackupJSON, ImportDataResult, importBackupJSON, previewImportBackupJSON } from './storage/backupService';
 import { flushStorageWrites } from './storage/localStorageStore';
 import { formatDateLocal, generateId, getTodayStr, parseDateLocal } from './storage/dateUtils';
@@ -35,7 +36,7 @@ export interface ProfileStats {
     date: string | null;
     minutes: number;
   };
-  priorityMinutes: Record<Priority, number>;
+  priorityMinutes: Record<TaskPriority, number>;
   goalMinutes: Record<string, number>;
   recentWeek: Array<{
     date: string;
@@ -45,7 +46,8 @@ export interface ProfileStats {
 
 export interface ManualTaskInput {
   name: string;
-  priority: Priority;
+  /** Kept for old callers; manual tasks always have no priority. */
+  priority?: TaskPriority;
   durationMinutes: number;
   goalId?: string;
   note?: string;
@@ -56,12 +58,12 @@ export interface TaskSearchFilters {
   from?: string;
   to?: string;
   goalId?: string;
-  priority?: Priority;
+  priority?: TaskPriority;
   status?: Task['status'];
 }
 
 const searchIndex = revisionCache([KEYS.DAILY_LOGS], ([raw]) => Object.values(safeParse<Record<string, DailyData>>(raw, {}))
-  .flatMap(day => day.tasks).filter(task => task.status !== 'deleted')
+  .flatMap(day => day.tasks.map(normalizeTaskPriority)).filter(task => task.status !== 'deleted')
   .sort((left, right) => right.date.localeCompare(left.date) || left.name.localeCompare(right.name))
   .map(task => ({ task, text: [task.name, task.note, task.review].map(value => value?.toLocaleLowerCase() || '').join('\0') })));
 export const searchTasks = (filters: TaskSearchFilters): Task[] => {
@@ -161,7 +163,7 @@ export const addManualTask = (date: string, input: ManualTaskInput) => {
     goalId: input.goalId,
     origin: 'manual',
     name: taskName,
-    priority: input.priority,
+    priority: 'none',
     status: 'inbox',
     date,
     durationMinutes: input.durationMinutes,
@@ -222,10 +224,11 @@ const buildProfileStats = (): ProfileStats => {
     .sort();
   const completedMinutesByDate = getCompletedMinutesByDate();
 
-  const priorityMinutes: Record<Priority, number> = {
+  const priorityMinutes: Record<TaskPriority, number> = {
     P1: 0,
     P2: 0,
     P3: 0,
+    none: 0,
   };
   const goalMinutes: Record<string, number> = {};
 
