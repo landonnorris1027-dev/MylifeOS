@@ -8,20 +8,58 @@ The current Windows source/candidate version is **0.1.8**; the Android native ve
 
 ## What it does
 
-- Define habit rules with priority, quota, duration, date range, and daily/weekday/custom-day repetition
-- Auto-generate daily tasks from those rules
-- Schedule tasks by clicking a task or dragging it onto the timeline, with conflict detection
-- Search tasks, move unfinished one-time tasks to another day, and undo a daily deletion within ten seconds
-- Switch between Inbox and Timeline on phones, add tasks from a fixed entry, and jump to the current time
-- Run native focus timers on Windows and Android; on Android, save completion before choosing whether to take a break
-- Export full v8 backups, import v1–v8 backups, and export v7 for Android 0.1.4 or v6 for Windows 0.1.3 exchange
-- Display save/recovery status on native platforms and retain failed changes for retry or export
-- Track yearly focus activity and profile stats
+- Define habits with priority, quota, duration, date range, and daily/weekday/custom-day repetition; generate daily tasks from those rules
+- Create one-time tasks without a priority; existing and imported one-time tasks also use the purple label
+- Schedule by clicking or dragging tasks onto the timeline, with conflict detection; Windows scheduling offers **15 or 30 minutes**
+- Start focus directly from today's unfinished Inbox or scheduled tasks while preserving their schedule
+- Search tasks; on Windows, move unfinished one-time tasks together to another date and undo up to 20 task operations during the current run
+- Switch between Inbox and Timeline in narrow windows and on phones
+- Run native focus timers on Windows and Android, with pause, resume, stop, and recovery; display focus/rest countdowns and accumulated durations in **minutes** while keeping measured timing precision internally
+- Save completion before offering Start break / Back to planner; retain failed changes for retry or export
+- Fill completed task cards with their label color and white text over **800 ms**; completed cards cannot restart focus
+- Review measured focus, legacy estimates, weekly goals, task notes, and yearly activity
+- Export full **v8** backups, import v1–v8, and explicitly export v7 for the earlier Android 0.1.4 APK or v6 for Windows 0.1.3
+
+## Latest Windows interface
+
+The planner keeps its Inbox and timeline layout, with a pure white canvas, blue primary controls, rounded panels, and consistent typography. Habit labels use P1 red, P2 yellow, and P3 green; one-time tasks use purple. Task and habit duration fields can be cleared before entering a new value.
+
+New profiles default to 15-minute scheduling. Existing 15/30-minute preferences are retained; existing profiles without a preference use 30 minutes. A previous 5-minute preference becomes 15 minutes on load or backup import, without moving already scheduled tasks. Ctrl+K opens search, Ctrl+J opens the current session, and Ctrl+Z undoes task operations outside inputs and dialogs. The deletion toast also supports undo for ten seconds.
+
+Completed cards no longer respond to clicks, Enter/Space, or dragging to restart or reschedule them. Notes/reviews and deletion remain available through their own buttons. The 800 ms color transition respects reduced-motion settings. Countdown minutes round up until the timer ends; accumulated time displays whole elapsed minutes. Internal timestamps and measured session records retain their precision.
+
+The Windows/browser Profile page follows the same white-and-blue style:
+
+- Blue grouped bars compare daily planned and actual time; signed bars show actual minus planned, with the original daily figures available in a detail table.
+- **Daily and weekly goal distributions** use thick, rounded ring segments separated by white gaps. Colors are weighted by **actual measured focus time associated with currently completed tasks**, rather than task counts or planned duration. The center shows total minutes; the legend shows each category's duration and percentage.
+- The daily ring uses the selected reference date; the weekly ring uses that date's local Monday–Sunday week, independently of the rolling-seven-day filter. A completed task's earlier stopped sessions count toward its ring. Unfinished, undone, deleted, unmatched, and estimated records do not contribute to the rings.
+- Measured totals include completed and stopped focus, excluding pauses and breaks; legacy estimates remain separate. Weekly goals use measured time only. Cross-midnight sessions belong to their original task date.
+- Weekly review preserves notes, reviews, goal snapshots, and associated sessions, with 25 tasks per page.
+- The annual heatmap uses shades of blue and a centered, compact grid, with cells around 16 px and 2 px gaps on desktop. Narrow windows can scroll within the chart. Android retains its existing statistics layout.
+
+These presentation changes preserve the native timer interfaces and backup schema. They do not install or update an existing app.
+
+## Screenshots
+
+These Windows/browser screenshots use isolated fictional data.
+
+### Planner
+
+![White Windows planner with blue controls and purple one-time task labels](docs/manual-task-priority/planner.png)
+
+### Daily and weekly completed-task focus distributions
+
+![Segmented daily and weekly focus rings with durations and category percentages](docs/profile-distribution/segmented-desktop.png)
+
+### Annual focus activity
+
+![Centered compact annual focus heatmap in shades of blue](docs/profile-ui/compact-heatmap-desktop.png)
 
 ## Tech stack
 
 - React 18
 - TypeScript
+- Vite and Vitest
 - Electron
 - Capacitor 8 for Android
 - Local file storage in Electron `userData`
@@ -33,8 +71,8 @@ The current Windows source/candidate version is **0.1.8**; the Android native ve
 1. Create or update habits in the habit config panel.
 2. Open a day and let the app reconcile tasks from current habit rules.
 3. Move inbox tasks onto the timeline.
-4. Click a scheduled task and start a focus session.
-5. On Android, wait for the saved completion, then select Start break or Back to planner. Windows also saves first, then offers Start break / Back to planner.
+4. Select Start focus on one of today's unfinished tasks in the Inbox or timeline.
+5. Wait for the completion to save, then choose Start break or Back to planner. A failed save retains the task and recovery options.
 6. Review focus statistics and back up data in Settings → Data Management.
 
 See the [English user guide](USER_GUIDE.en.md) or [中文使用指南](USER_GUIDE.md) for platform-specific steps.
@@ -71,7 +109,7 @@ Start the browser preview:
 npm start
 ```
 
-Keep the process running and open [http://localhost:3000](http://localhost:3000). Do not double-click `index.html`: Vite resolves its source entry through the development server. Browser data is separate from Windows and Android data, and browser timing does not provide native background guarantees.
+Keep the process running and open [http://127.0.0.1:3000](http://127.0.0.1:3000). Do not double-click `index.html`: Vite resolves its source entry through the development server. Browser data is separate from Windows and Android data, and browser timing does not provide native background guarantees.
 
 Start web + Electron in development:
 
@@ -106,13 +144,25 @@ and network mirror setup.
 
 ## Release checks
 
-See [RELEASE_CHECKS.md](RELEASE_CHECKS.md).
+See [RELEASE_CHECKS.md](RELEASE_CHECKS.md). To validate shared code and Android compilation without signing a personal release or installing on a device, use JDK 21 and the Android SDK with:
+
+```bash
+npm run android:verify:compile
+```
+
+Latest source validation (2026-10-11):
+
+- The Windows UI changes were merged into main in [PR #5](https://github.com/landonnorris1027-dev/MylifeOS/pull/5), merge commit `3dee7d3`. Its [main Windows candidate run](https://github.com/landonnorris1027-dev/MylifeOS/actions/runs/38121511322) passed.
+- Android compile-only verification of integration commit `43948b3` (the same application source tree as `3dee7d3`) passed: **273 shared tests across 40 files**, frontend and Electron type checks, production build, Capacitor sync, **13 native JVM tests**, Debug Lint, and compilation of the debug APK and instrumentation-test APK.
+- Instrumentation tests were compiled, not executed. Phone acceptance and a new personal APK release remain pending. Source validation does not update an installed Windows or Android app.
+
+These results describe those commits; use the Actions run and verification metadata for the checkout being tested. The earlier personal APK's results are listed separately below.
 
 ## Android personal APK
 
 The Android app requires **Android 7 or later** (min SDK 24; target SDK 36). Transfer `out/android/MyLifeOS-0.1.4-personal.apk` to your phone and install it. Back up the old app first and use an in-place update with the same signing identity; installed-upgrade data preservation has not yet been verified on a device.
 
-Windows source, Android, and the browser share business code through a platform adapter. New source builds export v8 with focus sessions and scheduling precision. Existing Android 0.1.4 uses v7; export v7 explicitly when exchanging with it. In Android Settings → Data Management, use **Export for desktop 0.1.3 (v6)** to exchange files with desktop 0.1.3; vibration is omitted. **Share full backup** does not confirm a saved backup file. Active, paused or pending focus sessions must be ended or explicitly abandoned before import/restore, which also creates a pre-operation backup.
+Windows source, Android, and the browser share business code through a platform adapter. New source builds export v8 with focus sessions and scheduling precision. The earlier personal Android 0.1.4 APK uses v7; export v7 explicitly when exchanging with that build. In Android Settings → Data Management, use **Export for desktop 0.1.3 (v6)** to exchange files with desktop 0.1.3; vibration is omitted. Compatibility exports omit measured focus-session records and scheduling precision; one-time tasks are represented as P3 for older clients. Keep a full v8 backup as well. **Share full backup** does not confirm a saved backup file. Active, paused or pending focus sessions must be ended or explicitly abandoned before import/restore, which also creates a pre-operation backup.
 
 Build with Node.js 22.12+, JDK 21, SDK/Build Tools 36, and the preserved personal signing key:
 
@@ -130,14 +180,13 @@ The `b2164cb` build passed **143 shared tests and 10 native JVM tests**; Release
 
 - [English user guide](USER_GUIDE.en.md)
 - [中文使用指南](USER_GUIDE.md)
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- [docs/DATA_FLOW.md](docs/DATA_FLOW.md)
-- [docs/DEPENDENCY_UPGRADE_RESEARCH.md](docs/DEPENDENCY_UPGRADE_RESEARCH.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Data flow](docs/DATA_FLOW.md)
+- [Dependency upgrade research](docs/DEPENDENCY_UPGRADE_RESEARCH.md)
+- [Windows implementation and acceptance](docs/WINDOWS_IMPROVEMENTS.md)
+- [Minute display and legacy scheduling compatibility](docs/MINUTE_DISPLAY.md)
+- [One-time task priority compatibility](docs/MANUAL_TASK_PRIORITY.md)
+- [Completion motion and interaction evidence](docs/TASK_COMPLETION_MOTION.md)
+- [Profile chart design and validation evidence](docs/PROFILE_UI.md)
 
-## Windows 0.1.8
-
-Today’s unfinished tasks have a separate Start focus button that preserves their schedule. New profiles default to 15-minute scheduling; existing profiles keep 30; both offer 5/15/30. Unfinished manual tasks can be moved together. Undo keeps the last 20 task operations in this run (Ctrl+Z outside inputs/dialogs); Ctrl+J opens the current session.
-
-Desktop statistics separate measured session seconds (including stopped focus, excluding pauses/breaks) from legacy estimates. Calendar weeks run Monday–Sunday; rolling seven days is a separate view. Cross-midnight focus belongs to the original task date. Weekly review preserves notes and goal snapshots.
-
-Run `npm run android:verify:compile` with JDK21/Android SDK for shared/native compilation without device installation. See [Windows implementation and acceptance](docs/WINDOWS_IMPROVEMENTS.md) for stage commits, candidate output, timing methodology and open OS acceptance gates.
+Implementation records include historical stage results; the current behavior and source validation are summarized above.
