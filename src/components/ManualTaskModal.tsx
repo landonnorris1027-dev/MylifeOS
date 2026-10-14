@@ -22,7 +22,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   const [durationMinutes, setDurationMinutes] = useState<number | ''>(25);
   const [note, setNote] = useState('');
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose, initialFocusSelector: 'input[type="text"]' });
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +63,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div
         {...dialogProps}
+        aria-label={t('manual_task_title')}
         ref={containerRef}
         className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden"
       >
@@ -83,11 +84,11 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
             </span>
             <input
               type="text"
+              required
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t('manual_task_placeholder')}
               className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
-              autoFocus
             />
           </label>
 

@@ -48,6 +48,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, tim
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
       <div
         {...dialogProps}
+        aria-label={t('schedule_task')}
         ref={containerRef}
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-100"
       >
@@ -56,7 +57,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, tim
             <CalendarClock size={16} />
             {t('schedule_task')}
           </h2>
-          <button onClick={onClose} className={`p-1 rounded hover:bg-white/50 ${styles.text}`}>
+          <button type="button" onClick={onClose} aria-label={t('close')} className={`p-1 rounded hover:bg-white/50 ${styles.text}`}>
             <X size={18} />
           </button>
         </div>

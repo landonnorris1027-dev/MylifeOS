@@ -377,6 +377,7 @@ export default function App() {
                         <>
                           <p>{t('ui_inbox_empty')}</p>
                           <p>{t('ui_inbox_hint')}</p>
+                          <button type="button" onClick={openManualTask} className="motion-button motion-primary motion-empty-create"><Plus size={16} aria-hidden="true" />{t('ui_new_task')}</button>
                         </>
                       ) : (
                         <p className="text-xs">{t('no_tasks_past_day')}</p>
@@ -407,7 +408,15 @@ export default function App() {
 
             <div className={`motion-timeline-column ${mobilePane !== 'timeline' ? 'is-hidden' : ''}`}>
               <div className="motion-panel motion-timeline-panel">
-                <div className="motion-panel-heading"><h2><BarChart3 size={18}/>{t('timeline')}</h2><span className="motion-panel-count">{scheduledTasks.length}</span></div>
+                <div className="motion-panel-heading">
+                  <h2><BarChart3 size={18}/>{t('timeline')}</h2>
+                  <div className="motion-timeline-heading-actions">
+                    {isToday && <button type="button" className="motion-button motion-quiet motion-desktop-time-jump" onClick={jumpToCurrentTime}>
+                      <Timer size={16} aria-hidden="true" />{t('jump_current_time')}
+                    </button>}
+                    <span className="motion-panel-count">{scheduledTasks.length}</span>
+                  </div>
+                </div>
                 <div className="relative pl-4 space-y-6">
                   {timelineSlots.map((slot) => {
                     const timeLabel = slot.time;

@@ -41,6 +41,8 @@ These presentation changes preserve the native timer interfaces and backup schem
 
 ## Screenshots
 
+Design review additions on 2026-10-14: create tasks directly from the empty inbox; show a scheduling hint on unfinished inbox cards; distinguish notes from reviews; label total planned duration as “计划投入” in Chinese; and jump to the current time from the desktop timeline. Task creation focuses the name field, scheduling and review dialogs have accessible names and close-button labels, and narrow 320px windows and the English header have improved wrapping. The [screenshot audit and validation record](docs/product-design-audit/REPORT.md) covers the local browser preview only, not an installed-app update or native-device acceptance.
+
 These Windows/browser screenshots use isolated fictional data.
 
 ### Planner
