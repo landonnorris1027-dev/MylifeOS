@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyLifeOS 设计优化前后对照</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #f5f7fa; color: #202124; font: 15px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 25px; }
+  h2 { margin: 28px 0 8px; font-size: 19px; }
+  p { margin: 0 0 12px; color: #5f6368; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  figure { margin: 0; background: white; border: 1px solid #dadce0; border-radius: 12px; overflow: hidden; }
+  figcaption { padding: 8px 12px; font-weight: 600; }
+  img { display: block; width: 100%; height: auto; }
+  a { color: #0b57d0; }
+  @media (max-width: 700px) { .pair { grid-template-columns: 1fr; } }
+</style>
+<h1>MyLifeOS · 设计优化前后对照</h1>
+<p>2026-10-14 · 当前浏览器预览 · 虚构数据 · <a href="REPORT.md">完整评审与验证记录</a></p>
+<section>
+  <h2>1. 空待办池：下一步就在提示旁</h2>
+  <p>增加直接新增任务入口；中文计划总时长改为“计划投入”；桌面时间线增加当前时段跳转。</p>
+  <div class="pair"><figure><figcaption>优化前</figcaption><img src="01-before-empty.png" alt="原空待办池只有说明和添加习惯入口"></figure><figure><figcaption>优化后</figcaption><img src="01-after-empty.png" alt="空待办池增加蓝色新增任务按钮"></figure></div>
+</section>
+<section id="task">
+  <h2>2. 待办卡片：区分笔记与复盘，说明排期操作</h2>
+  <p>相同的25分钟任务、相同笔记、未填写复盘。卡片增加排期提示，状态文字变为“有笔记”。</p>
+  <div class="pair"><figure><figcaption>优化前</figcaption><img src="03-before-task.png" alt="原卡片把笔记显示为已复盘"></figure><figure><figcaption>优化后</figcaption><img src="03-after-task.png" alt="卡片显示有笔记和点击卡片安排时间"></figure></div>
+</section>
+<section>
+  <h2>3. 新建任务：打开后直接填写名称</h2>
+  <p>名称输入框自动获得焦点；弹窗补充名称，名称为必填。任务数据流程保持原有行为。</p>
+  <div class="pair"><figure><figcaption>优化前</figcaption><img src="02-before-create.png" alt="原新建表单"></figure><figure><figcaption>优化后</figcaption><img src="02-after-create.png" alt="名称输入框获得焦点的新建表单"></figure></div>
+</section>
+<script>
+  // A bounded comparison view helps inspect the two actual screenshots together.
+  if (new URLSearchParams(location.search).get('pair') === 'task') {
+    document.querySelectorAll('section').forEach(section => { section.hidden = section.id !== 'task'; });
+  }
+</script>
+</html>

@@ -84,6 +84,11 @@
 .motion-inbox-footer .motion-button { width: 100%; }
 .motion-empty { padding: 35px 8px; text-align: center; font-size: 14px; color: var(--motion-muted); line-height: 1.7; }
 .motion-empty p + p { font-size: 13px; margin-top: 6px; }
+.motion-empty-create { margin-top: 18px; }
+.motion-task-schedule-hint { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--motion-primary); }
+.motion-timeline-heading-actions { display: flex; align-items: center; gap: 10px; }
+.motion-desktop-time-jump { min-height: 32px; padding: 6px 10px; font-size: 13px; }
+@media (max-width:767px) { .motion-desktop-time-jump { display: none; } }
 .motion-mobile-panes { display: none; }
 .motion-timeline-tasks { position: relative; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 12px; padding-right: 4px; }
 .motion-shell [data-timeline-time] { min-width: 0; }
@@ -169,7 +174,7 @@
   .motion-brand { font-size: 19px; }.motion-main-nav { margin-left: auto; }
   .motion-header-actions { justify-content: space-between; width: 100%; gap: 4px; }
   .motion-header-actions .motion-shortcut, .motion-desktop-create { display: none; }
-  .motion-header-actions .motion-button { padding-inline: 12px; font-size: 13px; }
+  .motion-header-actions .motion-button { padding-inline: 8px; font-size: 13px; white-space: nowrap; }
   .motion-overview { flex-wrap: wrap; gap: 14px 16px; padding-top: 20px; }
   .motion-page-title { flex: 1; }.motion-page-title h1 { font-size: 22px; }
   .motion-load { gap: 14px; }.motion-load strong { font-size: 20px; }
@@ -230,3 +235,21 @@
   .motion-panel-heading { margin-bottom: 16px; }
 }
 @media (pointer:coarse) { .motion-shortcut-help summary { min-width: 48px; min-height: 48px; display: grid; place-items: center; } }
+
+/* Keep the narrowest supported windows readable without losing tool names for
+   assistive technology; icon buttons already carry localized aria-labels. */
+@media (max-width:360px) {
+  .motion-container { width: calc(100% - 24px); }
+  .motion-topbar-inner { gap: 8px; }
+  .motion-brand { font-size: 17px; gap: 8px; }
+  .motion-main-nav .motion-segment-button { padding-inline: 12px; }
+  .motion-header-actions .motion-tool-label { display: none; }
+  .motion-header-actions .motion-button { white-space: nowrap; }
+  .motion-page-title { flex-basis: 100%; }
+  .motion-page-title h1 { font-size: 20px; }
+  .motion-date-tools { gap: 0; }
+  .motion-date-input input { width: 105px; }
+  .motion-schedule-tools { gap: 4px; }
+  .motion-interval-label { gap: 4px; font-size: 12px; }
+  .motion-interval-label select { padding-inline: 8px; }
+}

@@ -23,6 +23,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
   const { t } = useLanguage();
   const timeLabel = getTaskTimeLabel(task);
   const isCompleted = task.status === 'completed';
+  const hasNote = Boolean(task.note?.trim());
+  const hasReview = Boolean(task.review?.trim());
   const activate = useCallback(() => onClick(task), [onClick, task]);
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
@@ -41,8 +43,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
       <Timer size={14} aria-hidden="true"/>
       {timeLabel && <span>{timeLabel}</span>}
       <span>{t('minutes_short', {minutes:task.durationMinutes})}</span>
-      {(task.note || task.review) && <span className="motion-note-badge">{t('task_review_badge')}</span>}
+      {(hasNote || hasReview) && <span className="motion-note-badge">{t(hasReview ? 'task_review_badge' : 'task_note_badge')}</span>}
     </div>
+    {mode === 'pool' && !isCompleted && <p className="motion-task-schedule-hint">{t('ui_task_schedule_hint')}</p>}
     <div className="motion-task-footer">
       {onFocus && task.status !== 'completed' && <button type="button" className="motion-task-focus" onClick={event => action(event, () => onFocus(task))}><Play size={12} fill="currentColor"/>{t('start_focus')}</button>}
       <div className="motion-task-actions" onClick={event => event.stopPropagation()}>

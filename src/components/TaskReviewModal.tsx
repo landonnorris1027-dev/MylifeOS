@@ -27,6 +27,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
       <div
         {...dialogProps}
+        aria-label={t('task_review_title')}
         ref={containerRef}
         className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl"
       >
@@ -35,7 +36,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave
             <FileText size={16} className="text-gray-400" />
             {t('task_review_title')}
           </h2>
-          <button onClick={onClose} className="rounded p-1 text-gray-500 hover:bg-gray-200">
+          <button type="button" onClick={onClose} aria-label={t('close')} className="rounded p-1 text-gray-500 hover:bg-gray-200">
             <X size={18} />
           </button>
         </div>
