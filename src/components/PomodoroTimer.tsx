@@ -475,7 +475,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ task, autoStart = false, 
   return (
     <div {...dialogProps} ref={containerRef} aria-label={t(isBreak ? 'break_mode' : 'focus_mode')} className="motion-ui motion-focus-overlay safe-area-padding">
       <button type="button" onClick={() => void closePanel()} disabled={busy} aria-label={t('cancel')} className="motion-focus-close motion-icon-button"><X size={22}/></button>
-      <section className={`motion-focus-panel ${focusSaved && !isBreak ? 'is-saved' : ''}`} aria-busy={busy}>
+      <section className={`motion-focus-panel ${isActive ? 'is-active' : ''} ${focusSaved && !isBreak ? 'is-saved' : ''}`} aria-busy={busy}>
         <div className="motion-focus-eyebrow">{isBreak ? <Coffee size={16}/> : <span className={`motion-focus-dot priority-${task.priority}`}/>}<span>{t(isBreak ? 'break_mode' : 'focus_mode')}</span></div>
         <h2 className="motion-focus-title">{isBreak ? t('break_task_name') : task.name}</h2>
         <div className="motion-clock">

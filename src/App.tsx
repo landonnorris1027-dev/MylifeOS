@@ -1,6 +1,7 @@
 import './ui-motion.css';
 import './profile.css';
 import SegmentedControl from './components/SegmentedControl';
+import MotionScene from './components/MotionScene';
 import BatchRescheduleModal from './components/BatchRescheduleModal';
 import React from 'react';
 import { isStorageReadOnly } from './services/storage/localStorageStore';
@@ -23,6 +24,8 @@ import TaskReviewModal from './components/TaskReviewModal';
 import TaskSearchModal from './components/TaskSearchModal';
 import RescheduleModal from './components/RescheduleModal';
 import { useAppController } from './hooks/useAppController';
+import { useMotionScope, useTaskLayout } from './hooks/useMotionScope';
+import { scrollToElement } from './hooks/useReducedMotion';
 import ErrorBoundary from './components/ErrorBoundary';
 import { buildTimelineSlotsForMode } from './services/scheduling';
 import { isAndroid } from './services/platform';
@@ -35,8 +38,7 @@ const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
 };
 
 export default function App() {
-  const [introActive, setIntroActive] = React.useState(true);
-  React.useEffect(() => { const timer = window.setTimeout(() => setIntroActive(false), 600); return () => window.clearTimeout(timer); }, []);
+  const motionRef = useMotionScope();
   const [batchOpen, setBatchOpen] = React.useState(false);
   const [mobilePane, setMobilePane] = React.useState<'inbox' | 'timeline'>('inbox');
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
@@ -47,7 +49,7 @@ export default function App() {
   React.useEffect(() => {
     if (!isAndroid()) return;
     const listener = NativeApp.addListener('backButton', () => {
-      const dialog = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).find(element => element.getClientRects().length > 0);
+      const dialog = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]')).find(element => element.getClientRects().length > 0 && !element.closest('[inert]'));
       if (dialog) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
       else if (state.view !== 'planner') actions.setView('planner');
       else void NativeApp.minimizeApp();
@@ -66,7 +68,7 @@ export default function App() {
         };
         return !nearest || difference(row) < difference(nearest) ? row : nearest;
       }, null);
-      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (target) scrollToElement(target);
     }, 0);
   };
   const {
@@ -144,6 +146,7 @@ export default function App() {
     reportStorageError,
   } = actions;
 
+  useTaskLayout(motionRef, inboxTasks, scheduledTasks, `${view}:${selectedDate}:${mobilePane}`);
   const formatHours = (minutes: number) => (minutes / 60).toFixed(1);
   const timelineSlots = React.useMemo(() => {
     const slots = buildTimelineSlotsForMode(timelineMode, intervalMinutes);
@@ -158,8 +161,10 @@ export default function App() {
   }, [timelineMode, intervalMinutes, scheduledTasks]);
   React.useEffect(() => {
     if (selectedSearchTask?.date !== selectedDate) return;
-    searchResultRef.current?.scrollIntoView({ block: 'start' });
-    searchResultRef.current?.focus();
+    if (searchResultRef.current) {
+      scrollToElement(searchResultRef.current, 'start');
+      searchResultRef.current.focus({ preventScroll: true });
+    }
   }, [selectedDate, selectedSearchTask]);
 
   // Stable callbacks so memoized TaskCards don't re-render on every App render.
@@ -182,7 +187,8 @@ export default function App() {
     const handleShortcut = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const editing = Boolean(target?.closest('input,textarea,select,[contenteditable="true"]'));
-      const modal = Boolean(document.querySelector('[role="dialog"],[role="alertdialog"],[aria-modal="true"]'));
+      const modal = Array.from(document.querySelectorAll('[role="dialog"],[role="alertdialog"],[aria-modal="true"]'))
+        .some(element => !element.closest('[inert]'));
       if ((event.ctrlKey || event.metaKey) && ['z', 'j'].includes(event.key.toLowerCase())) {
         if (editing || modal || isStorageReadOnly() || event.altKey || event.shiftKey) return;
         event.preventDefault();
@@ -252,7 +258,7 @@ export default function App() {
   ]);
 
   return (
-    <div className={`motion-ui min-h-screen pb-24 font-sans ${view === 'planner' ? `motion-shell ${introActive ? 'motion-intro' : ''}` : 'bg-white text-[#202124]'}`}>
+    <div ref={motionRef} className={`motion-ui min-h-screen pb-24 font-sans ${view === 'planner' ? 'motion-shell' : 'bg-white text-[#202124]'}`}>
       <div className="safe-area-status-bar" aria-hidden="true" />
       <header className="motion-topbar safe-area-sticky-top">
         <div className="motion-container motion-topbar-inner">
@@ -275,14 +281,14 @@ export default function App() {
             <button type="button" className="motion-button motion-quiet" onClick={() => setSettingsOpen(true)} title={t('settings_title')} aria-label={t('settings_title')}>
               <User size={17} /><span className="motion-tool-label">{t('settings_title')}</span>
             </button>
-            {view === 'planner' && <button type="button" onClick={openManualTask} className="motion-button motion-primary motion-desktop-create"><Plus size={17}/>{t('ui_new_task')}</button>}
+            {view === 'planner' && <button type="button" onClick={openManualTask} className="motion-button motion-primary motion-create-task" aria-label={t('ui_new_task')} title={t('ui_new_task')}><Plus size={17} aria-hidden="true"/><span className="motion-create-label">{t('ui_new_task')}</span></button>}
           </div>
         </div>
       </header>
       {view === 'planner' && <div className="motion-container">
         {pendingRecovery && !isRecoveryModalOpen && <button type="button" className="motion-recovery-entry" onClick={openRecoveryPrompt}>{t('recovery_reopen')}</button>}
         <section className="motion-overview" aria-label={t('today_load_title')}>
-          <div className="motion-page-title"><p>{t('ui_daily_plan')}</p><h1>{formattedDate}</h1></div>
+          <div className="motion-page-title"><p>{t('ui_daily_plan')}</p><h1 key={selectedDate}>{formattedDate}</h1></div>
           <div className={`motion-load ${dayLoadSummary.isOverloaded ? 'is-overloaded' : ''}`}>
             <div><strong>{formatHours(dayLoadSummary.totalPlannedMinutes)}<small>{t('hours_suffix')}</small></strong><span>{t('today_load_planned')}</span></div>
             <div><strong>{formatHours(dayLoadSummary.freeTimelineMinutes)}<small>{t('hours_suffix')}</small></strong><span>{t('today_load_free')}</span></div>
@@ -319,6 +325,7 @@ export default function App() {
       </div>}
 
       <main className="motion-container">
+        <MotionScene sceneKey={`${view}:${view === 'planner' ? selectedDate : ''}`}>
         {selectedSearchTask?.date === selectedDate && (
           <div ref={searchResultRef} tabIndex={-1} className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             <div className="flex items-start justify-between gap-3">
@@ -369,7 +376,7 @@ export default function App() {
             </div>
             <div className={`motion-inbox-column ${mobilePane !== 'inbox' ? 'is-hidden' : ''}`}>
               <div className="motion-panel motion-inbox-panel">
-                <div className="motion-panel-heading"><h2><InboxIcon size={18}/>{t('inbox')}</h2><span className="motion-panel-count">{inboxTasks.length}</span></div>
+                <div className="motion-panel-heading"><h2><InboxIcon size={18}/>{t('inbox')}</h2><span key={inboxTasks.length} className="motion-panel-count">{inboxTasks.length}</span></div>
                 <div className="space-y-3">
                   {inboxTasks.length === 0 ? (
                     <div className="motion-empty">
@@ -414,7 +421,7 @@ export default function App() {
                     {isToday && <button type="button" className="motion-button motion-quiet motion-desktop-time-jump" onClick={jumpToCurrentTime}>
                       <Timer size={16} aria-hidden="true" />{t('jump_current_time')}
                     </button>}
-                    <span className="motion-panel-count">{scheduledTasks.length}</span>
+                    <span key={scheduledTasks.length} className="motion-panel-count">{scheduledTasks.length}</span>
                   </div>
                 </div>
                 <div className="relative pl-4 space-y-6">
@@ -469,13 +476,8 @@ export default function App() {
           </div>
         )}
         </ErrorBoundary>
+        </MotionScene>
       </main>
-      {view === 'planner' && <button onClick={openManualTask}
-        className="fixed bottom-6 right-4 z-40 flex min-h-[48px] items-center gap-2 rounded-full bg-gray-900 px-5 text-white shadow-lg md:hidden"
-        style={{ bottom: 'calc(1.5rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))' }}>
-        <Plus size={20} />{t('add_manual_task')}
-      </button>}
-
       <ErrorBoundary
         title={t('dialog_unavailable_title')}
         message={t('dialog_unavailable_message')}

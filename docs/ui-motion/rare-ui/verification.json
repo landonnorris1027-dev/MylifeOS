@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-17",
+  "branch": "codex/fluid-interactions",
+  "sourceCommit": "9633fcfa81c212a0ba48507e9c56be4869d61928",
+  "sourceEvidence": "Original public component source rendered locally; live demo returned 429",
+  "preview": "http://127.0.0.1:3100/",
+  "typecheck": "passed",
+  "tests": { "files": 42, "passed": 291, "failed": 0 },
+  "productionBuild": "passed",
+  "buildNote": "Legacy main chunk 668.26 kB, gzip 203.14 kB; size warning",
+  "browser": {
+    "syntheticDataOnly": true,
+    "penMorphIntermediatePathChanged": true,
+    "manualTaskSavedMinutes": 90,
+    "habitTaskSavedMinutes": 90,
+    "inlineEscapeCancelAndOutside": "passed",
+    "deleteAndUndo": "passed",
+    "singleQuotaConfirmation": "passed",
+    "habitRuleDeletion": "passed",
+    "horizontalOverflow": [
+      { "viewportWidth": 320, "clientWidth": 312, "scrollWidth": 312 },
+      { "viewportWidth": 390, "clientWidth": 382, "scrollWidth": 382 },
+      { "viewportWidth": 768, "clientWidth": 760, "scrollWidth": 760 },
+      { "viewportWidth": 1440, "clientWidth": 1432, "scrollWidth": 1432 }
+    ],
+    "english390": { "clientWidth": 382, "scrollWidth": 382 },
+    "touch320": { "clientWidth": 320, "scrollWidth": 320, "deleteTargetSizes": [[48, 48], [48, 48], [48, 48]], "panelLeft": 116.67 },
+    "dynamicReducedMotion": { "gap": "8px", "inputWidth": 36, "cssTransition": "0s" },
+    "pageErrors": []
+  },
+  "designQa": "passed",
+  "nativeDeviceAcceptance": "not_run",
+  "deployed": false
+}

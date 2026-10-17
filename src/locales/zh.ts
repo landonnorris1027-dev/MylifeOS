@@ -1,5 +1,6 @@
 const zh = {
   ui_navigation: '主导航',
+  delete_habit: '删除习惯',
   ui_daily_plan: '每日计划',
   ui_new_task: '新增任务',
   ui_previous_day: '前一天',
@@ -116,7 +117,7 @@ const zh = {
   no_priority: '无优先级',
   daily_quota: '每日数量',
   quota_desc: '每天会生成 {n} 个任务块。',
-  habit_duration: '单次时长（分钟）',
+  habit_duration: '单次时长',
   create_rule: '创建规则',
   p1_btn: 'P1',
   p2_btn: 'P2',

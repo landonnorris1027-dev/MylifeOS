@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 import { Task } from '../types';
 
 interface Props {
@@ -9,16 +10,17 @@ interface Props {
   onConfirm: (task: Task, date: string) => Promise<boolean>;
 }
 
-const RescheduleModal: React.FC<Props> = ({ task, onClose, onConfirm }) => {
+const RescheduleModal: React.FC<Props> = ({ task: currentTask, onClose, onConfirm }) => {
   const { t } = useLanguage();
+  const { present: task, presenceProps } = useMotionPresence(currentTask);
   const [date, setDate] = useState('');
   const [busy, setBusy] = useState(false);
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen: !!task, onClose });
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: currentTask !== null, onClose });
   useEffect(() => { setDate(task?.date || ''); }, [task]);
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
       <div {...dialogProps} ref={containerRef} aria-label={t('reschedule_title')}
         className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
       <form onSubmit={async (event) => {

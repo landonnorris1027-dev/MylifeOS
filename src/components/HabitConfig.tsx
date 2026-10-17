@@ -1,7 +1,9 @@
 import PreferencesSettings from './PreferencesSettings';
 import BuildInformation from './BuildInformation';
+import DurationPicker from './DurationPicker';
+import DeleteButton from './DeleteButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Plus, Clock, Download, Upload, Trash2, Calendar, Pencil, RotateCcw, Sparkles, Bell, Volume2, Coffee, Target, Minimize2 } from 'lucide-react';
+import { X, Plus, Download, Upload, Calendar, Pencil, RotateCcw, Sparkles, Bell, Volume2, Coffee, Target, Minimize2 } from 'lucide-react';
 import { Priority, PRIORITY_STYLES, Habit } from '../types';
 import {
   addGoal,
@@ -32,6 +34,7 @@ import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PrioritySelector from './PrioritySelector';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface HabitTemplate {
   id: string;
@@ -113,6 +116,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   const [existingHabits, setExistingHabits] = useState<Habit[]>([]);
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
   const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
+  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   const [recoveryPoints, setRecoveryPoints] = useState<RecoveryPoint[]>([]);
 
   const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; message: string; tone?: 'alert' | 'success' }>({
@@ -150,7 +154,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isPresent) return null;
 
   const resetForm = () => {
     setName('');
@@ -289,19 +293,11 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   };
 
   const handleDelete = (habitId: string) => {
-    setConfirmConfig({
-      isOpen: true,
-      message: t('delete_confirm'),
-      onConfirm: () => {
-        deleteHabit(habitId);
-        if (editingHabitId === habitId) {
-          resetForm();
-        }
-        refreshList();
-        onAdded();
-        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-      }
-    });
+    deleteHabit(habitId);
+    if (editingHabitId === habitId) resetForm();
+    refreshList();
+    onAdded();
+    return true;
   };
 
   const handleBackup = async (desktopCompatible: boolean | 'android' = false, share = false) => {
@@ -475,7 +471,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   };
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div
         {...dialogProps}
         ref={containerRef}
@@ -579,7 +575,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
               <PrioritySelector value={priority} onChange={setPriority} />
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-5">
               {/* Quota */}
               <div>
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -610,20 +606,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                   {t('habit_duration')}
                 </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max="180"
-                    required
-                    aria-label={t('habit_duration')}
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full p-1.5 pl-8 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  />
-                  <Clock size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
-                  <span className="absolute right-3 top-2 text-xs text-gray-500 font-medium">{t('minute_unit_short')}</span>
-                </div>
+                <DurationPicker value={duration} onChange={setDuration} label={t('habit_duration')} />
               </div>
             </div>
 
@@ -764,18 +747,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                         >
                           <Pencil size={16} style={{ pointerEvents: 'none' }} />
                         </button>
-                        <button
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDelete(habit.id);
-                          }}
-                          style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                        >
-                          <Trash2 size={16} style={{ pointerEvents: 'none' }} />
-                        </button>
+                        <DeleteButton label={`${t('delete_habit')} ${habit.name}`} description={t('delete_confirm')} onConfirm={() => handleDelete(habit.id)} />
                       </div>
                     </div>
                   );

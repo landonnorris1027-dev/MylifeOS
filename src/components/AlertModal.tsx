@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -13,13 +14,14 @@ interface AlertModalProps {
 
 const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title, tone = 'alert' }) => {
   const { t } = useLanguage();
+  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   const isSuccessTone = tone === 'success';
   const { containerRef, dialogProps } = useModalBehavior({
     isOpen: isOpen && !isSuccessTone,
     onClose,
   });
 
-  if (!isOpen) return null;
+  if (!isPresent) return null;
 
   const isSuccess = tone === 'success';
   const Icon = isSuccess ? CheckCircle2 : AlertTriangle;
@@ -29,7 +31,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
 
   if (isSuccess) {
     return (
-      <div className="motion-success-toast">
+      <div {...presenceProps} className="motion-success-toast">
         <div className={`bg-white rounded-2xl shadow-2xl border ${borderClass} overflow-hidden`} role="status">
           <div className="p-5">
             <div className="flex items-start gap-3">
@@ -59,7 +61,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title
   }
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div
         role="alertdialog"
         aria-modal="true"

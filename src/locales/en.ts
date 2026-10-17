@@ -1,5 +1,6 @@
 const en = {
   ui_navigation: 'Main navigation',
+  delete_habit: 'Delete habit',
   ui_daily_plan: 'Daily planner',
   ui_new_task: 'New task',
   ui_previous_day: 'Previous day',
@@ -116,7 +117,7 @@ const en = {
   no_priority: 'No priority',
   daily_quota: 'Daily Quota',
   quota_desc: 'Will generate {n} blocks daily.',
-  habit_duration: 'Duration (Min)',
+  habit_duration: 'Duration per block',
   create_rule: 'Create Habit Rule',
   p1_btn: 'P1 Class',
   p2_btn: 'P2 Class',

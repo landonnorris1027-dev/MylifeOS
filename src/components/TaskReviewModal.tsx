@@ -3,6 +3,7 @@ import { FileText, X } from 'lucide-react';
 import { Task } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface TaskReviewModalProps {
   task: Task | null;
@@ -10,11 +11,12 @@ interface TaskReviewModalProps {
   onSave: (task: Task, note: string, review: string) => void;
 }
 
-const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave }) => {
+const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task: currentTask, onClose, onSave }) => {
   const { t } = useLanguage();
+  const { present: task, presenceProps } = useMotionPresence(currentTask);
   const [note, setNote] = useState('');
   const [review, setReview] = useState('');
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: currentTask !== null, onClose });
 
   useEffect(() => {
     setNote(task?.note || '');
@@ -24,7 +26,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task, onClose, onSave
   if (!task) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
       <div
         {...dialogProps}
         aria-label={t('task_review_title')}

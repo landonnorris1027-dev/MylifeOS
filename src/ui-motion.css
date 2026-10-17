@@ -1,6 +1,6 @@
 /* Scoped visual language: no global element overrides or persistence concerns. */
 .motion-ui {
-  --motion-canvas: #fff;
+  --motion-canvas: #f8fafd;
   --motion-primary: #0b57d0;
   --motion-p1: #d50000;
   --motion-p2: #f6bf26;
@@ -10,19 +10,20 @@
   --motion-muted: #5f6368;
   --motion-line: #dadce0;
   --motion-soft: #f1f3f4;
-  --motion-ease: cubic-bezier(.2,.8,.2,1);
+  --motion-ease: cubic-bezier(.22,1,.36,1);
+  --motion-spring: cubic-bezier(.34,1.4,.64,1);
   color: var(--motion-ink);
   font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
 }
 .motion-shell { background: var(--motion-canvas); }
 .motion-container { width: calc(100% - 48px); max-width: 1440px; margin-inline: auto; }
-.motion-topbar { position: sticky; z-index: 30; background: rgba(255,255,255,.98); border-bottom: 1px solid var(--motion-line); }
+.motion-topbar { position: sticky; z-index: 30; background: rgba(255,255,255,.94); border-bottom: 1px solid #e7ecf3; backdrop-filter: blur(12px); }
 .motion-topbar-inner { min-height: 76px; display: flex; align-items: center; gap: 28px; }
 .motion-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 650; letter-spacing: -.6px; white-space: nowrap; }
 .motion-brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--motion-primary); color: white; }
 .motion-header-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.motion-button, .motion-icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; min-height: 40px; padding: 9px 16px; font-size: 14px; line-height: 1.3; font-weight: 500; transition: background-color 160ms, color 160ms, box-shadow 180ms, transform 80ms var(--motion-ease); }
-.motion-button:active:not(:disabled), .motion-icon-button:active:not(:disabled), .motion-task-focus:active { transform: scale(.97); }
+.motion-button, .motion-icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; min-height: 40px; padding: 9px 16px; font-size: 14px; line-height: 1.3; font-weight: 500; transition: background-color 160ms, color 160ms, box-shadow 180ms, translate 220ms var(--motion-ease), scale 120ms var(--motion-ease); }
+.motion-button:active:not(:disabled), .motion-icon-button:active:not(:disabled), .motion-task-focus:active { scale: .96; }
 .motion-button:disabled, .motion-icon-button:disabled, .motion-stop-focus:disabled { opacity: .45; cursor: not-allowed; }
 .motion-primary { background: var(--motion-primary); color: #fff; }
 .motion-primary:hover:not(:disabled) { background: #0842a0; box-shadow: 0 4px 10px #20212412; }
@@ -33,7 +34,7 @@
 .motion-icon-button:hover:not(:disabled) { background: #e8eaed; color: var(--motion-ink); }
 .motion-shortcut { font-family: inherit; font-size: 13px; line-height: 1.2; padding: 3px 5px; border-radius: 4px; color: var(--motion-muted); background: #f1f3f4; white-space: nowrap; }
 .motion-segments { position: relative; isolation: isolate; display: inline-grid; grid-template-columns: repeat(var(--segments),minmax(0,1fr)); align-items: stretch; padding: 4px; border-radius: 999px; background: #f1f3f4; flex-shrink: 0; }
-.motion-segment-plate { position: absolute; z-index: -1; inset: 4px auto 4px 4px; width: calc((100% - 8px) / var(--segments)); border-radius: 999px; background: var(--motion-primary); transform: translateX(calc(var(--selected) * 100%)); transition: transform 210ms var(--motion-ease); }
+.motion-segment-plate { position: absolute; z-index: -1; inset: 4px auto 4px 4px; width: calc((100% - 8px) / var(--segments)); border-radius: 999px; background: var(--motion-primary); box-shadow: 0 2px 5px #0b57d018; transform: translateX(calc(var(--selected) * 100%)); transition: transform 420ms var(--motion-spring); }
 .motion-segment-button { padding: 8px 17px; border-radius: 999px; font-size: 14px; font-weight: 550; line-height: 1.3; color: var(--motion-muted); white-space: nowrap; transition: color 160ms; }
 .motion-segment-button[aria-pressed="true"] { color: #fff; }
 .motion-main-nav .motion-segment-button { padding-inline: 23px; font-size: 14px; }
@@ -72,9 +73,8 @@
 .motion-shortcut-help p { position: absolute; right: 0; top: 100%; z-index: 35; padding: 16px; width: 320px; max-width: calc(100vw - 48px); border-radius: 16px; border: 1px solid var(--motion-line); background: white; box-shadow: 0 12px 36px #20212412; line-height: 1.8; }
 .motion-recovery-entry { margin-top: 16px; padding: 10px 16px; border-radius: 12px; font-size: 14px; color: #254a83; background: #e9eff9; }
 .motion-planner-grid { display: grid; grid-template-columns: 320px minmax(0,1fr); gap: 24px; align-items: start; }
-.motion-intro .motion-planner-grid { animation: motion-page-enter 280ms var(--motion-ease) both; }
 .motion-inbox-column, .motion-timeline-column { min-width: 0; }
-.motion-panel { background: var(--motion-panel); border-radius: 24px; padding: 22px; box-shadow: 0 2px 5px #19191903, 0 14px 36px #19191903; }
+.motion-panel { background: var(--motion-panel); border: 1px solid #edf1f7; border-radius: 24px; padding: 22px; box-shadow: 0 2px 5px #19191903, 0 14px 36px #19191903; }
 .motion-inbox-panel { min-height: 500px; }
 .motion-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
 .motion-panel-heading h2 { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 600; }
@@ -108,7 +108,7 @@
 .motion-task-meta svg { flex-shrink: 0; }
 .motion-note-badge { padding-left: 7px; border-left: 1px solid #dadce0; }
 .motion-task-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.motion-task-focus { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 99px; min-height: 30px; padding: 6px 10px; background: white; border: 1px solid #dadce0; font-size: 14px; line-height: 1.3; font-weight: 550; white-space: nowrap; transition: background-color 160ms, transform 80ms; }
+.motion-task-focus { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 99px; min-height: 30px; padding: 6px 10px; background: white; border: 1px solid #dadce0; font-size: 14px; line-height: 1.3; font-weight: 550; white-space: nowrap; transition: background-color 160ms, scale 120ms var(--motion-ease); }
 .motion-task-focus:hover { background: #e8f0fe; color: var(--motion-primary); border-color: #a8c7fa; }
 .motion-task-actions { display: flex; gap: 2px; margin-left: auto; opacity: 0; transition: opacity 150ms; }
 .motion-task:hover .motion-task-actions, .motion-task:focus-within .motion-task-actions { opacity: 1; }
@@ -173,8 +173,9 @@
   .motion-topbar-inner { flex-wrap: wrap; gap: 12px; padding: 14px 0; }
   .motion-brand { font-size: 19px; }.motion-main-nav { margin-left: auto; }
   .motion-header-actions { justify-content: space-between; width: 100%; gap: 4px; }
-  .motion-header-actions .motion-shortcut, .motion-desktop-create { display: none; }
+  .motion-header-actions .motion-shortcut, .motion-header-actions .motion-tool-label, .motion-create-label { display: none; }
   .motion-header-actions .motion-button { padding-inline: 8px; font-size: 13px; white-space: nowrap; }
+  .motion-header-actions .motion-create-task { width: 36px; padding: 8px; flex-shrink: 0; }
   .motion-overview { flex-wrap: wrap; gap: 14px 16px; padding-top: 20px; }
   .motion-page-title { flex: 1; }.motion-page-title h1 { font-size: 22px; }
   .motion-load { gap: 14px; }.motion-load strong { font-size: 20px; }
@@ -252,4 +253,82 @@
   .motion-schedule-tools { gap: 4px; }
   .motion-interval-label { gap: 4px; font-size: 12px; }
   .motion-interval-label select { padding-inline: 8px; }
+}
+
+/* Interaction rhythm: immediate press, soft release, then a quiet resting state. */
+.motion-ui :where(button) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background-color 160ms, color 160ms, border-color 160ms,
+    box-shadow 220ms, scale 120ms var(--motion-ease), translate 220ms var(--motion-ease);
+}
+.motion-ui :where(button):active:not(:disabled) { scale: .96; }
+.motion-ui :where(input, select, textarea) {
+  transition: background-color 180ms, border-color 180ms, box-shadow 220ms;
+}
+.motion-ui :where(input, select, textarea):focus-visible { outline-color: var(--motion-primary); }
+.motion-scene { min-width: 0; }
+.motion-page-title h1 { animation: motion-content-enter 240ms var(--motion-ease) both; }
+.motion-panel-count { animation: motion-count-enter 320ms var(--motion-spring) both; }
+.motion-empty { animation: motion-page-enter 360ms var(--motion-ease) both; }
+.motion-overview { animation: motion-page-enter 400ms var(--motion-ease) both; }
+.motion-ui [data-timeline-time] { scroll-margin-block-start: 100px; }
+.motion-ui [data-motion-reveal="pending"] { opacity: 0; }
+.motion-ui .motion-mobile-panes + .motion-inbox-column,
+.motion-ui .motion-timeline-column { animation: motion-page-enter 380ms var(--motion-ease) both; }
+.motion-ui .motion-shortcut-help[open] p { animation: motion-panel-enter 220ms var(--motion-ease) both; }
+
+/* Only animate compositor-friendly opacity and transforms on scrolling content. */
+.motion-modal-overlay { overflow-y: auto; overscroll-behavior: contain; }
+.motion-modal-overlay[data-motion-state="open"] { animation: motion-backdrop-enter 220ms ease both; }
+.motion-modal-overlay[data-motion-state="open"] > :is([role="dialog"], [role="alertdialog"]) {
+  animation: motion-dialog-enter 360ms var(--motion-ease) both;
+}
+.motion-modal-overlay[data-motion-state="closed"] {
+  pointer-events: none;
+  animation: motion-backdrop-exit 180ms ease both;
+}
+.motion-modal-overlay[data-motion-state="closed"] > :is([role="dialog"], [role="alertdialog"]) {
+  animation: motion-dialog-exit 160ms ease both;
+}
+.motion-success-toast[data-motion-state="closed"] { animation: motion-dialog-exit 180ms ease both; pointer-events: none; }
+.motion-focus-overlay { animation: motion-backdrop-enter 240ms ease both; overscroll-behavior: contain; }
+.motion-focus-panel.is-active .motion-focus-dot { animation: motion-breathe 2400ms ease-in-out infinite; }
+.motion-ui [role="status"].fixed { animation: motion-toast-enter 260ms var(--motion-ease) both; }
+
+@media (hover:hover) and (pointer:fine) {
+  .motion-button:hover:not(:disabled) { translate: 0 -1px; }
+  .motion-icon-button:hover:not(:disabled) { scale: 1.06; }
+  .motion-brand-mark { transition: rotate 360ms var(--motion-spring), scale 240ms var(--motion-ease); }
+  .motion-brand:hover .motion-brand-mark { rotate: -7deg; scale: 1.04; }
+  .motion-task:not(.is-completed):hover {
+    translate: 0 -3px;
+    box-shadow: 0 5px 16px #0b57d00c;
+  }
+  .motion-task:not(.is-completed):active { translate: 0 0; scale: .985; }
+  .motion-task-actions { translate: 3px 0; transition: opacity 160ms, translate 220ms var(--motion-ease); }
+  .motion-task:hover .motion-task-actions, .motion-task:focus-within .motion-task-actions { translate: 0 0; }
+  .motion-search-result:hover { translate: 2px 0; }
+}
+
+@keyframes motion-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes motion-backdrop-exit { from { opacity: 1; } to { opacity: 0; } }
+@keyframes motion-dialog-enter {
+  from { opacity: 0; transform: translateY(18px) scale(.965); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes motion-dialog-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(.98); }
+}
+@keyframes motion-count-enter { from { opacity: .3; scale: .75; } to { opacity: 1; scale: 1; } }
+@keyframes motion-toast-enter { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@keyframes motion-breathe { 0%,100% { opacity: .55; scale: .9; } 50% { opacity: 1; scale: 1.15; } }
+
+@media (prefers-reduced-motion:reduce) {
+  .motion-ui *, .motion-ui *::before, .motion-ui *::after {
+    animation: none !important; transition: none !important;
+    scroll-behavior: auto !important; scale: none !important; translate: none !important; rotate: none !important;
+  }
+  .motion-ui [data-motion-reveal] { opacity: 1 !important; }
 }

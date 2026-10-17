@@ -754,7 +754,7 @@ export const useAppController = () => {
 
   const handleTaskDeleteToday = useCallback(async (taskId: string) => {
     const task = state.dailyData?.tasks.find((item) => item.id === taskId);
-    if (!task) return;
+    if (!task) return false;
 
     try {
       const timers = await electronIPC.getActiveTimers(true);
@@ -762,7 +762,7 @@ export const useAppController = () => {
         || state.timerPanel.task?.id === task.id
         || state.timerPanel.restoredState?.taskId === task.id) {
         dispatch({ type: 'OPEN_ALERT', message: t('task_running_action') });
-        return;
+        return false;
       }
       await operations.current.change(task, { date: task.date, status: 'deleted', startTime: undefined }, 'delete');
       loadData(state.selectedDate);
@@ -772,8 +772,10 @@ export const useAppController = () => {
         setUndoTask(null);
         undoTimeout.current = null;
       }, 10000);
+      return true;
     } catch (error) {
       reportStorageError(error);
+      return false;
     }
   }, [loadData, reportStorageError, state.dailyData?.tasks, state.selectedDate, state.timerPanel.task?.id, state.timerPanel.restoredState?.taskId, t]);
 
@@ -793,22 +795,24 @@ export const useAppController = () => {
     dispatch({ type: 'CLOSE_CONFIRM' });
   }, []);
 
-  const handleTaskDeletePermanent = useCallback((taskId: string, habitId: string) => {
+  const handleTaskDeletePermanent = useCallback((taskId: string, habitId: string, confirmed = false) => {
+    const remove = () => {
+      const task = state.dailyData?.tasks.find((item) => item.id === taskId);
+      if (!task) return false;
+      try {
+        assertTaskInactive(taskId);
+        reduceHabitQuota(habitId);
+        deleteTaskFromDay(taskId, task.date);
+        loadData(state.selectedDate);
+        return true;
+      } catch (error) { reportStorageError(error); return false; }
+    };
+    if (confirmed) return remove();
     dispatch({
       type: 'OPEN_CONFIRM',
       message: t('confirm_permanent_delete'),
       onConfirm: () => {
-        const task = state.dailyData?.tasks.find((item) => item.id === taskId);
-        try {
-          if (task) {
-            assertTaskInactive(taskId);
-            reduceHabitQuota(habitId);
-            deleteTaskFromDay(taskId, task.date);
-            loadData(state.selectedDate);
-          }
-        } catch (error) {
-          reportStorageError(error);
-        }
+        remove();
         dispatch({ type: 'CLOSE_CONFIRM' });
       },
     });

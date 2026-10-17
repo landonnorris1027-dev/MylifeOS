@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import './TaskCard.css';
-import { FileText, Timer, CheckCircle2, X, Trash2, Undo2, CalendarDays, Play } from 'lucide-react';
+import { FileText, Timer, CheckCircle2, Undo2, CalendarDays, Play } from 'lucide-react';
+import DeleteButton from './DeleteButton';
 import { Task } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTaskTimeLabel } from '../services/scheduling';
@@ -9,8 +10,8 @@ interface TaskCardProps {
   task: Task;
   onClick: (task: Task) => void;
   onFocus?: (task: Task) => void;
-  onDeleteToday?: (taskId: string) => void;
-  onDeletePermanent?: (taskId: string, habitId: string) => void;
+  onDeleteToday?: (taskId: string) => void | boolean | Promise<void | boolean>;
+  onDeletePermanent?: (taskId: string, habitId: string, confirmed?: boolean) => void | boolean | Promise<void | boolean>;
   onUnschedule?: (task: Task) => void;
   onEditReview?: (task: Task) => void;
   onReschedule?: (task: Task) => void;
@@ -51,8 +52,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
       <div className="motion-task-actions" onClick={event => event.stopPropagation()}>
         {onEditReview && <button type="button" className="motion-icon-button" title={t('task_review_edit')} aria-label={t('task_review_edit')} onClick={event => action(event, () => onEditReview(task))}><FileText size={15}/></button>}
         {onReschedule && (task.origin === 'manual' || !task.habitId) && task.status !== 'completed' && <button type="button" className="motion-icon-button" title={t('reschedule_title')} aria-label={t('reschedule_title')} onClick={event => action(event, () => onReschedule(task))}><CalendarDays size={15}/></button>}
-        {onDeleteToday && <button type="button" className="motion-icon-button" title={t('delete_today')} aria-label={t('delete_today')} onClick={event => action(event, () => onDeleteToday(task.id))}><X size={15}/></button>}
-        {mode === 'pool' && onDeletePermanent && task.habitId && <button type="button" className="motion-icon-button motion-danger" title={t('delete_permanent_block')} aria-label={t('delete_permanent_block')} onClick={event => action(event, () => onDeletePermanent(task.id, task.habitId!))}><Trash2 size={15}/></button>}
+        {onDeleteToday && <DeleteButton compact label={t('delete_today')} onConfirm={() => onDeleteToday(task.id)} />}
+        {mode === 'pool' && onDeletePermanent && task.habitId && <DeleteButton compact label={t('delete_permanent_block')}
+          description={t('confirm_permanent_delete')} onConfirm={() => onDeletePermanent(task.id, task.habitId!, true)} />}
         {mode === 'schedule' && !isCompleted && onUnschedule && <button type="button" className="motion-icon-button" title={t('unschedule')} aria-label={t('unschedule')} onClick={event => action(event, () => onUnschedule(task))}><Undo2 size={15}/></button>}
       </div>
     </div>

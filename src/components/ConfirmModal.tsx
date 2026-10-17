@@ -2,6 +2,7 @@ import React from 'react';
 import { HelpCircle, X } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface ConfirmModalProps {
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onConfirm, onCancel }) => {
   const { t } = useLanguage();
+  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   // Destructive confirmation: focus the cancel button by default so pressing
   // Enter right away cannot trigger the destructive action.
   const { containerRef } = useModalBehavior({
@@ -21,10 +23,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, title, message, onC
     initialFocusSelector: '[data-modal-cancel]',
   });
 
-  if (!isOpen) return null;
+  if (!isPresent) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div
         role="alertdialog"
         aria-modal="true"

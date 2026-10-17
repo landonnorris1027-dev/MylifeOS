@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Task } from '../types';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 import { useLanguage } from '../contexts/LanguageContext';
 interface Props { open: boolean; tasks: Task[]; onClose: () => void; onConfirm: (tasks: Task[], date: string) => Promise<boolean>; }
 export default function BatchRescheduleModal({ open, tasks, onClose, onConfirm }: Props) {
@@ -8,9 +9,10 @@ export default function BatchRescheduleModal({ open, tasks, onClose, onConfirm }
   const [selected, setSelected] = useState<string[]>([]); const [date, setDate] = useState(''); const [busy, setBusy] = useState(false);
   const eligible = tasks.filter(t => !t.habitId && ['inbox', 'scheduled'].includes(t.status));
   const { containerRef, dialogProps } = useModalBehavior({ isOpen: open, onClose: () => { if (!busy) onClose(); } });
+  const { isPresent, presenceProps } = useMotionPresence(open ? true : null);
   useEffect(() => { if (open) { setSelected([]); setDate(''); } }, [open]);
-  if (!open) return null;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
+  if (!isPresent) return null;
+  return <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
     <div {...dialogProps} ref={containerRef} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"><form onSubmit={async e => {
       e.preventDefault(); if (busy) return; setBusy(true);
       try { if (await onConfirm(eligible.filter(t => selected.includes(t.id)), date)) onClose(); } finally { setBusy(false); }

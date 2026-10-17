@@ -4,6 +4,7 @@ import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TimelineMode, buildTimelineSlotsForMode, getOverlappingTasks, getTaskTimeLabel, isTaskStartInPastForDate, isTaskWithinDay } from '../services/scheduling';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface TimePickerModalProps {
   task: Task | null;
@@ -14,9 +15,10 @@ interface TimePickerModalProps {
   onConfirm: (time: string) => void;
 }
 
-const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, timelineMode, intervalMinutes = 30, onClose, onConfirm }) => {
+const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, dailyTasks, timelineMode, intervalMinutes = 30, onClose, onConfirm }) => {
   const { t } = useLanguage();
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen: task !== null, onClose });
+  const { present: task, presenceProps } = useMotionPresence(currentTask);
+  const { containerRef, dialogProps } = useModalBehavior({ isOpen: currentTask !== null, onClose });
 
   // The O(48 × task count) slot computation is memoized so re-renders that do
   // not touch the schedule inputs (e.g. focus changes) stay cheap.
@@ -45,7 +47,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task, dailyTasks, tim
   const hasPastSlots = slotStates.some((slot) => slot.isPast);
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
       <div
         {...dialogProps}
         aria-label={t('schedule_task')}
