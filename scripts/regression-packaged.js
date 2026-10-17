@@ -197,11 +197,22 @@ async function main() {
   logs = await readLogs();
   assert.ok(!logs[day].tasks.some(t => t.id === moveTask.id));
   assert.equal(logs[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox');
-  await current.evaluate(`(() => { const c = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(moveName)})); const b = c?.querySelector('button[aria-label="Delete for today only"]'); if (!b) throw Error('Delete action missing'); b.click(); })()`);
+  const movedTaskButtons = `[data-task-id="${moveTask.id}"] button`;
+  await clickText('Delete for today only', movedTaskButtons);
+  await until(() => current.evaluate(`document.querySelector('[data-task-id="${moveTask.id}"] button[aria-label="Delete for today only"]')?.getAttribute('aria-expanded') === 'true'`));
+  assert.equal((await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox',
+    'Opening inline confirmation must not delete the task');
+  assert.equal(await current.evaluate("document.querySelectorAll('[role=dialog]').length"), 0,
+    'Delete action must not activate scheduling');
+  await clickText('Cancel deletion', movedTaskButtons);
+  assert.equal((await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox',
+    'Cancelling deletion must preserve the persisted task');
+  await clickText('Delete for today only', movedTaskButtons);
+  await clickText('Confirm Delete for today only', movedTaskButtons);
   await until(async () => (await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id)?.status === 'deleted');
   await clickText('Undo delete');
   await until(async () => (await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id)?.status === 'inbox');
-  log('PASS cross-day move and 10-second delete undo through UI');
+  log('PASS cross-day move, inline delete/cancel/confirm and 10-second undo through UI');
 
   await clickText('Config Habits');
   await fill('input[placeholder="e.g. Deep Work, Read Book"]', `P1 weekday habit ${Date.now()}`);
