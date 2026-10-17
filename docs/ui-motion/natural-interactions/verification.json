@@ -1,0 +1,163 @@
+{
+  "desktop": {
+    "dialogEntry": {
+      "focusedField": "例如：提交表格、联系导师",
+      "animations": [
+        {
+          "name": "motion-dialog-enter",
+          "duration": 360,
+          "state": "running"
+        }
+      ]
+    },
+    "modalBackgroundScroll": {
+      "before": 0,
+      "after": 0
+    },
+    "dialogExit": {
+      "state": "closed",
+      "inert": true,
+      "ariaHidden": "true",
+      "focusReturned": "新增任务"
+    },
+    "rapidReopen": 1,
+    "sceneTransition": [
+      {
+        "duration": 360,
+        "state": "running"
+      }
+    ],
+    "scrollFrames": {
+      "samples": 54,
+      "maxFrameGapMs": 4.3,
+      "averageFrameGapMs": 4.2
+    },
+    "visiblePanels": [
+      {
+        "opacity": "1",
+        "pending": null
+      },
+      {
+        "opacity": "1",
+        "pending": null
+      },
+      {
+        "opacity": "1",
+        "pending": null
+      },
+      {
+        "opacity": "1",
+        "pending": null
+      }
+    ],
+    "currentTimeJump": {
+      "visible": [
+        "13:00",
+        "13:15",
+        "13:30",
+        "13:45",
+        "14:00",
+        "14:15",
+        "14:30",
+        "14:45",
+        "15:00",
+        "15:15",
+        "15:30"
+      ],
+      "currentHour": 14,
+      "scrollY": 2044
+    },
+    "reducedMotion": {
+      "matches": true,
+      "runningAnimations": 0,
+      "plateTransform": "matrix(1, 0, 0, 1, 74, 0)",
+      "hiddenPanels": 0,
+      "closedImmediately": true
+    },
+    "pageErrors": []
+  },
+  "responsive": {
+    "schedulingDialog": "- dialog \"安排任务\":\n  - heading \"安排任务\" [level=2]:\n    - img\n    - text: 安排任务\n  - button \"关闭\":\n    - img\n  - paragraph: 为 \"梳理今天的研究思路\".\n  - img\n  - text: 可安排\n  - img\n  - text: 繁忙时间会在排程前直接禁用\n  - img\n  - text: 今天已过去的时间不可安排\n  - img\n  - text: 25 分钟专注块\n  - img\n  - text: 推荐时间\n  - button \"最佳选择 14:30\"\n  - button \"选项 2 14:45\"\n  - button \"选项 3 15:00\"\n  - button \"最早可安排时间： 14:30\"\n  - button \"08:00 早于当前时间 已过去\" [disabled]\n  - button \"08:15 早于当前时间 已过去\" [disabled]\n  - button \"08:30 早于当前时间 已过去\" [disabled]\n  - button \"08:45 早于当前时间 已过去\" [disabled]\n  - button \"09:00 早于当前时间 已过去\" [disabled]\n  - button \"09:15 早于当前时间 已过去\" [disabled]\n  - button \"09:30 早于当前时间 已过去\" [disabled]\n  - button \"09:45 早于当前时间 已过去\" [disabled]\n  - button \"10:00 早于当前时间 已过去\" [disabled]\n  - button \"10:15 早于当前时间 已过去\" [disabled]\n  - button \"10:30 早于当前时间 已过去\" [disabled]\n  - button \"10:45 早于当前时间 已过去\" [disabled]\n  - button \"11:00 早于当前时间 已过去\" [disabled]\n  - button \"11:15 早于当前时间 已过去\" [disabled]\n  - button \"11:30 早于当前时间 已过去\" [disabled]\n  - button \"11:45 早于当前时间 已过去\" [disabled]\n  - button \"12:00 早于当前时间 已过去\" [disabled]\n  - button \"12:15 早于当前时间 已过去\" [disabled]\n  - button \"12:30 早于当前时间 已过去\" [disabled]\n  - button \"12:45 早于当前时间 已过去\" [disabled]\n  - button \"13:00 早于当前时间 已过去\" [disabled]\n  - button \"13:15 早于当前时间 已过去\" [disabled]\n  - button \"13:30 早于当前时间 已过去\" [disabled]\n  - button \"13:45 早于当前时间 已过去\" [disabled]\n  - button \"14:00 早于当前时间 已过去\" [disabled]\n  - button \"14:15 早于当前时间 已过去\" [disabled]\n  - button \"14:30 当前没有时间冲突 可安排\"\n  - button \"14:45 当前没有时间冲突 可安排\"\n  - button \"15:00 当前没有时间冲突 可安排\"\n  - button \"15:15 当前没有时间冲突 可安排\"\n  - button \"15:30 当前没有时间冲突 可安排\"\n  - button \"15:45 当前没有时间冲突 可安排\"\n  - button \"16:00 当前没有时间冲突 可安排\"\n  - button \"16:15 当前没有时间冲突 可安排\"\n  - button \"16:30 当前没有时间冲突 可安排\"\n  - button \"16:45 当前没有时间冲突 可安排\"\n  - button \"17:00 当前没有时间冲突 可安排\"\n  - button \"17:15 当前没有时间冲突 可安排\"\n  - button \"17:30 当前没有时间冲突 可安排\"\n  - button \"17:45 当前没有时间冲突 可安排\"\n  - button \"18:00 当前没有时间冲突 可安排\"\n  - button \"18:15 当前没有时间冲突 可安排\"\n  - button \"18:30 当前没有时间冲突 可安排\"\n  - button \"18:45 当前没有时间冲突 可安排\"\n  - button \"19:00 当前没有时间冲突 可安排\"\n  - button \"19:15 当前没有时间冲突 可安排\"\n  - button \"19:30 当前没有时间冲突 可安排\"\n  - button \"19:45 当前没有时间冲突 可安排\"\n  - button \"20:00 当前没有时间冲突 可安排\"\n  - button \"20:15 当前没有时间冲突 可安排\"\n  - button \"20:30 当前没有时间冲突 可安排\"\n  - button \"20:45 当前没有时间冲突 可安排\"\n  - button \"21:00 当前没有时间冲突 可安排\"\n  - button \"21:15 当前没有时间冲突 可安排\"\n  - button \"21:30 当前没有时间冲突 可安排\"\n  - button \"21:45 当前没有时间冲突 可安排\"\n  - button \"22:00 当前没有时间冲突 可安排\"\n  - button \"22:15 当前没有时间冲突 可安排\"\n  - button \"22:30 当前没有时间冲突 可安排\"\n  - button \"22:45 当前没有时间冲突 可安排\"\n  - button \"23:00 当前没有时间冲突 可安排\"\n  - button \"23:15 当前没有时间冲突 可安排\"\n  - button \"23:30 当前没有时间冲突 可安排\"\n  - button \"23:45 会跨到次日 有冲突\" [disabled]",
+    "scheduledCards": 1,
+    "scheduleSnapshot": "- button \"梳理今天的研究思路 无优先级 14:30-14:55 25 分钟 开始专注 编辑笔记和复盘 将任务改期 仅删除今天 移出时间线\":\n  - text: 梳理今天的研究思路\n  - img \"无优先级\"\n  - text: 14:30-14:55 25 分钟\n  - button \"开始专注\":\n    - img\n    - text: 开始专注\n  - button \"编辑笔记和复盘\":\n    - img\n  - button \"将任务改期\":\n    - img\n  - button \"仅删除今天\":\n    - img\n  - button \"移出时间线\":\n    - img",
+    "unscheduledCards": 1,
+    "reviewSnapshot": "- dialog \"任务笔记\":\n  - heading \"任务笔记\" [level=2]:\n    - img\n    - text: 任务笔记\n  - button \"关闭\":\n    - img\n  - text: 梳理今天的研究思路 2026-10-15 笔记\n  - textbox \"笔记\":\n    - /placeholder: 记录开始前需要记住的上下文、资料或提醒。\n  - text: 复盘\n  - textbox \"复盘\":\n    - /placeholder: 记录做得好的地方、卡点，以及下次要调整什么。\n  - button \"取消\"\n  - button \"保存复盘\"",
+    "widths": [
+      {
+        "window": 320,
+        "viewport": 312,
+        "document": 312
+      },
+      {
+        "window": 390,
+        "viewport": 390,
+        "document": 390
+      },
+      {
+        "window": 768,
+        "viewport": 760,
+        "document": 760
+      },
+      {
+        "window": 900,
+        "viewport": 892,
+        "document": 892
+      },
+      {
+        "window": 1440,
+        "viewport": 1432,
+        "document": 1432
+      }
+    ],
+    "mobileTimelineVisible": true,
+    "english390": {
+      "window": 390,
+      "viewport": 382,
+      "document": 382
+    },
+    "touch": {
+      "coarsePointer": true,
+      "viewport": 390,
+      "document": 390,
+      "focusButtonHeight": 48,
+      "createButtonHeight": 48,
+      "floatingButtonCount": 0,
+      "hasTask": true
+    },
+    "missingAnimationApis": {
+      "pendingElements": 0,
+      "invisibleRows": 0,
+      "timelineRows": 64
+    }
+  },
+  "layout": {
+    "removal": {
+      "remainingCards": 1,
+      "animations": [
+        {
+          "state": "running",
+          "duration": 380
+        }
+      ],
+      "toast": {
+        "left": 608,
+        "right": 824,
+        "center": 716,
+        "anchor": 716,
+        "viewport": 1432
+      }
+    },
+    "toastSnapshot": "- status:\n  - text: 检查列表平滑补位\n  - button \"撤销删除\"",
+    "restoredCards": 2,
+    "finalCards": 1
+  },
+  "verified_at": "2026-10-15T14:19:55.183746+08:00",
+  "branch": "codex/fluid-interactions",
+  "base_commit": "3d84379",
+  "checks": {
+    "typecheck": "passed",
+    "production_build": "passed",
+    "test_files": 41,
+    "tests_passed": 283
+  }
+}

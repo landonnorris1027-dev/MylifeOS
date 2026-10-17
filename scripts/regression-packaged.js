@@ -147,7 +147,7 @@ async function main() {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
   await fill('input[type=date]', day);
-  await clickText('New task');
+  await clickText('New task', 'header button');
   const taskName = `Windows upgrade regression ${Date.now()}`;
   await fill('input[placeholder="e.g. Submit form, call advisor"]', taskName);
   await clickText('Create Task');
@@ -166,7 +166,7 @@ async function main() {
 
   const movedDateValue = new Date(tomorrow); movedDateValue.setDate(movedDateValue.getDate() + 1);
   const movedDate = `${movedDateValue.getFullYear()}-${String(movedDateValue.getMonth()+1).padStart(2,'0')}-${String(movedDateValue.getDate()).padStart(2,'0')}`;
-  await clickText('New task');
+  await clickText('New task', 'header button');
   const moveName = `One-time task move ${Date.now()}`;
   await fill('input[placeholder="e.g. Submit form, call advisor"]', moveName);
   await clickText('Create Task');
@@ -197,11 +197,22 @@ async function main() {
   logs = await readLogs();
   assert.ok(!logs[day].tasks.some(t => t.id === moveTask.id));
   assert.equal(logs[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox');
-  await current.evaluate(`(() => { const c = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(moveName)})); const b = c?.querySelector('button[aria-label="Delete for today only"]'); if (!b) throw Error('Delete action missing'); b.click(); })()`);
+  const movedTaskButtons = `[data-task-id="${moveTask.id}"] button`;
+  await clickText('Delete for today only', movedTaskButtons);
+  await until(() => current.evaluate(`document.querySelector('[data-task-id="${moveTask.id}"] button[aria-label="Delete for today only"]')?.getAttribute('aria-expanded') === 'true'`));
+  assert.equal((await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox',
+    'Opening inline confirmation must not delete the task');
+  assert.equal(await current.evaluate("document.querySelectorAll('[role=dialog]').length"), 0,
+    'Delete action must not activate scheduling');
+  await clickText('Cancel deletion', movedTaskButtons);
+  assert.equal((await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id).status, 'inbox',
+    'Cancelling deletion must preserve the persisted task');
+  await clickText('Delete for today only', movedTaskButtons);
+  await clickText('Confirm Delete for today only', movedTaskButtons);
   await until(async () => (await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id)?.status === 'deleted');
   await clickText('Undo delete');
   await until(async () => (await readLogs())[movedDate].tasks.find(t => t.id === moveTask.id)?.status === 'inbox');
-  log('PASS cross-day move and 10-second delete undo through UI');
+  log('PASS cross-day move, inline delete/cancel/confirm and 10-second undo through UI');
 
   await clickText('Config Habits');
   await fill('input[placeholder="e.g. Deep Work, Read Book"]', `P1 weekday habit ${Date.now()}`);
@@ -434,7 +445,7 @@ async function main() {
   await fill('input[type=date]', todayDate);
   const efficiencyNames = ['A', 'B'].map(letter => `Efficiency ${letter} ${Date.now()}`);
   for (const name of efficiencyNames) {
-    await clickText('New task'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
+    await clickText('New task', 'header button'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
   }
   const efficiencyTasks = (await readLogs())[todayDate].tasks.filter(t => efficiencyNames.includes(t.name));
   const efficiencyLogs = await readLogs();
@@ -468,7 +479,7 @@ async function main() {
     await fill('[role=dialog] input[type=date]', day); await clickText('Move selected tasks');
     await until(async () => (await readLogs())[day].tasks.some(t => t.id === efficiencyTasks[0].id));
     if (round === 1) {
-      await clickText('New task'); const beforeEditingUndo = JSON.stringify(await readLogs());
+      await clickText('New task', 'header button'); const beforeEditingUndo = JSON.stringify(await readLogs());
       await current.evaluate("document.querySelector('input[placeholder=\"e.g. Submit form, call advisor\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
       assert.equal(JSON.stringify(await readLogs()), beforeEditingUndo);
       await current.evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))");

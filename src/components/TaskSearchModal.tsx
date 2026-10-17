@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 import { getGoals, searchTasks, TaskSearchFilters } from '../services/storage';
 import { Task } from '../types';
 
@@ -13,6 +14,7 @@ interface Props {
 
 const TaskSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
   const { t } = useLanguage();
+  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   const [filters, setFilters] = useState<TaskSearchFilters>({});
   const [results, setResults] = useState<Task[] | null>(null);
   const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose, initialFocusSelector: 'input[type="search"]' });
@@ -21,11 +23,11 @@ const TaskSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
     if (isOpen) setResults(null);
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isPresent) return null;
   const update = (patch: Partial<TaskSearchFilters>) => setFilters((current) => ({ ...current, ...patch }));
 
   return (
-    <div className="motion-ui motion-search-overlay">
+    <div {...presenceProps} className="motion-ui motion-modal-overlay motion-search-overlay">
       <div {...dialogProps} ref={containerRef} aria-label={t('task_search_title')}
         className="motion-search-panel">
         <div className="motion-search-heading">

@@ -7,14 +7,15 @@
 
 .task-card,
 .task-card.motion-task {
-  transition: background-color 800ms ease, border-color 800ms ease,
-    color 800ms ease, box-shadow 200ms ease;
+  transition: background-color 160ms ease, border-color 160ms ease,
+    color 160ms ease, box-shadow 240ms ease,
+    translate 300ms var(--motion-ease), scale 160ms var(--motion-ease);
 }
 .task-card .task-title,
 .task-card .task-meta,
 .task-card .task-label,
 .task-card .task-check {
-  transition: color 800ms ease, background-color 800ms ease, border-color 800ms ease;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
 .task-card.is-completed,
 .task-card.is-completed:hover,
@@ -23,6 +24,8 @@
   border-color: var(--task-completion-color);
   color: #fff;
   cursor: default;
+  transition: background-color 800ms ease, border-color 800ms ease,
+    color 800ms ease, box-shadow 240ms ease;
 }
 .task-card.is-completed .task-title,
 .task-card.is-completed .task-meta,
@@ -30,6 +33,7 @@
 .task-card.is-completed .task-check {
   color: #fff;
   opacity: 1;
+  transition: color 800ms ease, background-color 800ms ease, border-color 800ms ease;
 }
 .task-card.is-completed .task-meta,
 .task-card.is-completed .task-label {

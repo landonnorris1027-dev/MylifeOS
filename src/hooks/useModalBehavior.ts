@@ -34,10 +34,9 @@ const FOCUSABLE_SELECTOR = [
 ].join(', ');
 
 const isHidden = (element: HTMLElement): boolean => {
-  if (element.hidden || element.getAttribute('aria-hidden') === 'true') return true;
-
   let current: HTMLElement | null = element;
   while (current) {
+    if (current.hidden || current.getAttribute('aria-hidden') === 'true' || current.hasAttribute('inert')) return true;
     const display = current.style?.display;
     const visibility = current.style?.visibility;
     if (display === 'none' || visibility === 'hidden') return true;
@@ -49,7 +48,7 @@ const isHidden = (element: HTMLElement): boolean => {
 
 const getFocusableElements = (container: HTMLElement): HTMLElement[] => {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (element) => !isHidden(element),
+    (element) => element.tabIndex >= 0 && !isHidden(element),
   );
 };
 
@@ -90,7 +89,9 @@ export const useModalBehavior = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && closeOnEscape) {
-        const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).filter(element => !isHidden(element));
+        // Inline editors/confirmations consume their first Escape locally.
+        if (event.target instanceof Element && event.target.closest('[data-inline-escape="true"]')) return;
+        const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]')).filter(element => !isHidden(element));
         if (dialogs.length && dialogs[dialogs.length - 1] !== containerRef.current) return;
         event.preventDefault();
         event.stopPropagation();

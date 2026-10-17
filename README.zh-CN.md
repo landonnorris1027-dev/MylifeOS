@@ -177,6 +177,8 @@ npm run android:verify
 
 ## 更多文档
 
+时长选择器和删除按钮改编自 Swami Malode 的 [Rare UI](https://rareui.com)，许可及源码出处见[第三方声明](THIRD_PARTY_NOTICES.md)。
+
 - [English user guide](USER_GUIDE.en.md)
 - [中文使用指南](USER_GUIDE.md)
 - [架构](docs/ARCHITECTURE.md)

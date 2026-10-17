@@ -180,6 +180,8 @@ The `b2164cb` build passed **143 shared tests and 10 native JVM tests**; Release
 
 ## Extra docs
 
+Duration Picker and Delete Button are adapted from [Rare UI](https://rareui.com), by Swami Malode. See [third-party notices](THIRD_PARTY_NOTICES.md) for the license and source details.
+
 - [English user guide](USER_GUIDE.en.md)
 - [中文使用指南](USER_GUIDE.md)
 - [Architecture](docs/ARCHITECTURE.md)

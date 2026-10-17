@@ -1,0 +1,36 @@
+.rare-duration, .rare-delete-anchor { --rare-surface:#f4f4f9; --rare-recess:#e7e7ef; --rare-ink:#747382; }
+.rare-duration-surface { display:inline-flex; align-items:center; max-width:100%; font-size:14px; }
+.rare-duration-segment { display:flex; align-items:center; flex-shrink:0; gap:4px; height:48px; background:var(--rare-surface); }
+.rare-duration-first { padding-left:8px; }
+.rare-duration-input { min-width:0; padding:0; border:0; background:transparent; color:#202124; font-size:15px; font-variant-numeric:tabular-nums; }
+.rare-duration-unit { color:var(--rare-ink); font-size:12px; font-weight:550; white-space:nowrap; }
+.rare-duration-toggle { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; color:var(--rare-ink); background:var(--rare-surface); }
+.rare-duration-hint { margin-top:8px; color:#737985; font-size:11px; line-height:1.6; }
+.rare-duration-input:focus-visible { outline:0; box-shadow:inset 0 -2px #0b57d0; border-radius:3px; }
+.rare-duration-toggle:focus-visible, .rare-delete-anchor button:focus-visible { outline:2px solid #0b57d0; outline-offset:-3px; }
+.rare-delete-anchor { --delete-tile:48px; position:relative; display:inline-block; flex-shrink:0; width:var(--delete-tile); height:var(--delete-tile); vertical-align:middle; }
+.rare-delete-anchor.is-compact { --delete-tile:32px; }
+.rare-delete-button { position:absolute; right:0; top:0; height:100%; overflow:hidden; border-radius:14px; background:var(--rare-surface); color:var(--rare-ink); box-shadow:0 .5px 1px #00000006; }
+.rare-delete-trigger { position:relative; z-index:2; display:grid; place-items:center; width:var(--delete-tile); height:var(--delete-tile); min-width:var(--delete-tile); min-height:var(--delete-tile); border-radius:14px; color:inherit; background:transparent; }
+.rare-bin-icon { overflow:visible; }
+.rare-delete-panel { position:absolute; inset-block:0; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:14px; background:var(--rare-recess); }
+.rare-delete-circle { display:grid; place-items:center; width:28px; height:28px; min-width:28px; min-height:28px; border-radius:50%; background:var(--rare-surface); color:var(--rare-ink); box-shadow:0 .5px 1px #0000000d,0 1px 3px #00000014,inset 0 .5px 0 #ffffffe6; }
+.rare-delete-confirm { color:#e74f25; }
+.rare-delete-error { position:absolute; right:0; top:calc(100% + 5px); z-index:65; width:max-content; max-width:210px; padding:6px 9px; border:1px solid #f2c8bc; border-radius:8px; background:#fff5f1; color:#a63b35; font-size:12px; }
+.task-card.is-completed .rare-delete-trigger { color:var(--rare-ink); }
+.rare-delete-circle:hover:not(:disabled) { background:#fafafd; }
+.rare-delete-anchor button:disabled { cursor:default; }
+.rare-delete-anchor [data-status="pending"] .rare-bin-icon { opacity:.45; }
+.motion-ui [data-motion-feedback="self"] button { scale:1 !important; translate:none !important; }
+.motion-ui .rare-delete-circle, .task-card.is-completed .rare-delete-circle { background:var(--rare-surface); color:var(--rare-ink); }
+.motion-ui .rare-delete-confirm, .task-card.is-completed .rare-delete-confirm { color:#e74f25; }
+.motion-task-actions:has(.rare-delete-button[data-state="open"]) { opacity:1; translate:0 0; }
+.motion-task:has(.rare-delete-button[data-state="open"]) { position:relative; z-index:2; }
+.motion-task-actions { align-items:center; flex-wrap:wrap; }
+@media (pointer:coarse) {
+  .rare-delete-anchor.is-compact { --delete-tile:48px; }
+  .motion-ui .rare-delete-circle { width:48px; height:48px; min-width:48px; min-height:48px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .rare-duration *, .rare-delete-anchor * { animation:none !important; transition:none !important; }
+}

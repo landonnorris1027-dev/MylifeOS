@@ -160,6 +160,7 @@
   height: 100%;
   border-radius: inherit;
   background: var(--motion-primary);
+  transition: width 480ms var(--motion-ease);
 }
 .profile-week-target > .profile-caption {
   margin-top: 12px;
@@ -296,7 +297,12 @@
   flex: 1;
   max-width: 26px;
   border-radius: 4px 4px 0 0;
+  transform-origin: center bottom;
+  animation: profile-bar-enter 540ms var(--motion-ease) both;
+  transition: height 420ms var(--motion-ease);
 }
+.profile-panel[data-motion-reveal="pending"] .profile-day-bars > span { animation-play-state: paused; }
+@keyframes profile-bar-enter { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .profile-day-label {
   position: absolute;
   top: calc(100% + 12px);

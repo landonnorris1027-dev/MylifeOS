@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, FileText, Plus, Target, X } from 'lucide-react';
+import { FileText, Plus, Target, X } from 'lucide-react';
+import DurationPicker from './DurationPicker';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getGoals } from '../services/storage';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface ManualTaskModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface ManualTaskModalProps {
 
 const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCreate }) => {
   const { t } = useLanguage();
+  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   const [name, setName] = useState('');
   const [goalName, setGoalName] = useState('');
   const [durationMinutes, setDurationMinutes] = useState<number | ''>(25);
@@ -30,7 +33,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isPresent) return null;
 
   const reset = () => {
     setName('');
@@ -60,7 +63,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   };
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div
         {...dialogProps}
         aria-label={t('manual_task_title')}
@@ -115,24 +118,10 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
           </label>
 
 
-          <label className="block">
-            <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              {t('manual_task_duration')}
-            </span>
-            <div className="relative">
-              <input
-                type="number"
-                required
-                min="1"
-                max="180"
-                value={durationMinutes}
-                onChange={(event) => setDurationMinutes(event.target.value === '' ? '' : Number(event.target.value))}
-                className="w-full p-2.5 pl-9 pr-14 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-200"
-              />
-              <Clock size={15} className="absolute left-3 top-3 text-gray-400" />
-              <span className="absolute right-3 top-3 text-xs text-gray-500 font-medium">{t('minute_unit_short')}</span>
-            </div>
-          </label>
+          <div>
+            <p className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('manual_task_duration')}</p>
+            <DurationPicker value={durationMinutes} onChange={setDurationMinutes} label={t('manual_task_duration')} />
+          </div>
 
           <label className="block">
             <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">

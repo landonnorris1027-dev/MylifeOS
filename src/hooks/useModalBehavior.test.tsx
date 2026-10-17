@@ -124,6 +124,33 @@ describe('useModalBehavior', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('ignores inert dialogs that are still finishing their exit animation', () => {
+    const onClose = vi.fn();
+    act(() => root.render(<Harness onClose={onClose} />));
+    openModal();
+    const closing = document.createElement('div');
+    closing.setAttribute('inert', '');
+    closing.innerHTML = '<div role="dialog"></div>';
+    document.body.appendChild(closing);
+    try {
+      act(() => { pressKey('Escape'); });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally { closing.remove(); }
+  });
+
+  it('leaves Escape to a nested alert dialog', () => {
+    const onClose = vi.fn();
+    act(() => root.render(<Harness onClose={onClose} />));
+    openModal();
+    const alert = document.createElement('div');
+    alert.setAttribute('role', 'alertdialog');
+    document.body.appendChild(alert);
+    try {
+      act(() => { pressKey('Escape'); });
+      expect(onClose).not.toHaveBeenCalled();
+    } finally { alert.remove(); }
+  });
+
   it('traps Tab within the dialog and cycles with Shift+Tab', () => {
     const onClose = vi.fn();
     act(() => {

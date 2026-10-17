@@ -19,9 +19,13 @@ describe('TaskCard independent actions', () => {
     const click=vi.fn(), focus=vi.fn(), reschedule=vi.fn(), review=vi.fn(), remove=vi.fn(), unschedule=vi.fn();
     await act(async () => root.render(<LanguageProvider><TaskCard task={task} mode="schedule" onClick={click}
       onFocus={focus} onReschedule={reschedule} onEditReview={review} onDeleteToday={remove} onUnschedule={unschedule}/></LanguageProvider>));
-    for (const button of Array.from(container.querySelectorAll('button'))) {
+    const actionButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).filter(button => !button.closest('.rare-delete-anchor'));
+    for (const button of actionButtons) {
       await act(async () => button.click());
     }
+    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="仅删除今天"]')!.click(); });
+    expect(remove).not.toHaveBeenCalled();
+    await act(async () => { container.querySelector<HTMLButtonElement>('[aria-label="确认仅删除今天"]')!.click(); });
     expect(focus).toHaveBeenCalledWith(task);expect(reschedule).toHaveBeenCalledWith(task);
     expect(review).toHaveBeenCalledWith(task);expect(remove).toHaveBeenCalledWith(task.id);expect(unschedule).toHaveBeenCalledWith(task);
     expect(click).not.toHaveBeenCalled();

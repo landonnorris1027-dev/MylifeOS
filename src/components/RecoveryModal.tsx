@@ -3,6 +3,7 @@ import { History, Coffee, CheckCircle2, XCircle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { PomodoroRecoveryData } from '../services/electronIPC';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface RecoveryModalProps {
   recovery: PomodoroRecoveryData | null;
@@ -12,11 +13,12 @@ interface RecoveryModalProps {
   onLater: () => void;
 }
 
-const RecoveryModal: React.FC<RecoveryModalProps> = ({ recovery, onResumeBreak, onCompleteTask, onDismiss, onLater }) => {
+const RecoveryModal: React.FC<RecoveryModalProps> = ({ recovery: currentRecovery, onResumeBreak, onCompleteTask, onDismiss, onLater }) => {
   const { t } = useLanguage();
+  const { present: recovery, presenceProps } = useMotionPresence(currentRecovery);
   // Escape maps to "later" (keep the recovery pending) rather than dismiss.
   const { containerRef, dialogProps } = useModalBehavior({
-    isOpen: recovery !== null,
+    isOpen: currentRecovery !== null,
     onClose: onLater,
   });
 
@@ -30,7 +32,7 @@ const RecoveryModal: React.FC<RecoveryModalProps> = ({ recovery, onResumeBreak, 
   const resumeLabel = isFocusRecovery ? t('recovery_start_break') : t('recovery_restart_break');
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
       <div
         {...dialogProps}
         ref={containerRef}
