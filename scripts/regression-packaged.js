@@ -147,7 +147,7 @@ async function main() {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const day = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
   await fill('input[type=date]', day);
-  await clickText('New task');
+  await clickText('New task', 'header button');
   const taskName = `Windows upgrade regression ${Date.now()}`;
   await fill('input[placeholder="e.g. Submit form, call advisor"]', taskName);
   await clickText('Create Task');
@@ -166,7 +166,7 @@ async function main() {
 
   const movedDateValue = new Date(tomorrow); movedDateValue.setDate(movedDateValue.getDate() + 1);
   const movedDate = `${movedDateValue.getFullYear()}-${String(movedDateValue.getMonth()+1).padStart(2,'0')}-${String(movedDateValue.getDate()).padStart(2,'0')}`;
-  await clickText('New task');
+  await clickText('New task', 'header button');
   const moveName = `One-time task move ${Date.now()}`;
   await fill('input[placeholder="e.g. Submit form, call advisor"]', moveName);
   await clickText('Create Task');
@@ -445,7 +445,7 @@ async function main() {
   await fill('input[type=date]', todayDate);
   const efficiencyNames = ['A', 'B'].map(letter => `Efficiency ${letter} ${Date.now()}`);
   for (const name of efficiencyNames) {
-    await clickText('New task'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
+    await clickText('New task', 'header button'); await fill('input[placeholder="e.g. Submit form, call advisor"]', name); await clickText('Create Task');
   }
   const efficiencyTasks = (await readLogs())[todayDate].tasks.filter(t => efficiencyNames.includes(t.name));
   const efficiencyLogs = await readLogs();
@@ -479,7 +479,7 @@ async function main() {
     await fill('[role=dialog] input[type=date]', day); await clickText('Move selected tasks');
     await until(async () => (await readLogs())[day].tasks.some(t => t.id === efficiencyTasks[0].id));
     if (round === 1) {
-      await clickText('New task'); const beforeEditingUndo = JSON.stringify(await readLogs());
+      await clickText('New task', 'header button'); const beforeEditingUndo = JSON.stringify(await readLogs());
       await current.evaluate("document.querySelector('input[placeholder=\"e.g. Submit form, call advisor\"]').dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}))");
       assert.equal(JSON.stringify(await readLogs()), beforeEditingUndo);
       await current.evaluate("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))");
