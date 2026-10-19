@@ -60,3 +60,5 @@ Evidence: [task blocks](docs/profile-stacked-bars/task-colors.png), [habit confi
 ## Pre-merge validation
 
 On 2026-10-19, `npm run verify:release` passed on the final source: TypeScript, 43 test files / 296 tests, the production frontend build, Electron main-process compilation, and the Electron type check. The production build retains its existing bundle-size advisory. An initial sandbox run failed on temporary-file access (`ENOENT` / `EPERM`); the same command passed outside the sandbox without source changes. Windows packaging and native regression remain covered by the pull request's Windows candidate workflow.
+
+The first Windows candidate run built the package, then stopped at an outdated packaged-regression assertion for `Weekly review` and the former seven-day controls. Those assertions now exercise `Period review`, Day/Week switching, and exactly 20 columns in each mode; the remaining native regression checks are preserved.

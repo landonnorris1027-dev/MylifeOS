@@ -490,12 +490,17 @@ async function main() {
   log('PASS direct focus preserves non-grid schedule; existing paused session; all grids; batch move/undo; text shortcut isolation');
   if (Number(require('../package.json').version.split('.')[2]) >= 7) {
     await clickText('Profile');
-    assert.ok(await current.evaluate("document.body.textContent.includes('Measured focus time') && document.body.textContent.includes('Historical task duration (includes estimates)') && document.body.textContent.includes('Local Monday–Sunday') && document.body.textContent.includes('Weekly review')"));
-    await clickText('Last seven days');
-    assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Last seven days').getAttribute('aria-pressed')"), 'true');
-    await clickText('This week');
+    assert.ok(await current.evaluate("document.body.textContent.includes('Measured focus time') && document.body.textContent.includes('Historical task duration (includes estimates)') && document.body.textContent.includes('Local Monday–Sunday') && document.body.textContent.includes('Period review')"));
+    assert.ok(await current.evaluate("document.querySelector('.focus-history-heading').textContent.includes('Last 20 days')"));
+    assert.equal(await current.evaluate("document.querySelectorAll('.focus-history-column').length"), 20);
+    for (const [label, subtitle] of [['Week', 'Last 20 weeks'], ['Day', 'Last 20 days']]) {
+      await clickText(label, '.focus-history-heading button');
+      await until(() => current.evaluate(`document.querySelector('.focus-history-heading').textContent.includes(${JSON.stringify(subtitle)})`));
+      assert.equal(await current.evaluate(`${buttonQuery(label, '.focus-history-heading button')}.getAttribute('aria-pressed')`), 'true');
+      assert.equal(await current.evaluate("document.querySelectorAll('.focus-history-column').length"), 20);
+    }
     assert.ok(await current.evaluate("document.body.textContent.includes('cross-midnight sessions belong to the original task date')"));
-    log('PASS measured/historical separation, weekly/rolling periods and review UI');
+    log('PASS measured/historical separation, twenty-day/twenty-week chart switching and period review UI');
   }
 
 
