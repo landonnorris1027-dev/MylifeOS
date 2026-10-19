@@ -2,9 +2,11 @@
 .motion-ui {
   --motion-canvas: #f8fafd;
   --motion-primary: #0b57d0;
-  --motion-p1: #d50000;
-  --motion-p2: #f6bf26;
-  --motion-p3: #0b8043;
+  --motion-p1: var(--priority-p1);
+  --motion-p2: var(--priority-p2);
+  --motion-p3: var(--priority-p3);
+  --motion-none: var(--priority-none);
+  --motion-success: #0b8043;
   --motion-panel: #fff;
   --motion-ink: #202124;
   --motion-muted: #5f6368;
@@ -98,12 +100,12 @@
 .motion-task-heading { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; }
 .motion-task-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 15px; line-height: 1.5; font-weight: 550; overflow-wrap: anywhere; }
 .motion-task-name svg { flex-shrink: 0; align-self: center; }
-.motion-unprioritized-dot { width: 12px; height: 12px; margin: 4px; flex-shrink: 0; border-radius: 50%; background: #8e24aa; }
-.motion-focus-dot.priority-none { background: #8e24aa; }
+.motion-unprioritized-dot { width: 12px; height: 12px; margin: 4px; flex-shrink: 0; border-radius: 50%; background: var(--motion-none); }
+.motion-focus-dot.priority-none { background: var(--motion-none); }
 .motion-priority-tag { flex-shrink: 0; font-size: 13px; font-weight: 600; border-radius: 6px; line-height: 1.5; padding: 2px 6px; }
-.motion-priority-tag.priority-P1 { background: var(--motion-p1); color: #fff; }
-.motion-priority-tag.priority-P2 { background: var(--motion-p2); color: #3c2600; }
-.motion-priority-tag.priority-P3 { background: var(--motion-p3); color: #fff; }
+.motion-priority-tag.priority-P1 { background: var(--motion-p1); color: var(--motion-ink); }
+.motion-priority-tag.priority-P2 { background: var(--motion-p2); color: var(--motion-ink); }
+.motion-priority-tag.priority-P3 { background: var(--motion-p3); color: var(--motion-ink); }
 .motion-task-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 13px; line-height: 1.5; color: var(--motion-muted); margin-top: 8px; }
 .motion-task-meta svg { flex-shrink: 0; }
 .motion-note-badge { padding-left: 7px; border-left: 1px solid #dadce0; }
@@ -136,7 +138,7 @@
 .motion-control-icon { display: inline-flex; animation: motion-content-enter 150ms var(--motion-ease) both; }
 .motion-spinner { animation: motion-spin 800ms linear infinite; }
 .motion-saved-actions { display: grid; width: 100%; gap: 10px; animation: motion-saved-enter 280ms var(--motion-ease) both; }
-.motion-saved-message { display: flex; justify-content: center; gap: 8px; align-items: center; color: var(--motion-p3); font-size: 14px; margin-bottom: 6px; line-height: 1.6; }
+.motion-saved-message { display: flex; justify-content: center; gap: 8px; align-items: center; color: var(--motion-success); font-size: 14px; margin-bottom: 6px; line-height: 1.6; }
 .motion-stop-focus { font-size: 13px; color: var(--motion-muted); padding: 10px 14px; margin-top: 12px; border-radius: 99px; }
 .motion-stop-focus:hover:not(:disabled) { background: var(--motion-soft); }
 .motion-focus-caption { margin-top: 20px; font-size: 13px; line-height: 1.6; color: var(--motion-muted); }
@@ -210,9 +212,9 @@
 /* Keep existing modal layouts while sharing the calendar-inspired palette. */
 .motion-ui > button.bg-gray-900, .motion-ui [role="dialog"] button.bg-gray-900 { background-color: var(--motion-primary); }
 .motion-ui > button.bg-gray-900:hover, .motion-ui [role="dialog"] button.bg-gray-900:hover { background-color: #0842a0; }
-.motion-ui .motion-priority-choice[aria-checked="true"] { color: white; border-color: transparent; --tw-ring-color: #a8c7fa; }
+.motion-ui .motion-priority-choice[aria-checked="true"] { color: var(--motion-ink); border-color: transparent; --tw-ring-color: #a8c7fa; }
 .motion-ui .motion-priority-choice.priority-P1[aria-checked="true"] { background: var(--motion-p1); }
-.motion-ui .motion-priority-choice.priority-P2[aria-checked="true"] { background: var(--motion-p2); color: #3c2600; }
+.motion-ui .motion-priority-choice.priority-P2[aria-checked="true"] { background: var(--motion-p2); color: var(--motion-ink); }
 .motion-ui .motion-priority-choice.priority-P3[aria-checked="true"] { background: var(--motion-p3); }
 .motion-ui .motion-priority-choice[aria-checked="true"] > div { background: currentColor; }
 
@@ -221,7 +223,7 @@
 
 .motion-focus-panel.is-saved .motion-clock { height: 140px; margin-block: 20px; }
 .motion-focus-panel.is-saved .motion-clock > svg { display: none; }
-.motion-clock-content .motion-completion-mark { width: 64px; height: 64px; color: var(--motion-p3); transform: none; animation: motion-content-enter 150ms var(--motion-ease) both; }
+.motion-clock-content .motion-completion-mark { width: 64px; height: 64px; color: var(--motion-success); transform: none; animation: motion-content-enter 150ms var(--motion-ease) both; }
 @media (max-width:767px) {
   .motion-topbar-inner { padding-block: 10px; }
   .motion-overview { padding-block: 14px; row-gap: 10px; }

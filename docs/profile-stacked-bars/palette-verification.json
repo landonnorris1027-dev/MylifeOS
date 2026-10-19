@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-19",
+  "branch": "codex/fluid-interactions",
+  "palette": { "P1": "#9d7bf5", "P2": "#5b8def", "P3": "#9ab8db", "none": "#f2c46d" },
+  "stackOrder": ["P1", "P2", "P3", "none", "unassigned"],
+  "browserComputedColorsMatch": {
+    "completedTaskBlocks": true,
+    "inboxLabelsAndDots": true,
+    "habitPrioritySelection": true,
+    "focusHistorySegments": true
+  },
+  "textContrastRatio": { "P1": 5.05, "P2": 4.98, "P3": 7.86, "none": 9.88 },
+  "businessRecordsUnchangedByInteractions": true,
+  "runtimeErrors": [],
+  "testFiles": 8,
+  "testsPassed": 29,
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "scope": "Isolated browser demo data; no installed native package update."
+}

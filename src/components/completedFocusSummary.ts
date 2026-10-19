@@ -29,7 +29,7 @@ export function completedFocusDistribution(
     const task =
       session.taskId && completed.get(`${session.taskDate}:${session.taskId}`);
     if (!task || session.measurement !== 'measured') continue;
-    // Match the existing focus report's snapshot rule; legacy manual tasks stay purple.
+    // Match the report's snapshot rule; legacy manual tasks remain temporary tasks.
     const priority =
       task.priority === 'none' ? 'none' : (session.priority ?? task.priority);
     secondsByPriority[priority] += session.actualFocusSeconds;

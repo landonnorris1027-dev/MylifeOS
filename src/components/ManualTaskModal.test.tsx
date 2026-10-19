@@ -12,7 +12,7 @@ describe('manual task no-priority presentation', () => {
     localStorage.clear(); container=document.createElement('div'); document.body.appendChild(container); root=createRoot(container);
   });
   afterEach(() => { act(() => root.unmount()); container.remove(); });
-  it.each(['zh','en'] as const)('removes manual priority controls and labels the purple icon in %s', async language => {
+  it.each(['zh','en'] as const)('removes manual priority controls and labels the temporary-task icon in %s', async language => {
     setStorageItem(KEYS.LANGUAGE,language);
     await act(async () => root.render(<LanguageProvider><ManualTaskModal isOpen onClose={vi.fn()} onCreate={vi.fn()}/></LanguageProvider>));
     expect(container.querySelector('[role="radiogroup"]')).toBeNull();

@@ -1,209 +1,133 @@
-import React, { useState } from 'react';
-import { FocusReport } from '../services/focusReports';
+import React, { useMemo, useState } from 'react';
+import { FocusHistoryPeriod, FocusReport } from '../services/focusReports';
+import { parseDateLocal } from '../services/storage';
 import { reportMinutes } from './focusDisplay';
+import { focusHistoryBuckets, FOCUS_STACKS, FocusStack } from './focusChartData';
+import SegmentedControl from './SegmentedControl';
+import './focus-history.css';
 
-type Day = FocusReport['days'][number];
-export default function FocusCharts({
-  days,
-  anchor,
-  zh,
-}: {
-  days: Day[];
+export default function FocusCharts({ report, anchor, period, onPeriodChange, zh }: {
+  report: FocusReport;
   anchor: string;
+  period: FocusHistoryPeriod;
+  onPeriodChange: (period: FocusHistoryPeriod) => void;
   zh: boolean;
 }) {
-  const [selected, setSelected] = useState(anchor);
-  const selectedDay =
-    days.find((day) => day.date === selected) || days[days.length - 1];
-  // Shared zero-based scales; no minimum bar height or per-day rescaling.
-  const maximum = Math.max(
-    60,
-    ...days.flatMap((day) => [day.plannedSeconds, day.measuredSeconds]),
-  );
-  const ceiling = Math.ceil(maximum / (20 * 60)) * 20 * 60;
-  const deviationMax = Math.max(
-    60,
-    ...days.map((day) => Math.abs(day.deviationSeconds)),
-  );
+  const buckets = useMemo(() => focusHistoryBuckets(report, anchor, period), [report, anchor, period]);
+  const [selected, setSelected] = useState<number | null>(null);
+  const active = selected === null ? null : buckets[selected];
+  const stackLabel = (key: FocusStack) => key === 'none' ? (zh ? '临时任务' : 'One-time')
+    : key === 'unassigned' ? (zh ? '未分类' : 'Unassigned') : key;
   const unit = zh ? '分钟' : 'min';
-  const planLabel = zh ? '计划' : 'Plan',
-    measuredLabel = zh ? '实际' : 'Measured';
-  const signedMinutes = (seconds: number) =>
-    `${Math.trunc(seconds / 60) > 0 ? '+' : ''}${reportMinutes(seconds)}`;
-  const dayLabel = (day: Day) =>
-    `${day.date} · ${planLabel} ${reportMinutes(day.plannedSeconds)} ${unit} · ${measuredLabel} ${reportMinutes(day.measuredSeconds)} ${unit} · ${zh ? '历史' : 'Historical'} ${reportMinutes(day.historicalSeconds)} ${unit}`;
+  const plannedLabel = zh ? '计划' : 'Planned';
+  const measuredLabel = zh ? '实际' : 'Measured';
+  const shortfallLabel = zh ? '少于计划' : 'Below plan';
+  const total = buckets.reduce((sum, bucket) => sum + bucket.measuredSeconds, 0);
+  // Both sides of zero use the same seconds-per-pixel scale. Never invent a minimum bar.
+  const scale = Math.max(60, ...buckets.flatMap((bucket) => [
+    bucket.measuredSeconds, bucket.shortfallSeconds * (127.5 / 25),
+  ]));
+  const positiveHeight = (seconds: number) => seconds / scale * 127.5;
+  const dateLabel = (date: string) => parseDateLocal(date).toLocaleDateString(zh ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' });
+  const rangeLabel = (bucket: (typeof buckets)[number]) => bucket.from === bucket.to
+    ? bucket.from : `${bucket.from} – ${bucket.to}`;
+  const bucketLabel = (bucket: (typeof buckets)[number]) =>
+    `${rangeLabel(bucket)} · ${plannedLabel} ${reportMinutes(bucket.plannedSeconds)} ${unit} · ${measuredLabel} ${reportMinutes(bucket.measuredSeconds)} ${unit} · ${shortfallLabel} ${reportMinutes(bucket.shortfallSeconds)} ${unit} · ${zh ? '历史' : 'Historical'} ${reportMinutes(bucket.historicalSeconds)} ${unit}`;
+  const onArrow = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'Escape') { setSelected(null); return; }
+    const next = event.key === 'ArrowRight' ? Math.min(19, index + 1)
+      : event.key === 'ArrowLeft' ? Math.max(0, index - 1)
+        : event.key === 'Home' ? 0 : event.key === 'End' ? 19 : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    setSelected(next);
+    (event.currentTarget.parentElement?.children[next] as HTMLElement)?.focus();
+  };
+  const scrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.type === 'pointermove' && event.pointerType !== 'mouse' && !event.buttons) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setSelected(Math.max(0, Math.min(19, Math.floor((event.clientX - bounds.left) / bounds.width * 20))));
+  };
+
   return (
-    <div className="profile-chart-grid">
-      <section className="profile-panel profile-comparison">
-        <div className="profile-section-heading">
+    <div className="focus-history">
+      <section className="profile-panel focus-history-card" aria-label={zh ? '专注投入统计' : 'Focus time statistics'}>
+        <div className="focus-history-heading">
           <div>
-            <h2>{zh ? '每日计划与实际' : 'Daily plan and measured focus'}</h2>
-            <p className="profile-caption">
-              {zh
-                ? '同一刻度，按任务归属日期对比'
-                : 'A shared scale, grouped by task date'}
-            </p>
+            <h2>{zh ? '专注投入' : 'Focus time'}</h2>
+            <p>{period === 'day' ? (zh ? '近 20 日' : 'Last 20 days') : (zh ? '近 20 周' : 'Last 20 weeks')}</p>
           </div>
-          <div className="profile-legend">
-            <span>
-              <i className="profile-plan-key" />
-              {planLabel}
-            </span>
-            <span>
-              <i className="profile-measured-key" />
-              {measuredLabel}
-            </span>
-          </div>
+          <SegmentedControl label={zh ? '统计粒度' : 'Chart interval'} value={period}
+            options={[{ value: 'day', label: zh ? '日' : 'Day' }, { value: 'week', label: zh ? '周' : 'Week' }]}
+            onChange={(value) => { setSelected(null); onPeriodChange(value as FocusHistoryPeriod); }} />
         </div>
-        <div className="profile-bar-chart">
-          <div className="profile-axis" aria-hidden="true">
-            {[1, 0.75, 0.5, 0.25, 0].map((fraction) => (
-              <span key={fraction} style={{ bottom: `${fraction * 100}%` }}>
-                {reportMinutes(ceiling * fraction)}
-              </span>
+        <div className="focus-history-total">
+          <strong key={`${period}:${total}`}>{Math.trunc(total / 60).toLocaleString(zh ? 'zh-CN' : 'en-US')}</strong>
+          <span>{unit}</span>
+        </div>
+        <div className="focus-history-plot"
+          onPointerDown={scrub} onPointerMove={scrub} onPointerLeave={() => setSelected(null)}
+          onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSelected(null); }}>
+          <div key={period} className="focus-history-columns" data-active={selected !== null}>
+            {buckets.map((bucket, index) => (
+              <button type="button" key={bucket.from} className="focus-history-column"
+                data-motion-feedback="self" aria-label={bucketLabel(bucket)} aria-pressed={selected === index}
+                onClick={() => setSelected(index)} onFocus={() => setSelected(index)}
+                onMouseEnter={() => setSelected(index)} onKeyDown={(event) => onArrow(event, index)}
+                style={{ '--focus-positive': `${positiveHeight(bucket.measuredSeconds)}px`, '--focus-negative': `${positiveHeight(bucket.shortfallSeconds)}px`, '--focus-delay': `${index * 14}ms` } as React.CSSProperties}>
+                <span className="focus-history-positive" aria-hidden="true">
+                  <span className="focus-history-stack" style={{ height: `${positiveHeight(bucket.measuredSeconds)}px` }}>
+                    {FOCUS_STACKS.filter((key) => bucket.stacks[key] > 0).map((key) => (
+                      <i key={key} className={`focus-history-segment stack-${key}`}
+                        style={{ height: `${bucket.stacks[key] / bucket.measuredSeconds * 100}%` }} />
+                    ))}
+                  </span>
+                </span>
+                <span className="focus-history-negative" aria-hidden="true">
+                  <i style={{ height: `${positiveHeight(bucket.shortfallSeconds)}px` }} />
+                </span>
+              </button>
             ))}
           </div>
-          <div className="profile-plot">
-            <div className="profile-gridlines" aria-hidden="true">
-              {[0, 25, 50, 75, 100].map((position) => (
-                <i key={position} style={{ bottom: `${position}%` }} />
-              ))}
+          {active && selected !== null && <div className="focus-history-tooltip" aria-hidden="true"
+            style={{ left: `clamp(0px, ${(selected + 0.5) * 5}%, calc(100% - 165px))` }}>
+            <div className="focus-history-tooltip-heading">
+              <span>{period === 'day' ? dateLabel(active.from) : `${dateLabel(active.from)} – ${dateLabel(active.to)}`}</span>
+              <strong>{reportMinutes(active.measuredSeconds)}</strong>
             </div>
-            <div className="profile-day-columns">
-              {days.map((day) => (
-                <button
-                  type="button"
-                  key={day.date}
-                  aria-label={dayLabel(day)}
-                  aria-pressed={selectedDay?.date === day.date}
-                  className="profile-day-column"
-                  onClick={() => setSelected(day.date)}
-                  onFocus={() => setSelected(day.date)}
-                  onMouseEnter={() => setSelected(day.date)}
-                >
-                  <span className="profile-day-bars" aria-hidden="true">
-                    <span
-                      className="profile-plan-bar"
-                      style={{
-                        height: `${(day.plannedSeconds / ceiling) * 100}%`,
-                      }}
-                    />
-                    <span
-                      className="profile-measured-bar"
-                      style={{
-                        height: `${(day.measuredSeconds / ceiling) * 100}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="profile-day-label" aria-hidden="true">
-                    {day.date.slice(5).replace('-', '/')}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+            {FOCUS_STACKS.filter((key) => active.stacks[key] > 0).map((key) => (
+              <span key={key}><i className={`focus-history-key stack-${key}`} />{stackLabel(key)}<b>{reportMinutes(active.stacks[key])}</b></span>
+            ))}
+            <span><i className="focus-history-key shortfall" />{shortfallLabel}<b>{reportMinutes(active.shortfallSeconds)} {unit}</b></span>
+          </div>}
         </div>
-        <p className="profile-chart-unit profile-caption">
-          {zh ? '单位：分钟' : 'Minutes'}
-        </p>
-        <div
-          className="profile-day-readout"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {selectedDay && (
-            <>
-              <strong>{selectedDay.date}</strong>
-              <span>
-                {planLabel} <b>{reportMinutes(selectedDay.plannedSeconds)}</b>
-              </span>
-              <span>
-                {measuredLabel}{' '}
-                <b>{reportMinutes(selectedDay.measuredSeconds)}</b>
-              </span>
-              <span>
-                {zh ? '历史' : 'Historical'}{' '}
-                <b>{reportMinutes(selectedDay.historicalSeconds)}</b>
-              </span>
-            </>
-          )}
+        <div className="focus-history-endpoints" aria-hidden="true">
+          <span>{dateLabel(buckets[0].from)}</span><span>{dateLabel(anchor)}</span>
         </div>
-        <details className="profile-daily-details">
-          <summary>{zh ? '查看每日明细' : 'View daily details'}</summary>
-          <div className="profile-table-scroll">
-            <table>
-              <caption className="sr-only">
-                {zh
-                  ? '每日计划与实际偏差，单位分钟'
-                  : 'Daily plan and actual deviation in minutes'}
-              </caption>
-              <thead>
-                <tr>
-                  {[
-                    zh ? '日期' : 'Date',
-                    planLabel,
-                    measuredLabel,
-                    zh ? '历史' : 'Historical',
-                    zh ? '实际−计划' : 'Actual−plan',
-                  ].map((label) => (
-                    <th key={label} scope="col">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {days.map((day) => (
-                  <tr key={day.date}>
-                    <th scope="row">{day.date}</th>
-                    <td>{reportMinutes(day.plannedSeconds)}</td>
-                    <td>{reportMinutes(day.measuredSeconds)}</td>
-                    <td>{reportMinutes(day.historicalSeconds)}</td>
-                    <td>{signedMinutes(day.deviationSeconds)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
+        <p className="sr-only" aria-live="polite" aria-atomic="true">{active ? bucketLabel(active) : ''}</p>
       </section>
-      <section className="profile-panel profile-deviation">
-        <div className="profile-section-heading">
-          <div>
-            <h2>{zh ? '每日投入偏差' : 'Daily focus deviation'}</h2>
-            <p className="profile-caption">
-              {zh ? '实际 − 计划 · 分钟' : 'Measured − planned · minutes'}
-            </p>
-          </div>
-        </div>
-        <div className="profile-deviation-head" aria-hidden="true">
-          <span>{zh ? '少于计划' : 'Below plan'}</span>
-          <span>0</span>
-          <span>{zh ? '超出计划' : 'Above plan'}</span>
-        </div>
-        <div className="profile-deviation-rows">
-          {days.map((day) => (
-            <div key={day.date} className="profile-deviation-row">
-              <span>{day.date.slice(5).replace('-', '/')}</span>
-              <div className="profile-deviation-track" aria-hidden="true">
-                <i
-                  style={{
-                    left: `${day.deviationSeconds < 0 ? 50 - (Math.abs(day.deviationSeconds) / deviationMax) * 50 : 50}%`,
-                    width: `${(Math.abs(day.deviationSeconds) / deviationMax) * 50}%`,
-                  }}
-                  className={day.deviationSeconds < 0 ? 'is-negative' : ''}
-                />
-              </div>
-              <strong>{signedMinutes(day.deviationSeconds)}</strong>
-            </div>
+      <details className="focus-history-details">
+        <summary>{zh ? '图例与时段明细' : 'Legend and period details'}</summary>
+        <div className="focus-history-legend">
+          {FOCUS_STACKS.filter((key) => key !== 'unassigned' || buckets.some((bucket) => bucket.stacks[key] > 0)).map((key) => (
+            <span key={key}><i className={`focus-history-key stack-${key}`} />{stackLabel(key)}</span>
           ))}
+          <span><i className="focus-history-key shortfall" />{shortfallLabel}</span>
         </div>
-        <p className="profile-caption profile-deviation-note">
-          {zh
-            ? '负值表示实际少于计划；历史估算不参与比较。'
-            : 'Negative values mean less measured focus than planned. Historical estimates are excluded.'}
-        </p>
-      </section>
+        <p className="profile-caption">{zh
+          ? '彩色柱为实际计时；红柱 = max(计划 − 实际, 0)，历史估算不参与。周按本地周一开始，最后一周截至参考日期。'
+          : 'Colour shows measured focus; red = max(planned − measured, 0). Estimates are excluded. Weeks start on Monday; the final week ends on the reference date.'}</p>
+        {!total && <p className="profile-caption">{zh ? '这个时段还没有实际专注记录' : 'No measured focus in this period yet'}</p>}
+        <div className="profile-table-scroll"><table>
+          <caption className="sr-only">{zh ? '时段专注明细，单位分钟' : 'Period focus details in minutes'}</caption>
+          <thead><tr>{[zh ? '日期' : 'Date', plannedLabel, measuredLabel, zh ? '历史' : 'Historical', shortfallLabel].map((label) => <th key={label} scope="col">{label}</th>)}</tr></thead>
+          <tbody>{buckets.map((bucket) => <tr key={bucket.from}>
+            <th scope="row">{rangeLabel(bucket)}</th>
+            <td>{reportMinutes(bucket.plannedSeconds)}</td><td>{reportMinutes(bucket.measuredSeconds)}</td>
+            <td>{reportMinutes(bucket.historicalSeconds)}</td><td>{reportMinutes(bucket.shortfallSeconds)}</td>
+          </tr>)}</tbody>
+        </table></div>
+      </details>
     </div>
   );
 }

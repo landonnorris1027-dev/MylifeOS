@@ -11,11 +11,11 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { formatDateLocal, getProfileStats } from '../services/storage';
 import { getProfileSettings } from '../services/profileSettings';
 import {
-  FocusPeriod,
+  FocusHistoryPeriod,
+  getFocusHistoryReport,
   getFocusReport,
   getFocusTotals,
 } from '../services/focusReports';
-import SegmentedControl from './SegmentedControl';
 import FocusCharts from './FocusCharts';
 import CompletedFocusDistribution from './CompletedFocusDistribution';
 
@@ -32,11 +32,11 @@ export default function DesktopFocusStats({
       ? `${Math.floor(wholeMinutes / 60)}小时 ${wholeMinutes % 60}分钟`
       : `${Math.floor(wholeMinutes / 60)}h ${wholeMinutes % 60}m`;
   };
-  const [period, setPeriod] = useState<FocusPeriod>('week');
+  const [period, setPeriod] = useState<FocusHistoryPeriod>('day');
   const [anchor, setAnchor] = useState(formatDateLocal(new Date()));
   // Keying the review by period and date resets its pagination synchronously.
   const report = useMemo(
-    () => getFocusReport(anchor, period),
+    () => getFocusHistoryReport(anchor, period),
     [anchor, period, refreshToken],
   );
   const totals = useMemo(() => getFocusTotals(), [refreshToken]);
@@ -101,73 +101,6 @@ export default function DesktopFocusStats({
         </section>
       </div>
 
-      <section className="profile-panel profile-week-target">
-        <div className="profile-section-heading">
-          <div>
-            <h2>{t('profile_weekly_target')}</h2>
-            <p className="profile-caption">
-              {zh ? '本地周一至周日' : 'Local Monday–Sunday'} · {week.from} –{' '}
-              {week.to}
-            </p>
-          </div>
-          <label className="profile-date">
-            <span className="sr-only">
-              {zh ? '复盘参考日期' : 'Review reference date'}
-            </span>
-            <input
-              type="date"
-              value={anchor}
-              onChange={(e) => {
-                if (e.target.value) setAnchor(e.target.value);
-              }}
-            />
-          </label>
-        </div>
-        <div className="profile-target-value">
-          <strong>
-            {progress}
-            <span>%</span>
-          </strong>
-          <span>
-            {duration(week.measuredSeconds)}
-            <span className="profile-muted"> / {duration(target)}</span>
-          </span>
-        </div>
-        <div
-          role="progressbar"
-          aria-valuenow={Math.min(100, progress)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={t('profile_weekly_target')}
-          aria-valuetext={`${progress}% · ${duration(week.measuredSeconds)} / ${duration(target)}`}
-          className="profile-track"
-        >
-          <span style={{ width: `${Math.min(100, progress)}%` }} />
-        </div>
-        <p className="profile-caption">
-          {zh
-            ? '进度仅使用实际计时；跨午夜会话归属原任务日期。'
-            : 'Only measured focus counts; cross-midnight sessions belong to the original task date.'}
-        </p>
-      </section>
-
-      <div className="profile-period-toolbar">
-        <div>
-          <h2>{zh ? '投入分析' : 'Focus overview'}</h2>
-          <p className="profile-caption">
-            {report.from} – {report.to}
-          </p>
-        </div>
-        <SegmentedControl
-          label={zh ? '分析时段' : 'Report period'}
-          value={period}
-          options={[
-            { value: 'week', label: zh ? '本周' : 'This week' },
-            { value: 'rolling', label: zh ? '近七天' : 'Last seven days' },
-          ]}
-          onChange={(value) => setPeriod(value as FocusPeriod)}
-        />
-      </div>
       <div className="profile-period-summary">
         <div>
           <span>{zh ? '计划投入' : 'Planned'}</span>
@@ -187,12 +120,66 @@ export default function DesktopFocusStats({
         </div>
       </div>
 
-      <FocusCharts
-        key={`charts:${anchor}:${period}`}
-        days={report.days}
-        anchor={anchor}
-        zh={zh}
-      />
+      <div className="profile-insights-grid">
+        <FocusCharts
+          key={`charts:${anchor}`}
+          anchor={anchor}
+          zh={zh}
+          report={report}
+          period={period}
+          onPeriodChange={setPeriod}
+        />
+
+        <section className="profile-panel profile-week-target">
+          <div className="profile-section-heading">
+            <div>
+              <h2>{t('profile_weekly_target')}</h2>
+              <p className="profile-caption">
+                {zh ? '本地周一至周日' : 'Local Monday–Sunday'} · {week.from} –{' '}
+                {week.to}
+              </p>
+            </div>
+            <label className="profile-date">
+              <span className="sr-only">
+                {zh ? '复盘参考日期' : 'Review reference date'}
+              </span>
+              <input
+                type="date"
+                value={anchor}
+                onChange={(e) => {
+                  if (e.target.value) setAnchor(e.target.value);
+                }}
+              />
+            </label>
+          </div>
+          <div className="profile-target-value">
+            <strong>
+              {progress}
+              <span>%</span>
+            </strong>
+            <span>
+              {duration(week.measuredSeconds)}
+              <span className="profile-muted"> / {duration(target)}</span>
+            </span>
+          </div>
+          <div
+            role="progressbar"
+            aria-valuenow={Math.min(100, progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={t('profile_weekly_target')}
+            aria-valuetext={`${progress}% · ${duration(week.measuredSeconds)} / ${duration(target)}`}
+            className="profile-track"
+          >
+            <span style={{ width: `${Math.min(100, progress)}%` }} />
+          </div>
+          <p className="profile-caption">
+            {zh
+              ? '进度仅使用实际计时；跨午夜会话归属原任务日期。'
+              : 'Only measured focus counts; cross-midnight sessions belong to the original task date.'}
+          </p>
+        </section>
+      </div>
 
       <CompletedFocusDistribution week={week} anchor={anchor} />
 
@@ -235,7 +222,7 @@ function WeeklyReview({
     <section className="profile-panel profile-review">
       <div className="profile-section-heading">
         <div>
-          <h2>{zh ? '周复盘' : 'Weekly review'}</h2>
+          <h2>{zh ? '时段复盘' : 'Period review'}</h2>
           <p className="profile-caption">
             {report.from} – {report.to}
           </p>

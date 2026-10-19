@@ -29,7 +29,7 @@ describe('minute precision focus reports', () => {
     expect(container.textContent).toContain(language === 'zh' ? '1小时 0分钟' : '1h 0m');
     expect(container.textContent).not.toMatch(/\d+(?:\.\d+)?(?:s|秒)/);
     const row = Array.from(container.querySelectorAll('tbody tr')).find(row => row.textContent?.startsWith(date));
-    expect(Array.from(row!.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['65', '60', '0', '-4']);
+    expect(Array.from(row!.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['65', '60', '0', '4']);
     expect(getStorageItem(KEYS.FOCUS_SESSIONS)).toBe(original);
   });
   it('keeps recurring task sessions attached to their own date when expanding a review', async () => {
@@ -42,7 +42,7 @@ describe('minute precision focus reports', () => {
     const session = (date: string, seconds: number) => ({ id: date, timerId: date, taskId: 'recurring', taskDate: date, taskName: `Task ${date}`, priority: 'none', plannedSeconds: 1500, actualFocusSeconds: seconds, startedAt: 1000, endedAt: 501000, result: 'completed', measurement: 'measured' });
     setStorageItem(KEYS.FOCUS_SESSIONS, JSON.stringify([session(today, 300), session(yesterday, 60)]));
     await act(async () => root.render(<LanguageProvider><DesktopFocusStats /></LanguageProvider>));
-    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Last seven days')!.click());
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Week')!.click());
     const reviews = Array.from(container.querySelectorAll('.profile-review-list details'));
     expect(reviews).toHaveLength(2);
     const current = reviews.find(review => review.textContent!.includes(`Task ${today}`))!;
@@ -61,7 +61,7 @@ describe('minute precision focus reports', () => {
     await act(async () => (container.querySelector('.profile-pagination button:last-child') as HTMLButtonElement).click());
     expect(container.querySelectorAll('.profile-review-list details')).toHaveLength(2);
     expect(container.querySelector('.profile-pagination')?.textContent).toContain('2 / 2');
-    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Last seven days')!.click());
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Week')!.click());
     expect(container.querySelector('.profile-pagination')?.textContent).toContain('1 / 2');
     const input = container.querySelector('input[type="date"]')!;
     await act(async () => {
@@ -70,7 +70,7 @@ describe('minute precision focus reports', () => {
     });
     expect(container.querySelector('.profile-review')?.textContent).toContain('No task records in this period');
     expect(container.querySelectorAll('.profile-pagination button:disabled')).toHaveLength(2);
-    expect(container.querySelectorAll('.profile-day-column')).toHaveLength(7);
+    expect(container.querySelectorAll('.focus-history-column')).toHaveLength(20);
   });
 
 });
