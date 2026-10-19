@@ -103,7 +103,7 @@ describe('completed task measured focus distribution', () => {
         .totalSeconds,
     ).toBe(0);
   });
-  it('keeps legacy manual focus purple and preserves the recorded habit priority', () => {
+  it('keeps legacy manual focus in the temporary category and preserves the recorded habit priority', () => {
     const manual = task('manual', undefined, {
       origin: 'manual',
       habitId: undefined,

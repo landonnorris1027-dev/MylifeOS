@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-19",
+  "branch": "codex/fluid-interactions",
+  "preview": "http://127.0.0.1:3001/",
+  "fixture": "Isolated browser demo data: 140 days, ending 2026-10-18",
+  "desktopViewport": [1440, 1000],
+  "cardCssSize": [375, 344.375],
+  "dayColumns": 20,
+  "weekColumns": 20,
+  "weeklyShortfallExampleMinutes": { "planned": 1242, "measured": 1135, "shortfall": 107 },
+  "keyboard": ["ArrowRight", "End", "Escape"],
+  "languages": ["zh", "en"],
+  "responsive": [
+    { "viewport": 375, "documentWidth": 375, "cardWidth": 343 },
+    { "viewport": 320, "documentWidth": 320, "cardWidth": 296 }
+  ],
+  "reducedMotionAnimation": "none",
+  "emptyReportHasZeroMeasuredAndDeficitHeights": true,
+  "businessDataUnchangedByInteractions": true,
+  "consoleErrors": [],
+  "scope": "Browser renderer verification; installed Electron/Android packages were not rebuilt or installed."
+}

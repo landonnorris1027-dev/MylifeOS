@@ -6,6 +6,7 @@ import { getDailyLogsSnapshot } from './storage/dailyLogRepository';
 import { KEYS, getStorageItem } from './storage/localStorageStore';
 import { formatDateLocal, parseDateLocal } from './storage/dateUtils';
 export type FocusPeriod = 'week' | 'rolling';
+export type FocusHistoryPeriod = 'day' | 'week';
 export interface FocusDay { date: string; plannedSeconds: number; measuredSeconds: number; historicalSeconds: number; deviationSeconds: number; }
 export interface FocusReport {
   from: string; to: string; measuredSeconds: number; historicalSeconds: number;
@@ -80,4 +81,24 @@ const reports = revisionCache([KEYS.DAILY_LOGS, KEYS.FOCUS_SESSIONS], (_raw, key
 });
 export const getFocusReport = (anchor: string, period: FocusPeriod): FocusReport => reports(anchor + ':' + period);
 export const getFocusTotals = () => totals();
+/** Twenty local calendar days, or twenty Monday-based weeks ending on the anchor. */
+export function focusHistoryRanges(anchor: string, period: FocusHistoryPeriod) {
+  const cursor = parseDateLocal(anchor);
+  if (period === 'week') cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
+  cursor.setDate(cursor.getDate() - 19 * (period === 'week' ? 7 : 1));
+  return Array.from({ length: 20 }, () => {
+    const from = formatDateLocal(cursor);
+    const end = new Date(cursor);
+    if (period === 'week') end.setDate(end.getDate() + 6);
+    const to = formatDateLocal(end) > anchor ? anchor : formatDateLocal(end);
+    cursor.setDate(cursor.getDate() + (period === 'week' ? 7 : 1));
+    return { from, to };
+  });
+}
+const historyReports = revisionCache([KEYS.DAILY_LOGS, KEYS.FOCUS_SESSIONS], (_raw, key) => {
+  const [anchor, period] = key.split(':');
+  const ranges = focusHistoryRanges(anchor, period as FocusHistoryPeriod);
+  return summarizeFocus(getDailyLogsSnapshot(), getFocusSessions(), ranges[0].from, anchor);
+});
+export const getFocusHistoryReport = (anchor: string, period: FocusHistoryPeriod): FocusReport => historyReports(anchor + ':' + period);
 export const getMeasuredMinutesByDate = () => Object.fromEntries(getFocusTotals().days.map(d => [d.date, d.measuredSeconds / 60]));

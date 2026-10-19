@@ -1,0 +1,109 @@
+/* Match Bencho's rendered 375 × 344.375 compact card. */
+.focus-history { min-width: 0; }
+.focus-history-card {
+  box-sizing: border-box;
+  width: 375px;
+  max-width: 100%;
+  padding: 20px;
+  border: 0;
+  border-radius: 25px;
+  background: #fff;
+  color: #191a1c;
+  font-family: Arial, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+.focus-history-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 42.5px; }
+.focus-history-heading h2 { font-size: 17.5px; font-weight: 500; line-height: 22.5px; letter-spacing: -.3px; }
+.focus-history-heading p { font-size: 16px; line-height: 20px; color: #868788; }
+.focus-history-card .motion-segments { padding: 2.5px; border-radius: 12.5px; background: #f1f1f2; }
+.focus-history-card .motion-segment-plate {
+  inset: 2.5px auto 2.5px 2.5px;
+  width: calc((100% - 5px) / var(--segments));
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 1px 3px #00000006;
+}
+.focus-history-card .motion-segment-button {
+  min-height: 35px;
+  min-width: 65.3125px;
+  padding: 7.5px 13px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #89898c;
+}
+.focus-history-card .motion-segment-button[aria-pressed='true'] { color: #191a1c; }
+.focus-history-total { display: flex; align-items: baseline; gap: 10px; height: 40.625px; margin: 20px 0 15px; font-variant-numeric: tabular-nums; }
+.focus-history-total strong { font-size: 37.5px; font-weight: 500; line-height: 40.625px; letter-spacing: -.75px; animation: focus-number-enter 320ms var(--motion-ease); }
+.focus-history-total > span { font-size: 16px; color: #868788; }
+.focus-history-plot { position: relative; height: 158.75px; touch-action: pan-y; }
+.focus-history-plot::before { content: ''; position: absolute; left: 0; right: 0; top: 130px; border-top: 1.25px solid #e3e3e4; }
+.focus-history-columns { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); column-gap: 7.5px; height: 100%; }
+.focus-history-column { position: relative; display: grid; grid-template-rows: 127.5px 25px; row-gap: 6.25px; min-width: 0; padding: 0; background: transparent; border: 0; cursor: pointer; outline-offset: 4px; border-radius: 5px; }
+.focus-history-column::after {
+  content: '';
+  position: absolute;
+  left: -4px; right: -4px;
+  top: calc(127.5px - var(--focus-positive) - 4px);
+  bottom: calc(25px - var(--focus-negative) - 4px);
+  border: 1px solid #d2d3d7;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms;
+}
+.focus-history-column[aria-pressed='true']::after { opacity: 1; }
+.focus-history-column { transition: opacity 160ms; }
+.focus-history-columns[data-active='true'] .focus-history-column:not([aria-pressed='true']) { opacity: .35; }
+.focus-history-positive { display: flex; align-items: flex-end; }
+.focus-history-stack { display: flex; flex-direction: column-reverse; width: 100%; transform-origin: center bottom; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
+.focus-history-segment { display: block; width: 100%; flex-shrink: 0; min-height: 0; border-radius: 3px; box-shadow: inset 0 -2px #fff; }
+.focus-history-negative { display: block; }
+.focus-history-negative > i { display: block; width: 100%; border-radius: 3px; background: #e5484d; transform-origin: center top; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
+.profile-panel[data-motion-reveal='pending'] .focus-history-stack,
+.profile-panel[data-motion-reveal='pending'] .focus-history-negative > i { animation-play-state: paused; }
+.focus-history-endpoints { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; line-height: 17.5px; color: #a3a3a6; }
+.focus-history-tooltip {
+  position: absolute; z-index: 4; top: 2px;
+  width: 165px; padding: 10px 12px;
+  border: 1px solid #ededee; border-radius: 13px;
+  background: #fff; box-shadow: 0 5px 20px #00000010;
+  font-size: 12.5px; line-height: 17.5px; font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transition: left 200ms var(--motion-ease);
+  animation: focus-tooltip-enter 130ms ease-out;
+}
+.focus-history-tooltip-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 6px; color: #77787c; }
+.focus-history-tooltip-heading strong { color: #242426; font-weight: 500; }
+.focus-history-tooltip > span { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: #77787c; }
+.focus-history-tooltip b { margin-left: auto; font-weight: 500; color: #242426; }
+.focus-history-key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.stack-P1 { background: var(--stack-p1); }
+.stack-P2 { background: var(--stack-p2); }
+.stack-P3 { background: var(--stack-p3); }
+.stack-none { background: var(--stack-none); }
+.stack-unassigned { background: var(--stack-unassigned); }
+.focus-history-key.shortfall { background: #e5484d; }
+.focus-history-details { margin-top: 8px; font-size: 12px; color: #77787c; }
+.focus-history-details summary { cursor: pointer; padding: 10px 4px; }
+.focus-history-details[open] { grid-column: 1 / -1; }
+.focus-history-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 8px 0 12px; }
+.focus-history-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.focus-history-details .profile-table-scroll { margin-top: 12px; overflow-x: auto; }
+.focus-history-details table { width: 100%; white-space: nowrap; font-size: 12px; font-variant-numeric: tabular-nums; }
+.focus-history-details th, .focus-history-details td { border-bottom: 1px solid #e8eaed; padding: 8px 10px; text-align: right; font-weight: 400; }
+.focus-history-details th:first-child { padding-left: 0; text-align: left; }
+@keyframes focus-bar-enter { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes focus-number-enter { from { opacity: 0; translate: 0 5px; } to { opacity: 1; translate: 0 0; } }
+@keyframes focus-tooltip-enter { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 390px) {
+  .focus-history-card { padding-inline: 18px; }
+  .focus-history-columns { column-gap: 4px; }
+  .focus-history-card .motion-segment-button { min-width: 50px; padding-inline: 10px; }
+  .focus-history-total strong { font-size: 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-history-stack, .focus-history-negative > i, .focus-history-total strong,
+  .focus-history-tooltip, .focus-history-column, .focus-history-column::after { animation: none; transition: none; }
+}

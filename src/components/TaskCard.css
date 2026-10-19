@@ -1,9 +1,10 @@
-/* Match each platform's existing label colors. Completion is a visual state;
+/* Share the statistics palette. Completion is a visual state;
    it never delays or initiates persistence. */
-.task-card.priority-P1 { --task-completion-color: var(--motion-p1, #ef4444); }
-.task-card.priority-P2 { --task-completion-color: var(--motion-p2, #f59e0b); }
-.task-card.priority-P3 { --task-completion-color: var(--motion-p3, #10b981); }
-.task-card.priority-none { --task-completion-color: #8e24aa; }
+.task-card.priority-P1 { --task-completion-color: var(--priority-p1); }
+.task-card.priority-P2 { --task-completion-color: var(--priority-p2); }
+.task-card.priority-P3 { --task-completion-color: var(--priority-p3); }
+.task-card.priority-none { --task-completion-color: var(--priority-none); }
+.task-card { --task-completion-ink: #202124; }
 
 .task-card,
 .task-card.motion-task {
@@ -22,7 +23,7 @@
 .task-card.is-completed:focus-within {
   background-color: var(--task-completion-color);
   border-color: var(--task-completion-color);
-  color: #fff;
+  color: var(--task-completion-ink);
   cursor: default;
   transition: background-color 800ms ease, border-color 800ms ease,
     color 800ms ease, box-shadow 240ms ease;
@@ -31,27 +32,25 @@
 .task-card.is-completed .task-meta,
 .task-card.is-completed .task-label,
 .task-card.is-completed .task-check {
-  color: #fff;
+  color: var(--task-completion-ink);
   opacity: 1;
   transition: color 800ms ease, background-color 800ms ease, border-color 800ms ease;
 }
 .task-card.is-completed .task-meta,
 .task-card.is-completed .task-label {
   background-color: transparent;
-  border-color: #ffffff60;
+  border-color: #20212430;
 }
-.task-card.is-completed .motion-unprioritized-dot { background-color: #fff; }
+.task-card.is-completed .motion-unprioritized-dot { background-color: var(--task-completion-ink); }
 .task-card.is-completed button {
-  color: #fff;
-  border-color: #ffffff60;
+  color: var(--task-completion-ink);
+  border-color: #20212430;
   background-color: transparent;
   transition: color 800ms ease, background-color 160ms ease, border-color 800ms ease;
 }
 .task-card.is-completed button:hover,
-.task-card.is-completed button:focus-visible { background-color: #ffffff26; }
-/* The existing yellow label stays yellow; a fine shadow keeps white type legible. */
-.task-card.is-completed.priority-P2 { text-shadow: 0 1px 2px #5b3900b3; }
-.task-card.is-completed :focus-visible { outline-color: #fff; }
+.task-card.is-completed button:focus-visible { background-color: #20212412; }
+.task-card.is-completed :focus-visible { outline-color: var(--task-completion-ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .task-card, .task-card * { transition: none !important; }

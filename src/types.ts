@@ -50,31 +50,31 @@ export interface DailyData {
 
 export const PRIORITY_STYLES = {
   none: {
-    bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-900',
-    tag: 'bg-purple-100', accent: 'bg-[#8e24aa]', hover: 'hover:bg-purple-100',
+    bg: 'bg-[#fff7e8]', border: 'border-[#f9e5bb]', text: 'text-[#533c16]',
+    tag: 'bg-[#fbedcf]', accent: 'bg-[var(--priority-none)]', hover: 'hover:bg-[#fff0d4]',
   },
   P1: {
-    bg: 'bg-red-50',
-    border: 'border-red-100',
-    text: 'text-red-900',
-    tag: 'bg-red-100',
-    accent: 'bg-red-500',
-    hover: 'hover:bg-red-100'
+    bg: 'bg-[#f4effe]',
+    border: 'border-[#e4d9fc]',
+    text: 'text-[#3d2b65]',
+    tag: 'bg-[#e8defc]',
+    accent: 'bg-[var(--priority-p1)]',
+    hover: 'hover:bg-[#eee5fd]'
   },
   P2: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-100',
-    text: 'text-amber-900',
-    tag: 'bg-amber-100',
-    accent: 'bg-amber-500',
-    hover: 'hover:bg-amber-100'
+    bg: 'bg-[#edf3fe]',
+    border: 'border-[#d3e1fc]',
+    text: 'text-[#183456]',
+    tag: 'bg-[#dce7fd]',
+    accent: 'bg-[var(--priority-p2)]',
+    hover: 'hover:bg-[#e1ebfd]'
   },
   P3: {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-100',
-    text: 'text-emerald-900',
-    tag: 'bg-emerald-100',
-    accent: 'bg-emerald-500',
-    hover: 'hover:bg-emerald-100'
+    bg: 'bg-[#eef4fa]',
+    border: 'border-[#d7e4f1]',
+    text: 'text-[#25435e]',
+    tag: 'bg-[#dce8f4]',
+    accent: 'bg-[var(--priority-p3)]',
+    hover: 'hover:bg-[#e1ecf7]'
   }
 };
