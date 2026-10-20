@@ -47,6 +47,7 @@
     "wait-on": "^7.2.0"
   },
   "scripts": {
+    "icons:generate": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/generate-app-icons.ps1",
     "android:sync": "npm run build && cap sync android",
     "android:verify": "node scripts/verify-android.js",
     "android:verify:emulator": "node scripts/verify-android-emulator.js",

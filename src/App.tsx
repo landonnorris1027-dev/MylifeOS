@@ -5,7 +5,7 @@ import MotionScene from './components/MotionScene';
 import BatchRescheduleModal from './components/BatchRescheduleModal';
 import React from 'react';
 import { isStorageReadOnly } from './services/storage/localStorageStore';
-import { Plus, LayoutGrid, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search, Timer, Undo2 } from 'lucide-react';
+import { Plus, Settings2, BarChart3, Inbox as InboxIcon, ChevronLeft, ChevronRight, Calendar, User, Search, Timer, Undo2 } from 'lucide-react';
 import { Priority, PRIORITY_STYLES, Task } from './types';
 import type { TranslationKey } from './locales';
 import { useLanguage } from './contexts/LanguageContext';
@@ -263,7 +263,7 @@ export default function App() {
       <header className="motion-topbar safe-area-sticky-top">
         <div className="motion-container motion-topbar-inner">
           <button type="button" className="motion-brand" onClick={() => setView('planner')} aria-label={t('app_title')}>
-            <span className="motion-brand-mark"><LayoutGrid size={19} strokeWidth={1.7} /></span>
+            <img className="motion-brand-mark" src="./assets/icons/app-64.png" width={36} height={36} alt="" draggable={false} />
             <span>{t('app_title')}</span>
           </button>
           <SegmentedControl className="motion-main-nav" label={t('ui_navigation')} value={view}

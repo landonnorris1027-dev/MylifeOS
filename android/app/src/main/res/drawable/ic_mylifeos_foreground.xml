@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Notifications use a white alpha silhouette of the app mark. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M54,23 C36.88,23 23,36.88 23,54 C23,71.12 36.88,85 54,85 C71.12,85 85,71.12 85,54 C85,36.88 71.12,23 54,23"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="3" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M38,35 L47,35 L54,55 L61,35 L70,35 L70,73 L62,73 L62,50 L58,66 L50,66 L46,50 L46,73 L38,73 Z" />
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="1254"
+    android:viewportHeight="1254">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M532,648 C532,510 644,398 783,398 C922,398 1034,510 1034,648 L1034,875 C1034,917 1000,951 959,951 C917,951 883,917 883,875 L883,648 C883,595 841,553 789,553 C734,553 689,595 689,648 L689,875 C689,917 654,951 612,951 C568,951 532,917 532,875 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M191,648 C191,510 301,398 437,398 C576,398 689,510 689,648 L689,875 C689,917 654,951 612,951 C568,951 532,917 532,875 L532,648 C532,595 489,553 437,553 C385,553 342,595 342,648 L342,875 C342,917 308,951 267,951 C225,951 191,917 191,875 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M966,375 A74,74 0,1 1,1114 375 A74,74 0,1 1,966 375 Z" />
 </vector>

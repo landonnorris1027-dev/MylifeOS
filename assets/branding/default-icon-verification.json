@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-20",
+  "branch": "codex/default-app-icon",
+  "sourceBaseCommit": "cf3db9b8f23cbc6ad3659648e4266a7dbf2162a9",
+  "sourceFingerprint": "225cc960a9e16bdab09d7dca32d79630914c3343a58217bfc84afe5bc5073f7e",
+  "sourceWorkingTreeChanges": true,
+  "tests": {
+    "files": 43,
+    "passed": 296
+  },
+  "windows": {
+    "extractedExecutableIconVisuallyVerified": true,
+    "desktopShortcutIconUpdated": true,
+    "installerSHA256": "abcd4001c4a5d3a8840ef865c853423538ba99ed68b150c0b7cb945a45d49d05",
+    "packagedChecks": "passed",
+    "icoSizes": [
+      16,
+      24,
+      32,
+      48,
+      64,
+      128,
+      256
+    ],
+    "desktopTargetAndDataArgumentsPreserved": true,
+    "installer": "out/windows/0.1.8/MyLifeOS Setup 0.1.8.exe"
+  },
+  "web": {
+    "headerIconLoaded": true,
+    "manifestIconSizes": [
+      "192x192",
+      "512x512"
+    ],
+    "consoleErrors": 0,
+    "faviconStatus": 200,
+    "appleTouchIconStatus": 200
+  },
+  "android": {
+    "task": ":app:processDebugResources --offline",
+    "deviceInstallationPerformed": false,
+    "resourceCompile": "passed"
+  },
+  "safeAreas": {
+    "MaskableColourRadius": 0.3912324378608838,
+    "MaskableLimit": 0.4,
+    "AndroidColourRadius": 0.29655388831756846,
+    "AndroidLimit": 0.3055555555555556,
+    "Passed": true
+  }
+}
