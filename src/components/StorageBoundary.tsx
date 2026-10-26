@@ -79,16 +79,21 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
   const failed = status.state === 'error';
   const buttonClass = 'rounded border border-current px-3 py-1 disabled:opacity-50';
   const interactionBlocked = failed || busy || Boolean(status.transaction);
+  const showStatus = status.state !== 'saved' || Boolean(message) || Boolean(reminderError);
   const blockInteraction = (event: React.SyntheticEvent) => {
     if (interactionBlocked) { event.preventDefault(); event.stopPropagation(); }
   };
   return <>
-    <section aria-label={zh ? '数据保存状态' : 'Data save status'} className={`sticky top-0 z-[100] px-4 py-2 text-sm ${recovery || failed ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-700'}`}>
-      <div role="status" aria-live="polite">
-        {status.state === 'saved' ? (zh ? '已保存' : 'Saved') : status.state === 'saving' ? (zh ? '保存中…' : 'Saving…')
+    {showStatus && <section aria-label={zh ? '数据保存状态' : 'Data save status'} className={`sticky top-0 z-[100] max-h-[50dvh] overflow-y-auto overscroll-contain px-4 py-2 text-sm ${recovery || failed ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-700'}`}>
+      {status.state !== 'saved' && <div role="status" aria-live="polite">
+        {status.state === 'saving' ? (zh ? '保存中…' : 'Saving…')
           : recovery ? (zh ? '数据读取失败：已停止写入，原文件保留。请选择经过验证的备份恢复。' : 'Data unreadable: writes are blocked and originals preserved. Restore a verified backup.')
           : (zh ? '保存失败：界面已回到已落盘数据，未保存修改仍保留，可重试或导出。' : 'Save failed: showing durable data. Pending changes are retained for retry or export.')}
-      </div>
+      </div>}
+      {(failed || recovery) && <>
+        <p>{zh ? '为保护数据，编辑已暂停。下方恢复按钮仍可操作；重试成功后会自动恢复。' : 'Editing is paused to protect your data. Recovery controls remain available; editing resumes after a successful retry.'}</p>
+        {status.error && <p role="alert" className="break-words select-text">{zh ? '原因：' : 'Reason: '}{status.error}</p>}
+      </>}
       {(failed || recovery) && <div className="mt-2 flex flex-wrap items-center gap-2">
         {status.hasPending && <>
           {!recovery && <button className={buttonClass} disabled={busy} onClick={() => void run(async () => {
@@ -132,7 +137,7 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
       </div>}
       {message && <p role="alert">{message}</p>}
       {reminderError && <p role="alert">{zh ? '提醒设置失败，请到应用设置检查：' : 'Reminder failed; check application settings: '}{reminderError}</p>}
-    </section>
+    </section>}
     {initialized && !recovery && <fieldset key={generation} disabled={interactionBlocked}
       ref={element => { if (element) { if (interactionBlocked) element.setAttribute('inert', ''); else element.removeAttribute('inert'); } }}
       onClickCapture={blockInteraction} onKeyDownCapture={blockInteraction} onDragStartCapture={blockInteraction}

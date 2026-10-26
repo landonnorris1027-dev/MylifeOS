@@ -4,7 +4,7 @@
 
 MyLifeOS is an offline productivity app for Windows and Android, built with React and TypeScript, Electron on desktop, and Capacitor on Android. It combines habit rules, daily tasks, timeline scheduling, focus sessions, and profile statistics. A browser preview is also available, with separate browser-local data.
 
-The current Windows source/candidate version is **0.1.8**; the Android native version remains **0.1.4**. The Android personal APK was built from `b2164cb` on `codex/android-reliability`; device acceptance is still pending. This does not update an already installed Windows app.
+The shared source and Android personal APK are **0.1.10**. Android now shares the current Windows profile, charts and measured-focus reporting, and fixes the native save/retry failure. A new Windows installer has not been packaged for this version; installed applications are not updated automatically.
 
 ## What it does
 
@@ -35,7 +35,7 @@ The Windows/browser Profile page follows the same white-and-blue style:
 - The daily ring uses the selected reference date; the weekly ring uses that date's local Monday–Sunday week, independently of the rolling-seven-day filter. A completed task's earlier stopped sessions count toward its ring. Unfinished, undone, deleted, unmatched, and estimated records do not contribute to the rings.
 - Measured totals include completed and stopped focus, excluding pauses and breaks; legacy estimates remain separate. Weekly goals use measured time only. Cross-midnight sessions belong to their original task date.
 - Weekly review preserves notes, reviews, goal snapshots, and associated sessions, with 25 tasks per page.
-- The annual heatmap uses shades of blue and a centered, compact grid, with cells around 16 px and 2 px gaps on desktop. Narrow windows can scroll within the chart. Android retains its existing statistics layout.
+- The annual heatmap uses shades of blue and a centered, compact grid, with cells around 16 px and 2 px gaps on desktop. Narrow windows can scroll within the chart. Android uses the same measured-focus data and profile components with a responsive mobile layout.
 
 These presentation changes preserve the native timer interfaces and backup schema. They do not install or update an existing app.
 
@@ -152,7 +152,9 @@ See [RELEASE_CHECKS.md](RELEASE_CHECKS.md). To validate shared code and Android 
 npm run android:verify:compile
 ```
 
-Latest source validation (2026-10-11):
+Latest Android release validation (2026-10-26, 0.1.10): **299 shared tests across 45 files**, frontend and Electron type checks, production build, Capacitor sync, **25 native JVM tests**, Release Lint (**0 errors, 32 warnings**), signed release APK and instrumentation-test APK compilation passed. The certificate matches the 0.1.9 APK. Browser checks used a simulated Android bridge at 360, 412 and 480 CSS pixels. Instrumentation tests and installed upgrades have not been executed on a phone or emulator for this release.
+
+Earlier source validation (2026-10-11):
 
 - The Windows UI changes were merged into main in [PR #5](https://github.com/landonnorris1027-dev/MylifeOS/pull/5), merge commit `3dee7d3`. Its [main Windows candidate run](https://github.com/landonnorris1027-dev/MylifeOS/actions/runs/38121511322) passed.
 - Android compile-only verification of integration commit `43948b3` (the same application source tree as `3dee7d3`) passed: **273 shared tests across 40 files**, frontend and Electron type checks, production build, Capacitor sync, **13 native JVM tests**, Debug Lint, and compilation of the debug APK and instrumentation-test APK.
@@ -162,7 +164,7 @@ These results describe those commits; use the Actions run and verification metad
 
 ## Android personal APK
 
-The Android app requires **Android 7 or later** (min SDK 24; target SDK 36). Transfer `out/android/MyLifeOS-0.1.4-personal.apk` to your phone and install it. Back up the old app first and use an in-place update with the same signing identity; installed-upgrade data preservation has not yet been verified on a device.
+The Android app requires **Android 7 or later** (min SDK 24; target SDK 36). Transfer `out/android/MyLifeOS-0.1.10-personal.apk` to your phone and install it. Back up the old app first and use an in-place update with the same signing identity; installed-upgrade data preservation has not yet been verified on a device.
 
 Windows source, Android, and the browser share business code through a platform adapter. New source builds export v8 with focus sessions and scheduling precision. The earlier personal Android 0.1.4 APK uses v7; export v7 explicitly when exchanging with that build. In Android Settings → Data Management, use **Export for desktop 0.1.3 (v6)** to exchange files with desktop 0.1.3; vibration is omitted. Compatibility exports omit measured focus-session records and scheduling precision; one-time tasks are represented as P3 for older clients. Keep a full v8 backup as well. **Share full backup** does not confirm a saved backup file. Active, paused or pending focus sessions must be ended or explicitly abandoned before import/restore, which also creates a pre-operation backup.
 
@@ -174,7 +176,7 @@ npm run android:verify
 
 Set `JAVA_HOME`, `ANDROID_HOME`, and, when needed, `MYLIFEOS_KEYSTORE` as described in [Android implementation](docs/android/IMPLEMENTATION.md). The entry checks types, shared tests, production build, native JVM tests, Lint, APK signature/manifest, and compiles instrumentation tests. It does not install on a phone.
 
-Outputs are `out/android/MyLifeOS-0.1.4-personal.apk` and `out/android/verification.json`. The APK uses the old certificate identity with debugging disabled; metadata records its source commit, version, certificate, SHA-256, and checks. Generated APKs and the private signing key are not committed to Git.
+Outputs are `out/android/MyLifeOS-0.1.10-personal.apk` and `out/android/verification.json`. The APK uses the old certificate identity with debugging disabled; metadata records its source commit, version, certificate, SHA-256, and checks. Generated APKs and the private signing key are not committed to Git.
 
 The `b2164cb` build passed **143 shared tests and 10 native JVM tests**; Release Lint reported **0 errors and 19 warnings**. Instrumentation tests were compiled but not executed. Android 7/13/16, installed upgrade, lock-screen/reboot/battery behavior, and full phone interaction remain pending; see [validation and device acceptance](docs/android/VALIDATION.md). These results are tied to that build, rather than a guarantee for every later checkout.
 

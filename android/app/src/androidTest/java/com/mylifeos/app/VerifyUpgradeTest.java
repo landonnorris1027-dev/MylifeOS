@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 public class VerifyUpgradeTest {
     @Test public void verify() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        assertEquals("0.1.4", context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName);
+        assertEquals("0.1.10", context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName);
         JSONObject data = new NativeSnapshotStore(context).load(new JSONObject(), new JSONArray());
         assertTrue(data.getJSONObject("entries").getString("mylifeos_goals").contains("upgrade-goal"));
         JSONObject logs = new JSONObject(data.getJSONObject("entries").getString(SnapshotRules.LOGS));

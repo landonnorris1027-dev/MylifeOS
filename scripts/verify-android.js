@@ -5,7 +5,9 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const version = fs.readFileSync(path.join(root, 'android/app/build.gradle'), 'utf8').match(/versionName\s+"([^"]+)"/)[1];
+const nativeBuildConfig = fs.readFileSync(path.join(root, 'android/app/build.gradle'), 'utf8');
+const version = nativeBuildConfig.match(/versionName\s+"([^"]+)"/)[1];
+const versionCode = Number(nativeBuildConfig.match(/versionCode\s+(\d+)/)[1]);
 const compileOnly = process.argv.includes('--compile-only');
 const checks = [];
 function run(command, args, cwd = root, capture = false, verbatim = false) {
@@ -81,7 +83,7 @@ try {
   const aapt = path.join(toolDirectory, process.platform === 'win32' ? 'aapt.exe' : 'aapt');
   const badging = run(aapt, ['dump', 'badging', apk], root, true);
   check('release-manifest', () => {
-    if (badging.includes('application-debuggable') || !badging.includes(`versionName='${version}'`) || !badging.includes("sdkVersion:'24'") || !badging.includes("targetSdkVersion:'36'")) throw new Error('APK manifest/version/debuggable check failed');
+    if (badging.includes('application-debuggable') || !badging.includes(`versionName='${version}'`) || !badging.includes(`versionCode='${versionCode}'`) || !badging.includes("sdkVersion:'24'") || !badging.includes("targetSdkVersion:'36'")) throw new Error('APK manifest/version/debuggable check failed');
   });
   const output = path.join(root, 'out/android'); fs.mkdirSync(output, { recursive: true });
   const destination = path.join(output, `MyLifeOS-${version}-personal.apk`); fs.copyFileSync(apk, destination);
@@ -90,7 +92,7 @@ try {
   const source = run('git', ['ls-files', '-z'], root, true).split('\0').filter(Boolean).sort();
   const manifest = source.filter(file => fs.existsSync(path.join(root, file))).map(file => `${file}\0${sha(path.join(root, file))}`).join('\n');
   const devices = run(path.join(sdk, 'platform-tools', process.platform === 'win32' ? 'adb.exe' : 'adb'), ['devices'], root, true).trim();
-  const metadata = { version, versionCode: 4, sourceCommit: commit, sourceDirty: dirty,
+  const metadata = { version, versionCode, sourceCommit: commit, sourceDirty: dirty,
     sourceTreeSHA256: crypto.createHash('sha256').update(manifest).digest('hex'), generatedAt: new Date().toISOString(),
     certificateSHA256: certificate, apkSHA256: sha(destination), bytes: fs.statSync(destination).size, debuggable: false,
     minSdk: 24, targetSdk: 36, baselineSHA256, checks, devices,

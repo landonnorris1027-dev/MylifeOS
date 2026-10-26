@@ -4,7 +4,7 @@
 
 MyLifeOS 是面向 Windows 与 Android 的离线效率应用，使用 React、TypeScript、桌面端 Electron 和安卓端 Capacitor。它整合习惯规则、每日任务、时间线排期、专注计时和画像统计。另有浏览器预览，使用独立的浏览器本地数据。
 
-当前 Windows 源码/候选版本为 **0.1.8**，Android 原生版本保留 **0.1.4**。安卓个人 APK 基于 `codex/android-reliability` 的 `b2164cb` 构建，设备验收仍待完成。这不会自动更新电脑上已安装的 Windows 应用。
+当前共享源码和安卓个人 APK 版本均为 **0.1.10**。安卓已统一使用新版 Windows 的画像、图表与实际专注统计，并修复原生保存／重试失败问题。本次未重新打包 Windows 安装程序，也不会自动更新已安装的应用。
 
 ## 功能
 
@@ -35,7 +35,7 @@ Windows／浏览器的画像页沿用白底与蓝色风格：
 - 日环使用所选参考日期，周环使用该日期所在的本地周一至周日，不受“近七天”筛选影响。已完成任务此前主动停止的实际会话也计入投入；未完成、撤销完成、已删除、无法匹配任务的会话及估算不进入环形图。
 - 实际汇总包含完成与主动停止的专注，排除暂停和休息；历史估算单独显示，周目标仅计实际投入。跨午夜会话归属原任务日期。
 - 周复盘保留笔记、复盘、目标快照和关联会话，每页 25 项任务。
-- 年度热力图采用不同层次的蓝色，桌面网格紧凑居中，方块约 16px、间距 2px；窄窗口可在图表内部横向滚动。Android 保留原有统计布局。
+- 年度热力图采用不同层次的蓝色，桌面网格紧凑居中，方块约 16px、间距 2px；窄窗口可在图表内部横向滚动。安卓共用同一套实际计时数据与画像组件，并适配手机布局。
 
 这些展示层调整保留原生计时接口与备份 schema，不会安装或更新已有应用。
 
@@ -149,7 +149,9 @@ Windows 候选包输出到 `out/windows/<版本>/`，不会更新现有程序和
 npm run android:verify:compile
 ```
 
-最新源码验证（2026-10-11）：
+最新安卓发布验证（2026-10-26，0.1.10）：**45 个文件／299 项共享测试**、前端与 Electron 类型检查、生产构建、Capacitor 同步、**25 项原生 JVM 测试**、Release Lint（**0 错误、32 警告**）、签名发布 APK 和仪器测试 APK 编译均通过。证书与 0.1.9 APK 一致。浏览器使用模拟安卓桥，在 360、412、480 CSS 像素宽度下完成交互与布局检查。本版尚未在手机或模拟器执行仪器测试及实际覆盖升级验证。
+
+较早源码验证（2026-10-11）：
 
 - Windows UI 改进通过 [PR #5](https://github.com/landonnorris1027-dev/MylifeOS/pull/5) 合并至 main，合并提交为 `3dee7d3`；对应的 [main Windows candidate 检查](https://github.com/landonnorris1027-dev/MylifeOS/actions/runs/38121511322)已通过。
 - 集成提交 `43948b3`（与 `3dee7d3` 的应用源码树相同）通过 Android 仅编译验证：**40 个文件／273 项共享测试**、前端与 Electron 类型检查、生产构建、Capacitor 同步、**13 项原生 JVM 测试**、Debug Lint，以及调试 APK 和仪器测试 APK 编译。
@@ -159,7 +161,7 @@ npm run android:verify:compile
 
 ## 安卓个人 APK
 
-安卓要求 **Android 7 或以上**（最低 SDK 24，目标 SDK 36）。把 `out/android/MyLifeOS-0.1.4-personal.apk` 传到手机安装。先备份旧应用，再使用同证书覆盖升级；实际安装升级的数据保留仍待设备验证。
+安卓要求 **Android 7 或以上**（最低 SDK 24，目标 SDK 36）。把 `out/android/MyLifeOS-0.1.10-personal.apk` 传到手机安装。先备份旧应用，再使用同证书覆盖升级；实际安装升级的数据保留仍待设备验证。
 
 Windows 源码、安卓与网页通过平台适配层共用业务代码。当前源码默认导出 v8，包含专注会话与排期精度。较早的个人 Android 0.1.4 APK 使用 v7，与该构建交换时应明确导出 v7。在安卓“设置 → 数据管理”选择**导出桌面 0.1.3 兼容备份（v6）**，与桌面 0.1.3 交换文件；v6 不携带振动。兼容导出不包含实际专注会话记录和排期精度，临时任务会以 P3 表示以供旧客户端读取；请同时保留完整 v8 备份。**分享完整备份**不代表备份文件已保存。导入或恢复前，必须结束或明确放弃活动、暂停或待处理的专注会话；导入／恢复也会创建操作前备份。
 
@@ -171,7 +173,7 @@ npm run android:verify
 
 按[安卓实现说明](docs/android/IMPLEMENTATION.md)设置 `JAVA_HOME`、`ANDROID_HOME`，必要时设置 `MYLIFEOS_KEYSTORE`。入口检查类型、共享测试、生产构建、原生 JVM 测试、Lint、APK 签名和清单，并编译仪器测试；不会安装到手机。
 
-产物为 `out/android/MyLifeOS-0.1.4-personal.apk` 和 `out/android/verification.json`。APK 沿用旧证书身份，关闭调试；元数据记录源码提交、版本、证书、SHA-256 和检查结果。生成的 APK 与私有密钥不提交到 Git。
+产物为 `out/android/MyLifeOS-0.1.10-personal.apk` 和 `out/android/verification.json`。APK 沿用旧证书身份，关闭调试；元数据记录源码提交、版本、证书、SHA-256 和检查结果。生成的 APK 与私有密钥不提交到 Git。
 
 `b2164cb` 构建通过 **143 项共享测试、10 项原生 JVM 测试**；Release Lint 为 **0 错误、19 警告**。仪器测试已编译、未执行。Android 7/13/16、实际覆盖升级、锁屏/重启/省电行为和完整手机操作仍待验收，见[验证与设备验收](docs/android/VALIDATION.md)。这些结果对应该构建，不代表后续检出均已验证。
 

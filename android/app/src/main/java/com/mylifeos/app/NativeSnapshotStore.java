@@ -218,9 +218,14 @@ final class NativeSnapshotStore {
                 JSONObject task = SnapshotRules.findTask(next, timer.getString("taskDate"), timer.getString("taskId"));
                 SnapshotRules.require(task != null && (!timer.getBoolean("isFocusMode") || !"completed".equals(task.optString("status")))
                     && !"deleted".equals(task.optString("status")), "Task unavailable for this session");
+                timer.put("startedAt", now).put("sessionId", java.util.UUID.randomUUID().toString());
+                if (task.has("goalId")) timer.put("goalId", task.get("goalId"));
                 sessions.put(id, timer);
             } else if (timer != null) {
-                if (action.equals("stop")) sessions.remove(id);
+                if (action.equals("stop")) {
+                    SnapshotRules.recordFocus(next, timer, now, "stopped");
+                    sessions.remove(id);
+                }
                 else if (action.equals("complete")) SnapshotRules.complete(next, id, now, true);
                 else if ((action.equals("toggle") || action.equals("pause") || action.equals("resume")) && !"completed".equals(timer.optString("state"))) {
                     if ((action.equals("pause") && !timer.getBoolean("isActive")) || (action.equals("resume") && timer.getBoolean("isActive"))) return view(old);

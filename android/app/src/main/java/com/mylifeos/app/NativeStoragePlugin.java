@@ -42,11 +42,22 @@ public class NativeStoragePlugin extends Plugin {
         run(call, () -> {
             JSONObject entries = call.getObject("entries");
             if (entries == null) throw new IllegalArgumentException("Missing snapshot entries");
-            JSONObject result = store().write(entries, call.getLong("expectedRevision", -1L),
+            JSONObject result = store().write(entries, expectedRevision(call),
                 call.getBoolean("replace", false), call.getBoolean("recover", false));
             if (call.getBoolean("replace", false)) CompletionReminderReceiver.cancelAll(getContext());
             return result;
         });
+    }
+
+    static long expectedRevision(PluginCall call) throws org.json.JSONException {
+        // Android's JSON parser uses Integer for small JS numbers. PluginCall.getLong
+        // accepts only Long, so it silently returned -1 for every normal revision.
+        Object value = call.getData().opt("expectedRevision");
+        SnapshotRules.require(SnapshotRules.finite(value), "Missing or invalid native revision");
+        double revision = ((Number) value).doubleValue();
+        SnapshotRules.require(revision >= 0 && revision <= 9007199254740991D && revision == Math.floor(revision),
+            "Missing or invalid native revision");
+        return ((Number) value).longValue();
     }
 
     @PluginMethod public void timer(PluginCall call) {

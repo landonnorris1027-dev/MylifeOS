@@ -28,7 +28,8 @@ try {
     source = path.join(os.tmpdir(), `mylifeos-android-${crypto.createHash('sha256').update(root).digest('hex').slice(0, 12)}`);
     if (fs.realpathSync(source).toLowerCase() !== fs.realpathSync(root).toLowerCase()) throw new Error('Build junction mismatch');
   }
-  const release = path.join(source, 'out/android/MyLifeOS-0.1.4-personal.apk');
+  const version = fs.readFileSync(path.join(root, 'android/app/build.gradle'), 'utf8').match(/versionName\s+"([^"]+)"/)[1];
+  const release = path.join(source, `out/android/MyLifeOS-${version}-personal.apk`);
   const baseline = path.join(source, 'out/android-baseline/MyLifeOS-0.1.2.apk');
   const tests = path.join(source, 'android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk');
   for (const file of [release, baseline, tests]) if (!fs.existsSync(file)) throw new Error(`Build/archived APK required: ${file}`);

@@ -6,6 +6,90 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class SnapshotRulesTest {
+    @Test public void stoppedFocusExcludesPausedTimeAndDoesNotCompleteTheTask() throws Exception {
+        JSONObject data = fixture();
+        JSONObject timer = data.getJSONObject("sessions").getJSONObject("s");
+        timer.put("startedAt", 0).put("sessionId", "paused-test").put("isActive", false).put("state", "paused").put("remaining", 1000000);
+        SnapshotRules.recordFocus(data, timer, 9999999, "stopped");
+        SnapshotRules.recordFocus(data, timer, 10000000, "stopped");
+        org.json.JSONArray records = new org.json.JSONArray(data.getJSONObject("entries").getString("mylifeos_focus_sessions"));
+        assertEquals(1, records.length());
+        assertEquals(500, records.getJSONObject(0).getDouble("actualFocusSeconds"), 0.001);
+        assertEquals("stopped", records.getJSONObject(0).getString("result"));
+        assertEquals("scheduled", SnapshotRules.findTask(data, "2026-10-02", "t").getString("status"));
+        SnapshotRules.validate(data);
+    }
+
+    @Test public void delayedCompletionCountsOnlyPlannedTimeAndKeepsTheOriginalDeadline() throws Exception {
+        JSONObject data = fixture();
+        data.getJSONObject("sessions").getJSONObject("s").put("startedAt", 0).put("sessionId", "late-test");
+        SnapshotRules.complete(data, "s", 9999999, false);
+        JSONObject record = new org.json.JSONArray(data.getJSONObject("entries").getString("mylifeos_focus_sessions")).getJSONObject(0);
+        assertEquals(1500, record.getDouble("actualFocusSeconds"), 0.001);
+        assertEquals(1500000, record.getLong("endedAt"));
+    }
+
+    @Test public void legacyTimerWithoutStartTimestampRemainsAnEstimate() throws Exception {
+        JSONObject data = fixture();
+        SnapshotRules.complete(data, "s", 180000, true);
+        JSONObject record = new org.json.JSONArray(data.getJSONObject("entries").getString("mylifeos_focus_sessions")).getJSONObject(0);
+        assertEquals("estimated", record.getString("measurement"));
+        SnapshotRules.validate(data);
+    }
+
+    @Test public void breaksDoNotBecomeFocusHistory() throws Exception {
+        JSONObject data = fixture();
+        JSONObject timer = data.getJSONObject("sessions").getJSONObject("s");
+        timer.put("isFocusMode", false).put("startedAt", 0).put("sessionId", "break-test");
+        SnapshotRules.complete(data, "s", 9999999, false);
+        assertFalse(data.getJSONObject("entries").has("mylifeos_focus_sessions"));
+    }
+
+    @Test public void completedAndroidFocusFeedsTheSharedMeasuredStatistics() throws Exception {
+        JSONObject data = fixture();
+        data.getJSONObject("sessions").getJSONObject("s").put("startedAt", 0).put("sessionId", "android-test");
+        SnapshotRules.complete(data, "s", 125500, true);
+        org.json.JSONArray records = new org.json.JSONArray(data.getJSONObject("entries").getString("mylifeos_focus_sessions"));
+        assertEquals(1, records.length());
+        assertEquals(125.5, records.getJSONObject(0).getDouble("actualFocusSeconds"), 0.001);
+        assertEquals("measured", records.getJSONObject(0).getString("measurement"));
+        assertEquals("deleted-habit", records.getJSONObject(0).getString("taskHabitId"));
+        SnapshotRules.complete(data, "s", 130000, true);
+        assertEquals(1, new org.json.JSONArray(data.getJSONObject("entries").getString("mylifeos_focus_sessions")).length());
+        SnapshotRules.validate(data);
+    }
+
+    @Test public void acceptsV8FocusHistoryAndPreservesItInTheMigrationKeySet() throws Exception {
+        JSONObject data = SnapshotRules.empty();
+        data.getJSONObject("entries").put("mylifeos_focus_sessions", "[]");
+        SnapshotRules.validate(data);
+        assertTrue(java.util.Arrays.asList(SnapshotRules.KEYS).contains("mylifeos_focus_sessions"));
+    }
+
+    private JSONObject historyRecord() throws Exception {
+        return new JSONObject().put("id", "history-1").put("timerId", "s").put("taskId", JSONObject.NULL)
+            .put("taskName", JSONObject.NULL).put("taskDate", "2026-10-26").put("plannedSeconds", 1500)
+            .put("actualFocusSeconds", 62.5).put("startedAt", 1000).put("endedAt", 63500)
+            .put("result", "stopped").put("measurement", "measured");
+    }
+
+    @Test public void acceptsV8MeasuredHistoryWithNullableTaskReferences() throws Exception {
+        SnapshotRules.validateFocusHistory(new org.json.JSONArray().put(historyRecord()));
+    }
+
+    @Test(expected = JSONException.class) public void rejectsDuplicateHistoryRatherThanDoubleCounting() throws Exception {
+        SnapshotRules.validateFocusHistory(new org.json.JSONArray().put(historyRecord()).put(historyRecord()));
+    }
+
+    @Test(expected = JSONException.class) public void rejectsHistoryWithImpossibleDuration() throws Exception {
+        SnapshotRules.validateFocusHistory(new org.json.JSONArray().put(historyRecord().put("actualFocusSeconds", 1501)));
+    }
+
+    @Test(expected = JSONException.class) public void rejectsHistoryWithMissingTaskReference() throws Exception {
+        JSONObject record = historyRecord(); record.remove("taskId");
+        SnapshotRules.validateFocusHistory(new org.json.JSONArray().put(record));
+    }
+
     static JSONObject fixture() throws Exception {
         JSONObject snapshot = SnapshotRules.empty();
         snapshot.getJSONObject("entries").put(SnapshotRules.LOGS,

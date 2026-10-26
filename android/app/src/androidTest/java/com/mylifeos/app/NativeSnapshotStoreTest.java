@@ -16,6 +16,32 @@ import static org.junit.Assert.*;
 
 /** Uses isolated files/preferences; never the personal app's persistent data. */
 public class NativeSnapshotStoreTest {
+    @Test public void stoppedFocusHistoryIsDurableWithoutCompletingTheTask() throws Exception {
+        store.write(taskEntries(), 0, false, false);
+        store.timer("start", "s", timerData(), 1000);
+        store.timer("pause", "s", null, 63500);
+        store.timer("stop", "s", null, 9999999);
+        JSONObject saved = store.get();
+        assertEquals(0, saved.getJSONArray("sessions").length());
+        JSONObject record = new JSONArray(saved.getJSONObject("entries").getString("mylifeos_focus_sessions")).getJSONObject(0);
+        assertEquals(62.5, record.getDouble("actualFocusSeconds"), 0.001);
+        assertEquals("measured", record.getString("measurement"));
+        assertEquals("stopped", record.getString("result"));
+        JSONObject logs = new JSONObject(saved.getJSONObject("entries").getString(SnapshotRules.LOGS));
+        assertEquals("scheduled", logs.getJSONObject("2026-10-02").getJSONArray("tasks").getJSONObject(0).getString("status"));
+    }
+
+    @Test public void realBridgeIntegerRevisionsSaveAndRetryWithoutLockingTheApp() throws Exception {
+        for (int revision = 0; revision < 3; revision++) {
+            com.getcapacitor.PluginCall call = new com.getcapacitor.PluginCall(null, "NativeStorage", "test", "write",
+                new com.getcapacitor.JSObject("{\"expectedRevision\":" + revision + "}"));
+            JSONObject result = store.write(new JSONObject().put("mylifeos_lang", revision % 2 == 0 ? "en" : "zh"),
+                NativeStoragePlugin.expectedRevision(call), false, false);
+            assertEquals(revision + 1, result.getLong("revision"));
+        }
+        assertEquals("en", store.get().getJSONObject("entries").getString("mylifeos_lang"));
+    }
+
     private File directory;
     private Context context;
     private NativeSnapshotStore store;

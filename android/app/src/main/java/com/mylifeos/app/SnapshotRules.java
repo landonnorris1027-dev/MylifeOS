@@ -10,7 +10,7 @@ final class SnapshotRules {
     static final String LOGS = "mylifeos_daily_logs";
     static final String[] KEYS = { "mylifeos_habits", "mylifeos_goals", LOGS, "mylifeos_lang",
         "mylifeos_focus_settings", "mylifeos_profile_settings", "mylifeos_planner_settings",
-        "mylifeos_recovery_points", "mylifeos_desktop_settings" };
+        "mylifeos_recovery_points", "mylifeos_desktop_settings", "mylifeos_focus_sessions" };
 
     static JSONObject empty() throws JSONException {
         return new JSONObject().put("formatVersion", 1).put("revision", 0)
@@ -83,6 +83,8 @@ final class SnapshotRules {
                         if (task.has("startTime")) require(task.getString("startTime").matches("([01]\\d|2[0-3]):[0-5]\\d"), "Invalid scheduled time");
                     }
                 }
+            } else if (key.equals("mylifeos_focus_sessions")) {
+                validateFocusHistory(new JSONArray(raw));
             } else if (key.equals("mylifeos_recovery_points")) {
                 JSONArray points = new JSONArray(raw);
                 require(points.length() <= 7, "Too many recovery points");
@@ -126,6 +128,39 @@ final class SnapshotRules {
         }
     }
 
+    private static boolean historyId(Object value) {
+        return value instanceof String && ((String) value).length() > 0 && ((String) value).length() <= 240
+            && !java.util.regex.Pattern.compile("[\\x00-\\x1f]").matcher((String) value).find();
+    }
+
+    private static boolean historyTimestamp(Object value) {
+        return finite(value) && ((Number) value).doubleValue() >= 0 && ((Number) value).doubleValue() <= 8640000000000000D;
+    }
+
+    /** Same v8 history contract as src/main/focus-session.ts; preserve imported records. */
+    static void validateFocusHistory(JSONArray records) throws JSONException {
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < records.length(); i++) {
+            JSONObject record = records.getJSONObject(i);
+            require(historyId(record.opt("id")) && seen.add(record.getString("id")) && historyId(record.opt("timerId")), "Invalid focus history id");
+            require(record.has("taskId") && (record.isNull("taskId") || historyId(record.opt("taskId")))
+                && date(record.optString("taskDate")), "Invalid focus history task");
+            require(record.has("taskName") && (record.isNull("taskName") || record.opt("taskName") instanceof String
+                && record.getString("taskName").length() <= 2000), "Invalid focus history task name");
+            require(!record.has("taskHabitId") || record.isNull("taskHabitId") || historyId(record.opt("taskHabitId")), "Invalid focus history habit");
+            require(!record.has("goalId") || historyId(record.opt("goalId")), "Invalid focus history goal");
+            require(!record.has("notificationsEnabled") || record.opt("notificationsEnabled") instanceof Boolean, "Invalid focus history notification preference");
+            require(!record.has("priority") || record.optString("priority").matches("P[123]|none"), "Invalid focus history priority");
+            require(finite(record.opt("plannedSeconds")) && record.getDouble("plannedSeconds") > 0
+                && record.getDouble("plannedSeconds") <= 86400 && finite(record.opt("actualFocusSeconds"))
+                && record.getDouble("actualFocusSeconds") >= 0 && record.getDouble("actualFocusSeconds") <= record.getDouble("plannedSeconds"), "Invalid focus history duration");
+            require(historyTimestamp(record.opt("startedAt")) && historyTimestamp(record.opt("endedAt"))
+                && record.getDouble("endedAt") >= record.getDouble("startedAt"), "Invalid focus history timestamps");
+            require(record.optString("result").matches("completed|stopped")
+                && record.optString("measurement").matches("measured|estimated"), "Invalid focus history result");
+        }
+    }
+
     static void validateSession(JSONObject session) throws JSONException {
         require(text(session.opt("timerId")) && finite(session.opt("duration")) && session.getDouble("duration") > 0,
             "Invalid session id or duration");
@@ -157,6 +192,7 @@ final class SnapshotRules {
         long remaining = session.getBoolean("isActive") ? Math.max(0, session.getLong("endTime") - now) : session.getLong("remaining");
         int minutes = Math.max(1, (int) Math.round((session.getDouble("duration") * 1000 - (early ? remaining : 0)) / 60000));
         if (session.getBoolean("isFocusMode")) {
+            recordFocus(snapshot, session, early ? now : session.getLong("endTime"), "completed");
             JSONObject completion = new JSONObject().put("taskDate", session.getString("taskDate"))
                 .put("taskId", session.getString("taskId")).put("minutes", minutes)
                 .put("completedAt", early ? now : session.getLong("endTime"));
@@ -165,6 +201,38 @@ final class SnapshotRules {
         }
         session.put("state", "completed").put("isActive", false).put("remaining", 0).put("actualFocusMinutes", minutes);
         return true;
+    }
+
+    /** Persist the same measured/estimated session contract used by Windows reports. */
+    static void recordFocus(JSONObject snapshot, JSONObject session, long now, String result) throws JSONException {
+        if (!session.getBoolean("isFocusMode") || "completed".equals(session.optString("state"))) return;
+        JSONObject entries = snapshot.getJSONObject("entries");
+        JSONArray history = new JSONArray(entries.optString("mylifeos_focus_sessions", "[]"));
+        String id = session.optString("sessionId", "android-" + java.util.UUID.nameUUIDFromBytes(
+            (session.getString("timerId") + ":" + session.getString("taskDate")).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        for (int i = 0; i < history.length(); i++) if (id.equals(history.getJSONObject(i).getString("id"))) return;
+        double durationMs = session.getDouble("duration") * 1000;
+        double remaining = session.getBoolean("isActive") ? Math.max(0, session.getLong("endTime") - now) : session.getDouble("remaining");
+        double seconds = Math.min(durationMs, Math.max(0, durationMs - remaining)) / 1000;
+        boolean measured = historyTimestamp(session.opt("startedAt"));
+        long startedAt = measured ? session.getLong("startedAt") : Math.max(0, session.getLong("endTime") - Math.round(durationMs));
+        JSONObject task = findTask(snapshot, session.getString("taskDate"), session.getString("taskId"));
+        JSONObject record = new JSONObject().put("id", id).put("timerId", session.getString("timerId"))
+            .put("taskId", session.getString("taskId")).put("taskName", session.getString("taskName"))
+            .put("taskDate", session.getString("taskDate")).put("plannedSeconds", session.getDouble("duration"))
+            .put("actualFocusSeconds", seconds).put("startedAt", startedAt).put("endedAt", Math.max(startedAt, now))
+            .put("result", result).put("measurement", measured ? "measured" : "estimated");
+        String habitId = session.optString("taskHabitId", task == null ? "" : task.optString("habitId"));
+        if (historyId(habitId)) record.put("taskHabitId", habitId);
+        String goalId = session.optString("goalId", task == null ? "" : task.optString("goalId"));
+        if (historyId(goalId)) record.put("goalId", goalId);
+        String priority = session.optString("taskPriority", task == null ? "none" : task.optString("priority", "none"));
+        if (task != null && ("manual".equals(task.optString("origin")) || !task.has("habitId"))) priority = "none";
+        if (priority.matches("P[123]|none")) record.put("priority", priority);
+        if (session.opt("notificationsEnabled") instanceof Boolean) record.put("notificationsEnabled", session.getBoolean("notificationsEnabled"));
+        history.put(record);
+        validateFocusHistory(history);
+        entries.put("mylifeos_focus_sessions", history.toString());
     }
 
     static void applyCompletion(JSONObject snapshot, JSONObject completion) throws JSONException {

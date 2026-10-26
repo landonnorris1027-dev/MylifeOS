@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getMeasuredMinutesByDate } from '../services/focusReports';
-import { isAndroid } from '../services/platform';
-import { getYearlyStats, formatDateLocal, parseDateLocal } from '../services/storage';
+import { formatDateLocal, parseDateLocal } from '../services/storage';
 
 interface DayData {
   date: string;
@@ -23,7 +22,7 @@ interface ContributionGraphProps {
 const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 }) => {
   const { t, language } = useLanguage();
   const currentYear = new Date().getFullYear();
-  const stats = useMemo(() => isAndroid() ? getYearlyStats() : getMeasuredMinutesByDate(), [refreshToken]);
+  const stats = useMemo(() => getMeasuredMinutesByDate(), [refreshToken]);
 
   // Calculate grid data
   const { weeks, totalMinutes } = useMemo(() => {
@@ -126,7 +125,7 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
   const activityTitle = t('focus_activity_year', { year: currentYear });
 
   return (
-    <div className={`profile-activity ${!isAndroid() ? 'profile-activity-compact' : ''} bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50`}>
+    <div className="profile-activity profile-activity-compact bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{activityTitle}</h2>
