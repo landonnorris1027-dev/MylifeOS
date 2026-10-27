@@ -4,37 +4,37 @@
 
 MyLifeOS is an offline productivity app for Windows and Android, built with React and TypeScript, Electron on desktop, and Capacitor on Android. It combines habit rules, daily tasks, timeline scheduling, focus sessions, and profile statistics. A browser preview is also available, with separate browser-local data.
 
-The shared source and Android personal APK are **0.1.10**. Android now shares the current Windows profile, charts and measured-focus reporting, and fixes the native save/retry failure. A new Windows installer has not been packaged for this version; installed applications are not updated automatically.
+The shared source and the earlier Android personal APK are version **0.1.10**, but they are not the same build. The APK was built on 2026-10-26, before the 2026-10-27 scheduling and profile-layout changes. The latest source has not been packaged into a new Android APK or Windows installer; installed applications are not updated automatically.
 
 ## What it does
 
 - Define habits with priority, quota, duration, date range, and daily/weekday/custom-day repetition; generate daily tasks from those rules
-- Create one-time tasks without a priority; existing and imported one-time tasks also use the purple label
+- Create one-time tasks without a priority; existing and imported one-time tasks use the same yellow category
 - Schedule by clicking or dragging tasks onto the timeline, with conflict detection; Windows and Android use a **30-minute** scheduling grid
 - Start focus directly from today's unfinished Inbox or scheduled tasks while preserving their schedule
 - Search tasks; on Windows, move unfinished one-time tasks together to another date and undo up to 20 task operations during the current run
 - Switch between Inbox and Timeline in narrow windows and on phones
 - Run native focus timers on Windows and Android, with pause, resume, stop, and recovery; display focus/rest countdowns and accumulated durations in **minutes** while keeping measured timing precision internally
 - Save completion before offering Start break / Back to planner; retain failed changes for retry or export
-- Fill completed task cards with their label color and white text over **800 ms**; completed cards cannot restart focus
-- Review measured focus, legacy estimates, weekly goals, task notes, and yearly activity
+- Fill completed task cards with their category color and dark text over **800 ms**; completed cards cannot restart focus
+- Review measured focus, legacy estimates, daily and weekly distributions, task notes, and yearly activity
 - Export full **v8** backups, import v1–v8, and explicitly export v7 for the earlier Android 0.1.4 APK or v6 for Windows 0.1.3
 
 ## Latest Windows interface
 
-The planner keeps its Inbox and timeline layout, with a pure white canvas, blue primary controls, rounded panels, and consistent typography. Habit labels use P1 red, P2 yellow, and P3 green; one-time tasks use purple. Task and habit duration fields can be cleared before entering a new value.
+The planner keeps its Inbox and timeline layout, with a pure white canvas, blue primary controls, rounded panels, and consistent typography. Category colors are P1 purple, P2 blue, P3 light blue, and one-time tasks yellow. Task and habit duration fields can be cleared before entering a new value.
 
 Scheduling uses a 30-minute grid on Windows and Android. Previous 5- or 15-minute preferences become 30 minutes on load or backup import; already scheduled task start times remain unchanged. Ctrl+K opens search, Ctrl+J opens the current session, and Ctrl+Z undoes task operations outside inputs and dialogs. The deletion toast also supports undo for ten seconds.
 
 Completed cards no longer respond to clicks, Enter/Space, or dragging to restart or reschedule them. Notes/reviews and deletion remain available through their own buttons. The 800 ms color transition respects reduced-motion settings. Countdown minutes round up until the timer ends; accumulated time displays whole elapsed minutes. Internal timestamps and measured session records retain their precision.
 
-The Windows/browser Profile page follows the same white-and-blue style:
+The current Windows/browser Profile page follows the same white-and-blue style. At desktop widths of at least 1280 CSS pixels, the focus history, daily distribution, and weekly distribution appear in one row; the two distribution cards match the history card's height. Narrower layouts wrap or stack the cards. The reference-date control remains above them; the former weekly-target progress card has been removed.
 
-- Blue grouped bars compare daily planned and actual time; signed bars show actual minus planned, with the original daily figures available in a detail table.
+- The **focus history** switches between the latest 20 days and 20 Monday-based weeks. Stacked colored bars show measured focus by category; red bars below the baseline show `max(planned − measured, 0)`. The expandable legend and table show planned, measured, historical-estimate, and shortfall figures.
 - **Daily and weekly goal distributions** use thick, rounded ring segments separated by white gaps. Colors are weighted by **actual measured focus time associated with currently completed tasks**, rather than task counts or planned duration. The center shows total minutes; the legend shows each category's duration and percentage.
-- The daily ring uses the selected reference date; the weekly ring uses that date's local Monday–Sunday week, independently of the rolling-seven-day filter. A completed task's earlier stopped sessions count toward its ring. Unfinished, undone, deleted, unmatched, and estimated records do not contribute to the rings.
-- Measured totals include completed and stopped focus, excluding pauses and breaks; legacy estimates remain separate. Weekly goals use measured time only. Cross-midnight sessions belong to their original task date.
-- Weekly review preserves notes, reviews, goal snapshots, and associated sessions, with 25 tasks per page.
+- The daily ring uses the selected reference date; the weekly ring uses that date's local Monday–Sunday week. A completed task's earlier stopped sessions count toward its ring. Unfinished, undone, deleted, unmatched, and estimated records do not contribute to the rings.
+- Measured totals include completed and stopped focus, excluding pauses and breaks; legacy estimates remain separate. Cross-midnight sessions belong to their original task date. The weekly-target setting remains in preferences, but the current Profile page no longer shows its progress card.
+- Period review follows the selected history range and displays task notes, review notes, and related sessions, with 25 tasks per page.
 - The annual heatmap uses shades of blue and a centered, compact grid, with cells around 16 px and 2 px gaps on desktop. Narrow windows can scroll within the chart. Android uses the same measured-focus data and profile components with a responsive mobile layout.
 
 These presentation changes preserve the native timer interfaces and backup schema. They do not install or update an existing app.
@@ -43,15 +43,15 @@ These presentation changes preserve the native timer interfaces and backup schem
 
 Design review additions on 2026-10-14: create tasks directly from the empty inbox; show a scheduling hint on unfinished inbox cards; distinguish notes from reviews; label total planned duration as “计划投入” in Chinese; and jump to the current time from the desktop timeline. Task creation focuses the name field, scheduling and review dialogs have accessible names and close-button labels, and narrow 320px windows and the English header have improved wrapping. The [screenshot audit and validation record](docs/product-design-audit/REPORT.md) covers the local browser preview only, not an installed-app update or native-device acceptance.
 
-These Windows/browser screenshots use isolated fictional data.
+The current Profile screenshot is a browser preview with no measured focus records. The earlier planner and annual-activity screenshots below use isolated fictional data and show historical layouts.
 
 ### Planner
 
-![White Windows planner with blue controls and purple one-time task labels](docs/manual-task-priority/planner.png)
+![Earlier Windows planner with blue controls and one-time task labels](docs/manual-task-priority/planner.png)
 
-### Daily and weekly completed-task focus distributions
+### Profile: focus history and daily/weekly distributions
 
-![Segmented daily and weekly focus rings with durations and category percentages](docs/profile-distribution/segmented-desktop.png)
+![Current desktop profile with focus history and daily and weekly focus distribution cards](output/ui-profile-layout-20261027/desktop-1280.png)
 
 ### Annual focus activity
 
@@ -152,7 +152,9 @@ See [RELEASE_CHECKS.md](RELEASE_CHECKS.md). To validate shared code and Android 
 npm run android:verify:compile
 ```
 
-Latest Android release validation (2026-10-26, 0.1.10): **299 shared tests across 45 files**, frontend and Electron type checks, production build, Capacitor sync, **25 native JVM tests**, Release Lint (**0 errors, 32 warnings**), signed release APK and instrumentation-test APK compilation passed. The certificate matches the 0.1.9 APK. Browser checks used a simulated Android bridge at 360, 412 and 480 CSS pixels. Instrumentation tests and installed upgrades have not been executed on a phone or emulator for this release.
+Latest shared-source verification (2026-10-27, application source commit `037ace2`): `npm run verify:release` passed: **304 tests across 45 files**, frontend and Electron type checks, the production web build, and Electron main-process build. The three-card layout and day/week controls were checked in a browser; this does not constitute installed Windows or Android device acceptance.
+
+Earlier Android release validation (2026-10-26, 0.1.10): **299 shared tests across 45 files**, frontend and Electron type checks, production build, Capacitor sync, **25 native JVM tests**, Release Lint (**0 errors, 32 warnings**), signed release APK and instrumentation-test APK compilation passed. The certificate matches the 0.1.9 APK. Browser checks used a simulated Android bridge at 360, 412 and 480 CSS pixels. Instrumentation tests and installed upgrades have not been executed on a phone or emulator for this release.
 
 Earlier source validation (2026-10-11):
 
@@ -164,7 +166,7 @@ These results describe those commits; use the Actions run and verification metad
 
 ## Android personal APK
 
-The Android app requires **Android 7 or later** (min SDK 24; target SDK 36). Transfer `out/android/MyLifeOS-0.1.10-personal.apk` to your phone and install it. Back up the old app first and use an in-place update with the same signing identity; installed-upgrade data preservation has not yet been verified on a device.
+The Android app requires **Android 7 or later** (min SDK 24; target SDK 36). The locally generated `out/android/MyLifeOS-0.1.10-personal.apk` is the 2026-10-26 build and predates the latest source changes described above. To use those changes on a phone, build a new APK first. Back up the old app before an in-place update and use the same signing identity; installed-upgrade data preservation has not yet been verified on a device.
 
 Windows source, Android, and the browser share business code through a platform adapter. New source builds export v8 with focus sessions and scheduling precision. The earlier personal Android 0.1.4 APK uses v7; export v7 explicitly when exchanging with that build. In Android Settings → Data Management, use **Export for desktop 0.1.3 (v6)** to exchange files with desktop 0.1.3; vibration is omitted. Compatibility exports omit measured focus-session records and scheduling precision; one-time tasks are represented as P3 for older clients. Keep a full v8 backup as well. **Share full backup** does not confirm a saved backup file. Active, paused or pending focus sessions must be ended or explicitly abandoned before import/restore, which also creates a pre-operation backup.
 
