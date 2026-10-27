@@ -43,11 +43,11 @@ These presentation changes preserve the native timer interfaces and backup schem
 
 Design review additions on 2026-10-14: create tasks directly from the empty inbox; show a scheduling hint on unfinished inbox cards; distinguish notes from reviews; label total planned duration as “计划投入” in Chinese; and jump to the current time from the desktop timeline. Task creation focuses the name field, scheduling and review dialogs have accessible names and close-button labels, and narrow 320px windows and the English header have improved wrapping. The [screenshot audit and validation record](docs/product-design-audit/REPORT.md) covers the local browser preview only, not an installed-app update or native-device acceptance.
 
-The current Profile screenshot is a browser preview with no measured focus records. The earlier planner and annual-activity screenshots below use isolated fictional data and show historical layouts.
+The current Profile screenshot is a browser preview with no measured focus records. The annual-activity screenshot below uses isolated fictional data and shows an earlier layout.
 
-### Planner
+### Planner: historical reference
 
-![Earlier Windows planner with blue controls and one-time task labels](docs/manual-task-priority/planner.png)
+The [2026-10-08 planner screenshot](docs/manual-task-priority/planner.png) is retained as a historical reference. It uses the old red P1 and purple one-time-task colors. Current colors are P1 purple, P2 blue, P3 light blue, and one-time tasks yellow, as described above.
 
 ### Profile: focus history and daily/weekly distributions
 
