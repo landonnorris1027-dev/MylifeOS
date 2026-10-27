@@ -5,6 +5,7 @@ import ProfileStats from './ProfileStats';
 import ContributionGraph from './ContributionGraph';
 import { LanguageProvider } from '../contexts/LanguageContext';
 import { bootstrapNativeStorage, flushNativeWrites, getNativeItem, setNativeItem } from '../services/nativeRuntime';
+import { getPlannerSettings, savePlannerSettings } from '../services/plannerSettings';
 
 const native = vi.hoisted(() => ({ load: vi.fn(), write: vi.fn(), timers: vi.fn() }));
 vi.mock('@capacitor/core', () => ({
@@ -66,5 +67,19 @@ describe('Android save failure recovery controls', () => {
     expect(container.querySelector('.profile-activity-compact')).not.toBeNull();
     expect(container.textContent).not.toContain('Current Streak');
     expect(container.querySelector('section[aria-label="Data save status"]')).toBeNull();
+  });
+
+  it.each([5, 15])('normalizes an Android %i-minute setting while retaining scheduled tasks', async intervalMinutes => {
+    const logs = '{"2026-10-08":{"date":"2026-10-08","tasks":[{"id":"t","name":"Task","date":"2026-10-08","startTime":"09:07","durationMinutes":25,"status":"scheduled","priority":"none","origin":"manual"}]}}';
+    durable.entries.mylifeos_daily_logs = logs;
+    durable.entries.mylifeos_planner_settings = JSON.stringify({ timelineMode: 'fullDay', intervalMinutes });
+    await act(async () => {
+      await bootstrapNativeStorage(['mylifeos_daily_logs', 'mylifeos_planner_settings']);
+      expect(getPlannerSettings()).toEqual({ timelineMode: 'fullDay', intervalMinutes: 30 });
+      savePlannerSettings(getPlannerSettings());
+      await flushNativeWrites();
+    });
+    expect(JSON.parse(durable.entries.mylifeos_planner_settings).intervalMinutes).toBe(30);
+    expect(durable.entries.mylifeos_daily_logs).toBe(logs);
   });
 });

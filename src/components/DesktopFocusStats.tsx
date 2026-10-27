@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { formatDateLocal, getProfileStats } from '../services/storage';
-import { getProfileSettings } from '../services/profileSettings';
 import {
   FocusHistoryPeriod,
   getFocusHistoryReport,
@@ -41,15 +40,10 @@ export default function DesktopFocusStats({
   );
   const totals = useMemo(() => getFocusTotals(), [refreshToken]);
   const tasks = useMemo(() => getProfileStats(), [refreshToken]);
-  const target = useMemo(
-    () => getProfileSettings().weeklyTargetMinutes * 60,
-    [refreshToken],
-  );
   const week = useMemo(
     () => getFocusReport(anchor, 'week'),
     [anchor, refreshToken],
   );
-  const progress = Math.round((week.measuredSeconds / target) * 100);
   const planned = report.days.reduce((sum, day) => sum + day.plannedSeconds, 0);
 
   return (
@@ -120,6 +114,19 @@ export default function DesktopFocusStats({
         </div>
       </div>
 
+      <div className="profile-insights-toolbar">
+        <label className="profile-date">
+          <span>{zh ? '参考日期' : 'Reference date'}</span>
+          <input
+            type="date"
+            value={anchor}
+            onChange={(e) => {
+              if (e.target.value) setAnchor(e.target.value);
+            }}
+          />
+        </label>
+      </div>
+
       <div className="profile-insights-grid">
         <FocusCharts
           key={`charts:${anchor}`}
@@ -130,58 +137,8 @@ export default function DesktopFocusStats({
           onPeriodChange={setPeriod}
         />
 
-        <section className="profile-panel profile-week-target">
-          <div className="profile-section-heading">
-            <div>
-              <h2>{t('profile_weekly_target')}</h2>
-              <p className="profile-caption">
-                {zh ? '本地周一至周日' : 'Local Monday–Sunday'} · {week.from} –{' '}
-                {week.to}
-              </p>
-            </div>
-            <label className="profile-date">
-              <span className="sr-only">
-                {zh ? '复盘参考日期' : 'Review reference date'}
-              </span>
-              <input
-                type="date"
-                value={anchor}
-                onChange={(e) => {
-                  if (e.target.value) setAnchor(e.target.value);
-                }}
-              />
-            </label>
-          </div>
-          <div className="profile-target-value">
-            <strong>
-              {progress}
-              <span>%</span>
-            </strong>
-            <span>
-              {duration(week.measuredSeconds)}
-              <span className="profile-muted"> / {duration(target)}</span>
-            </span>
-          </div>
-          <div
-            role="progressbar"
-            aria-valuenow={Math.min(100, progress)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={t('profile_weekly_target')}
-            aria-valuetext={`${progress}% · ${duration(week.measuredSeconds)} / ${duration(target)}`}
-            className="profile-track"
-          >
-            <span style={{ width: `${Math.min(100, progress)}%` }} />
-          </div>
-          <p className="profile-caption">
-            {zh
-              ? '进度仅使用实际计时；跨午夜会话归属原任务日期。'
-              : 'Only measured focus counts; cross-midnight sessions belong to the original task date.'}
-          </p>
-        </section>
+        <CompletedFocusDistribution week={week} anchor={anchor} />
       </div>
-
-      <CompletedFocusDistribution week={week} anchor={anchor} />
 
       <WeeklyReview
         key={`review:${anchor}:${period}`}

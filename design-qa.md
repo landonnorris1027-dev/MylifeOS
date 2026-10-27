@@ -62,3 +62,43 @@ Evidence: [task blocks](docs/profile-stacked-bars/task-colors.png), [habit confi
 On 2026-10-19, `npm run verify:release` passed on the final source: TypeScript, 43 test files / 296 tests, the production frontend build, Electron main-process compilation, and the Electron type check. The production build retains its existing bundle-size advisory. An initial sandbox run failed on temporary-file access (`ENOENT` / `EPERM`); the same command passed outside the sandbox without source changes. Windows packaging and native regression remain covered by the pull request's Windows candidate workflow.
 
 The first Windows candidate run built the package, then stopped at an outdated packaged-regression assertion for `Weekly review` and the former seven-day controls. Those assertions now exercise `Period review`, Day/Week switching, and exactly 20 columns in each mode; the remaining native regression checks are preserved.
+
+## 2026-10-27: three-card desktop layout
+
+final result: passed
+
+This entry covers the current layout change only. The 2026-10-19 results above remain historical evidence.
+
+### Target and evidence
+
+- User direction: retain the compact trend card; remove the weekly-target progress card; put the daily and weekly completed-focus distribution cards beside the trend, with their heights set by the trend card.
+- Source visual truth: `output/ui-profile-layout-20261027/source-trend-layout.png` (2167 x 682) and `source-distribution-layout.png` (2304 x 1021), copied from the screenshots supplied by the user.
+- Rendered implementation: `output/ui-profile-layout-20261027/desktop-1280.png` (1280 x 980) and `desktop-viewport.png` (1707 x 979). Screenshots use CSS scale. Source images and the implementation were inspected together in the same comparison inputs, including readable card typography and legends.
+- State: Chinese, light theme, reference date 2026-10-27, daily interval, empty measured-focus data, collapsed details. No illustrative records were inserted into the running app.
+- The supplied screenshots have different crops and density from the browser captures. This is an intentional rearrangement, not a claim of identical full-frame pixels. The live pre-change trend dimensions, fonts, padding and radius provide the focused baseline: 375 x 344.375 CSS px, Arial/Segoe UI/CJK fallbacks, 20 px padding, 25 px radius. All remain unchanged after the rearrangement.
+
+### Findings and required fidelity surfaces
+
+- No actionable P0/P1/P2 differences remain against the user's final direction. The intermediate design with a weekly-target card above the distributions was rejected by the user and replaced by the three-card row.
+- Typography: trend component and stylesheet are unchanged. Distribution headings, dates, units and legend values remain readable; desktop legends now sit beside the rings.
+- Layout: at a 1280 px viewport the card widths are 375 / 376.5 / 376.5 CSS px. At 1707 px they are 375 / 484.5 / 484.5 CSS px. All three card heights are 344.375 CSS px with aligned top and bottom edges. The shared grid row derives its height from the unchanged trend card, without copying a fixed height into the distribution cards.
+- Layout of details: the disclosure remains below the trend. When expanded, it spans the grid below the cards; all three cards retain their original heights.
+- Color and assets: existing priority tokens, white panels, gray rings and gray desktop surround are retained. Existing live chart/SVG components are reused; no chart is replaced by an image or invented data.
+- Copy and data: the weekly-target progress panel is absent. Its date filter is retained above the three cards. Daily/weekly distributions still use measured focus belonging to completed tasks; their computation and rendering component are unchanged.
+- Responsive limits: below 1280 px the layout wraps. At 390 px, cards stack and document width does not exceed the viewport. The original narrow-screen trend styling remains in effect. This is browser-renderer verification, not native-device acceptance.
+
+### Validation and capture history
+
+- TypeScript check passed; production frontend build passed with the existing bundle-size advisory.
+- Four existing relevant test files passed: 14 tests covering trend rendering, desktop reports, distributions and shared Android storage/UI behavior. An initial sandbox temporary-file ENOENT prevented test collection; assigning the test process a workspace-local TEMP/TMP directory resolved it without test or business-code changes.
+- Existing Playwright tab at `http://127.0.0.1:3000/` reused. Day/week switching and details open/close checked; both modes retain 20 columns and equal card heights. Browser console errors: zero. Date changes remain covered by the existing desktop report tests.
+- Narrow-screen evidence: `output/ui-profile-layout-20261027/mobile-390.png` (390 x 844). The viewport was restored to 1707 x 979, daily mode and collapsed details after checking.
+- Rejected capture: `trend-before.png` was occluded by the sticky header and is not accepted visual evidence. Locator-based captures of the full grid timed out waiting for stability; viewport screenshots above were captured and inspected successfully instead.
+- Scope: frontend source and production web build. Installed Windows/Android packages were not rebuilt or installed.
+
+### Implementation checklist
+
+- [x] Remove weekly-target progress panel and retain date navigation.
+- [x] Preserve trend dimensions, appearance and interactions.
+- [x] Align daily and weekly distribution cards with the trend in one desktop row.
+- [x] Verify responsive wrapping, real rendered screenshots, relevant tests and production build.

@@ -18,7 +18,7 @@ Important components:
 
 - `HabitConfig`: manage habit rules and backup import/export
 - `TaskCard`: shared task presentation for inbox and timeline
-- `TimePickerModal`: 5/15/30-minute scheduling picker with overlap blocking
+- `TimePickerModal`: 30-minute scheduling picker with overlap blocking; previous 5/15-minute preferences normalize to 30 without moving existing task start times
 - `PomodoroTimer`: focus and break session UI
 - `RecoveryModal`: resolve expired offline sessions
 - `ContributionGraph`: yearly heatmap

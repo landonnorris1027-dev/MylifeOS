@@ -59,15 +59,12 @@ describe('task operation boundaries', () => {
     expect(reconcileDayTasks({ date: a.date, tasks: [a] }, [], a.date).tasks).toEqual([a]);
     expect(reconcileDayTasks({ date: a.date, tasks: [a] }, [{ id: 'h', name: 'Changed', priority: 'P3', dailyQuota: 1, defaultDurationMinutes: 5, effectiveType: 'permanent' }], a.date).tasks[0]).toEqual(a);
   });
-  it('initializes new profiles at 15 minutes, preserves old profiles at 30 and supports the two remaining grids', () => {
-    expect(getPlannerSettings().intervalMinutes).toBe(15); seed([task('old')]);
+  it('uses a thirty-minute grid for new and existing profiles without changing tasks', () => {
+    expect(getPlannerSettings().intervalMinutes).toBe(30); seed([task('old')]);
     expect(getPlannerSettings().intervalMinutes).toBe(30);
-    for (const intervalMinutes of [15, 30] as const) {
-      savePlannerSettings({ intervalMinutes });
-      expect(getPlannerSettings().intervalMinutes).toBe(intervalMinutes);
-      expect(buildTimelineSlotsForMode('fullDay', intervalMinutes)).toHaveLength(1440 / intervalMinutes);
-      expect(isTaskStartInPastForDate('2026-10-02', '10:15', new Date(2026, 9, 2, 10, 7), intervalMinutes)).toBe(intervalMinutes === 30);
-      expect(getAllDailyLogs()['2026-10-02'].tasks[0].id).toBe('old');
-    }
+    savePlannerSettings({ intervalMinutes: 30 });
+    expect(buildTimelineSlotsForMode('fullDay', getPlannerSettings().intervalMinutes)).toHaveLength(48);
+    expect(isTaskStartInPastForDate('2026-10-02', '10:15', new Date(2026, 9, 2, 10, 7), 30)).toBe(true);
+    expect(getAllDailyLogs()['2026-10-02'].tasks[0].id).toBe('old');
   });
 });

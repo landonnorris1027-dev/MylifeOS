@@ -7,6 +7,7 @@ import { BackupSettings, readBackupSettings, settingsToEntries, validateBackupSe
 import { getFocusSettings } from '../focusSettings';
 import { isAndroid } from '../platform';
 import { flushNativeWrites, refreshNativeTimers } from '../nativeRuntime';
+import { TIMELINE_INTERVAL_MINUTES } from '../scheduling';
 
 interface BackupPayloadV2 {
   schemaVersion: number;
@@ -282,7 +283,7 @@ const normalizeBackupPayload = (
   if (settings?.planner) {
     const planner = settings.planner as Record<string, unknown>;
     if (schemaVersion >= 8 && ![5, 15, 30].includes(planner.intervalMinutes as number)) throw new Error('Invalid scheduling precision');
-    settings.planner = { ...planner, intervalMinutes: schemaVersion >= 8 ? (planner.intervalMinutes === 5 ? 15 : planner.intervalMinutes) : 30 };
+    settings.planner = { ...planner, intervalMinutes: TIMELINE_INTERVAL_MINUTES };
   }
 
   const rawGoals = Array.isArray(raw.goals) ? raw.goals : [];

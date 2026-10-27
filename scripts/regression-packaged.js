@@ -453,8 +453,8 @@ async function main() {
   efficiencyLogs[todayDate].tasks.find(t => t.id === efficiencyTasks[0].id).startTime = '09:07';
   await current.evaluate(`window.electronAPI.sendSync('storage-set-sync', {key:'mylifeos_daily_logs', value:${JSON.stringify(JSON.stringify(efficiencyLogs))}})`);
   await fill('input[type=date]', day); await fill('input[type=date]', todayDate);
-  assert.deepEqual(await current.evaluate("Array.from(document.querySelector('select').options).map(option => option.value)"), ['15', '30'], 'Only supported scheduling intervals may be offered');
-  for (const interval of [15,30]) {
+  assert.deepEqual(await current.evaluate("Array.from(document.querySelector('select').options).map(option => option.value)"), ['30'], 'Only the 30-minute scheduling interval may be offered');
+  for (const interval of [30]) {
     await current.evaluate(`(() => { const e = document.querySelector('select'); e.value = '${interval}'; e.dispatchEvent(new Event('change',{bubbles:true})); })()`);
     await delay(100);
     assert.equal(await current.evaluate("document.querySelector('select').value"), String(interval));

@@ -313,7 +313,7 @@ export default function App() {
           <div className="motion-schedule-tools">
             <SegmentedControl label={t('timeline')} value={timelineMode} options={[{value:'daytime',label:t('timeline_mode_daytime')},{value:'fullDay',label:t('timeline_mode_full_day')}]}
               onChange={value => setTimelineMode(value as 'daytime' | 'fullDay')} />
-            <label className="motion-interval-label">{t('ui_schedule_interval')}<select value={intervalMinutes} onChange={e => setIntervalMinutes(Number(e.target.value) as 15 | 30)}>{[15,30].map(value => <option key={value} value={value}>{value} {t('minute_unit_short')}</option>)}</select></label>
+            <label className="motion-interval-label">{t('ui_schedule_interval')}<select value={intervalMinutes} onChange={() => setIntervalMinutes(30)}><option value={30}>30 {t('minute_unit_short')}</option></select></label>
           </div>
         </div>
         <div className="motion-operation-toolbar">
@@ -438,11 +438,13 @@ export default function App() {
                         <div
                           className="flex-1 relative border-t border-gray-100 pt-1"
                           onDragOver={(event) => {
+                            if (slot.minutes % intervalMinutes !== 0) return;
                             event.preventDefault();
                             event.dataTransfer.dropEffect = 'move';
                           }}
                           onDrop={(event) => {
                             event.preventDefault();
+                            if (slot.minutes % intervalMinutes !== 0) return;
                             const taskId = event.dataTransfer.getData('text/plain');
                             if (taskId) handleTaskDropToTime(taskId, timeLabel);
                           }}

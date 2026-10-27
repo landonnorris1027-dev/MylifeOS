@@ -10,7 +10,7 @@ The shared source and Android personal APK are **0.1.10**. Android now shares th
 
 - Define habits with priority, quota, duration, date range, and daily/weekday/custom-day repetition; generate daily tasks from those rules
 - Create one-time tasks without a priority; existing and imported one-time tasks also use the purple label
-- Schedule by clicking or dragging tasks onto the timeline, with conflict detection; Windows scheduling offers **15 or 30 minutes**
+- Schedule by clicking or dragging tasks onto the timeline, with conflict detection; Windows and Android use a **30-minute** scheduling grid
 - Start focus directly from today's unfinished Inbox or scheduled tasks while preserving their schedule
 - Search tasks; on Windows, move unfinished one-time tasks together to another date and undo up to 20 task operations during the current run
 - Switch between Inbox and Timeline in narrow windows and on phones
@@ -24,7 +24,7 @@ The shared source and Android personal APK are **0.1.10**. Android now shares th
 
 The planner keeps its Inbox and timeline layout, with a pure white canvas, blue primary controls, rounded panels, and consistent typography. Habit labels use P1 red, P2 yellow, and P3 green; one-time tasks use purple. Task and habit duration fields can be cleared before entering a new value.
 
-New profiles default to 15-minute scheduling. Existing 15/30-minute preferences are retained; existing profiles without a preference use 30 minutes. A previous 5-minute preference becomes 15 minutes on load or backup import, without moving already scheduled tasks. Ctrl+K opens search, Ctrl+J opens the current session, and Ctrl+Z undoes task operations outside inputs and dialogs. The deletion toast also supports undo for ten seconds.
+Scheduling uses a 30-minute grid on Windows and Android. Previous 5- or 15-minute preferences become 30 minutes on load or backup import; already scheduled task start times remain unchanged. Ctrl+K opens search, Ctrl+J opens the current session, and Ctrl+Z undoes task operations outside inputs and dialogs. The deletion toast also supports undo for ten seconds.
 
 Completed cards no longer respond to clicks, Enter/Space, or dragging to restart or reschedule them. Notes/reviews and deletion remain available through their own buttons. The 800 ms color transition respects reduced-motion settings. Countdown minutes round up until the timer ends; accumulated time displays whole elapsed minutes. Internal timestamps and measured session records retain their precision.
 
