@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Plus, Target, X } from 'lucide-react';
+import { FileText, Plus, Target } from 'lucide-react';
 import DurationPicker from './DurationPicker';
+import { Button, Dialog, Field, Input, InputGroup, Textarea } from '../ui';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getGoals } from '../services/storage';
-import { useModalBehavior } from '../hooks/useModalBehavior';
-import { useMotionPresence } from '../hooks/useMotionPresence';
 
 interface ManualTaskModalProps {
   isOpen: boolean;
@@ -19,21 +18,17 @@ interface ManualTaskModalProps {
 
 const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCreate }) => {
   const { t } = useLanguage();
-  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   const [name, setName] = useState('');
   const [goalName, setGoalName] = useState('');
   const [durationMinutes, setDurationMinutes] = useState<number | ''>(25);
   const [note, setNote] = useState('');
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose, initialFocusSelector: 'input[type="text"]' });
 
   useEffect(() => {
     if (isOpen) {
       setGoalOptions(getGoals());
     }
   }, [isOpen]);
-
-  if (!isPresent) return null;
 
   const reset = () => {
     setName('');
@@ -63,101 +58,70 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
   };
 
   return (
-    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div
-        {...dialogProps}
-        aria-label={t('manual_task_title')}
-        ref={containerRef}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden"
-      >
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Plus size={18} className="text-gray-400" />
-            {t('manual_task_title')}
-          </h2>
-          <button onClick={closeAndReset} className="p-1 hover:bg-gray-200 rounded text-gray-500" aria-label={t('cancel')}>
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <label className="block">
-            <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              {t('manual_task_name')}
-            </span>
-            <input
+    <Dialog
+      open={isOpen}
+      onClose={closeAndReset}
+      size="md"
+      title={t('manual_task_title')}
+      icon={<Plus size={18} className="text-gray-400" aria-hidden="true" />}
+      headerClassName="bg-gray-50/50"
+      closeLabel={t('close')}
+      initialFocusSelector={'input[type="text"]'}
+    >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Field label={t('manual_task_name')} required>
+            <Input
               type="text"
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t('manual_task_placeholder')}
-              className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
             />
-          </label>
+          </Field>
 
-          <label className="block">
-            <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              {t('goal_name')}
-            </span>
-            <div className="relative">
-              <input
+          <Field label={t('goal_name')}>
+            <InputGroup prefix={<Target size={15} />}>
+              <Input
                 type="text"
                 value={goalName}
                 onChange={(event) => setGoalName(event.target.value)}
                 list="manual-task-goals"
                 placeholder={t('goal_placeholder')}
-                className="w-full p-2.5 pl-9 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
               />
-              <Target size={15} className="absolute left-3 top-3 text-gray-400" />
-            </div>
+            </InputGroup>
             <datalist id="manual-task-goals">
               {goalOptions.map((goal) => (
                 <option key={goal.id} value={goal.name} />
               ))}
             </datalist>
-          </label>
+          </Field>
 
-
-          <div>
-            <p className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('manual_task_duration')}</p>
+          <Field label={t('manual_task_duration')}>
             <DurationPicker value={durationMinutes} onChange={setDurationMinutes} label={t('manual_task_duration')} />
-          </div>
+          </Field>
 
-          <label className="block">
-            <span className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-              {t('task_note_label')}
-            </span>
-            <div className="relative">
-              <textarea
+          <Field label={t('task_note_label')}>
+            <InputGroup multiline prefix={<FileText size={15} />}>
+              <Textarea
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 maxLength={1000}
                 rows={3}
                 placeholder={t('task_note_placeholder')}
-                className="w-full resize-none p-3 pl-9 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
               />
-              <FileText size={15} className="absolute left-3 top-3 text-gray-400" />
-            </div>
-          </label>
+            </InputGroup>
+          </Field>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={closeAndReset}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50"
-            >
+            <Button variant="secondary" onClick={closeAndReset}>
               {t('cancel')}
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
-            >
+            </Button>
+            <Button type="submit">
               {t('manual_task_create')}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Dialog>
   );
 };
 

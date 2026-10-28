@@ -1,10 +1,10 @@
-import React, { useMemo } from 'react';
-import { X, CalendarClock, Clock3, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import React, { useMemo, useRef } from 'react';
+import { CalendarClock, Clock3, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { Task, PRIORITY_STYLES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Dialog } from '../ui';
 import { TimelineMode, TIMELINE_INTERVAL_MINUTES, buildTimelineSlotsForMode, getOverlappingTasks, getTaskTimeLabel, isTaskStartInPastForDate, isTaskWithinDay } from '../services/scheduling';
-import { useModalBehavior } from '../hooks/useModalBehavior';
-import { useMotionPresence } from '../hooks/useMotionPresence';
+
 
 interface TimePickerModalProps {
   task: Task | null;
@@ -17,8 +17,10 @@ interface TimePickerModalProps {
 
 const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, dailyTasks, timelineMode, intervalMinutes = TIMELINE_INTERVAL_MINUTES, onClose, onConfirm }) => {
   const { t } = useLanguage();
-  const { present: task, presenceProps } = useMotionPresence(currentTask);
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen: currentTask !== null, onClose });
+  // Keep the last payload so the exit animation still has something to render.
+  const lastRef = useRef(currentTask);
+  if (currentTask) lastRef.current = currentTask;
+  const task = currentTask ?? lastRef.current;
 
   // The O(48 × task count) slot computation is memoized so re-renders that do
   // not touch the schedule inputs (e.g. focus changes) stay cheap.
@@ -47,24 +49,18 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
   const hasPastSlots = slotStates.some((slot) => slot.isPast);
 
   return (
-    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center p-4">
-      <div
-        {...dialogProps}
-        aria-label={t('schedule_task')}
-        ref={containerRef}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-100"
-      >
-        <div className={`p-4 rounded-t-2xl border-b border-gray-100 flex justify-between items-center ${styles.bg}`}>
-          <h2 className={`text-sm font-bold flex items-center gap-2 ${styles.text}`}>
-            <CalendarClock size={16} />
-            {t('schedule_task')}
-          </h2>
-          <button type="button" onClick={onClose} aria-label={t('close')} className={`p-1 rounded hover:bg-white/50 ${styles.text}`}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-4">
+    <Dialog
+      open={currentTask !== null}
+      onClose={onClose}
+      size="xl"
+      title={t('schedule_task')}
+      icon={<CalendarClock size={16} aria-hidden="true" />}
+      headerClassName={`${styles.bg} ${styles.text}`}
+      closeLabel={t('close')}
+      closeTone="inherit"
+      ariaLabel={t('schedule_task')}
+      bodyPadding="sm"
+    >
           <p className="text-sm text-gray-500 mb-4">
             {t('select_time')} <span className="font-semibold text-gray-800">"{task.name}"</span>.
           </p>
@@ -177,9 +173,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
               );
             })}
           </div>
-        </div>
-      </div>
-    </div>
+    </Dialog>
   );
 };
 

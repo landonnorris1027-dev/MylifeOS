@@ -1,8 +1,6 @@
-import React from 'react';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useModalBehavior } from '../hooks/useModalBehavior';
-import { useMotionPresence } from '../hooks/useMotionPresence';
+import { AlertDialog, toast } from '../ui';
 
 interface AlertModalProps {
   isOpen: boolean;
@@ -12,84 +10,37 @@ interface AlertModalProps {
   tone?: 'alert' | 'success';
 }
 
+/**
+ * Compatibility wrapper kept so existing call sites keep working.
+ * - `alert` tone renders the blocking AlertDialog.
+ * - `success` tone is a non-blocking toast: it is posted to the toast queue and
+ *   the dialog closes itself, so nothing on screen has to be dismissed.
+ */
 const AlertModal: React.FC<AlertModalProps> = ({ isOpen, message, onClose, title, tone = 'alert' }) => {
   const { t } = useLanguage();
-  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
-  const isSuccessTone = tone === 'success';
-  const { containerRef, dialogProps } = useModalBehavior({
-    isOpen: isOpen && !isSuccessTone,
-    onClose,
-  });
+  const label = title || t('alert_title') || 'Attention';
+  const wasOpen = useRef(false);
 
-  if (!isPresent) return null;
+  useEffect(() => {
+    const justOpened = isOpen && !wasOpen.current;
+    wasOpen.current = isOpen;
+    if (tone !== 'success' || !justOpened) return;
 
-  const isSuccess = tone === 'success';
-  const Icon = isSuccess ? CheckCircle2 : AlertTriangle;
-  const borderClass = isSuccess ? 'border-emerald-100' : 'border-red-100';
-  const iconBgClass = isSuccess ? 'bg-emerald-50' : 'bg-red-50';
-  const iconClass = isSuccess ? 'text-emerald-600' : 'text-red-500';
+    toast({ message, tone: 'success', closeLabel: t('close') });
+    onClose();
+  }, [isOpen, tone, message, onClose, t]);
 
-  if (isSuccess) {
-    return (
-      <div {...presenceProps} className="motion-success-toast">
-        <div className={`bg-white rounded-2xl shadow-2xl border ${borderClass} overflow-hidden`} role="status">
-          <div className="p-5">
-            <div className="flex items-start gap-3">
-              <div className={`w-10 h-10 ${iconBgClass} rounded-full flex items-center justify-center flex-shrink-0`}>
-                <Icon size={20} className={iconClass} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-gray-900 mb-1">
-                  {title || t('alert_title') || 'Attention'}
-                </h3>
-                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
-                  {message}
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                aria-label={t('close')}
-                className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (tone === 'success') return null;
 
   return (
-    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        ref={containerRef}
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm border ${borderClass} overflow-hidden`}
-      >
-        <div className="p-6 text-center">
-          <div className={`w-12 h-12 ${iconBgClass} rounded-full flex items-center justify-center mx-auto mb-4`}>
-            <Icon size={24} className={iconClass} />
-          </div>
-          
-          <h3 className="text-lg font-bold text-gray-900 mb-2">
-            {title || t('alert_title') || 'Attention'}
-          </h3>
-          
-          <p className="text-sm text-gray-500 leading-relaxed mb-6 whitespace-pre-line">
-            {message}
-          </p>
-
-          <button
-            onClick={onClose}
-            className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-black transition-colors shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
-          >
-            {t('i_understand') || 'I Understand'}
-          </button>
-        </div>
-      </div>
-    </div>
+    <AlertDialog
+      open={isOpen}
+      tone="danger"
+      title={label}
+      message={message}
+      confirmLabel={t('i_understand') || 'I Understand'}
+      onConfirm={onClose}
+    />
   );
 };
 

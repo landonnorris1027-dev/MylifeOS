@@ -3,7 +3,8 @@ import BuildInformation from './BuildInformation';
 import DurationPicker from './DurationPicker';
 import DeleteButton from './DeleteButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Plus, Download, Upload, Calendar, Pencil, RotateCcw, Sparkles, Bell, Volume2, Coffee, Target, Minimize2 } from 'lucide-react';
+import { X, Plus, Download, Upload, Pencil, RotateCcw, Sparkles } from 'lucide-react';
+import { Button, CheckboxChip, Dialog, Field, FieldLegend, FieldSet, IconButton, Input, NumberField } from '../ui';
 import { Priority, PRIORITY_STYLES, Habit } from '../types';
 import {
   addGoal,
@@ -33,8 +34,7 @@ import { flushStorageWrites } from '../services/storage/localStorageStore';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PrioritySelector from './PrioritySelector';
-import { useModalBehavior } from '../hooks/useModalBehavior';
-import { useMotionPresence } from '../hooks/useMotionPresence';
+
 
 interface HabitTemplate {
   id: string;
@@ -115,8 +115,6 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
 
   const [existingHabits, setExistingHabits] = useState<Habit[]>([]);
   const [goalOptions, setGoalOptions] = useState(() => getGoals());
-  const { containerRef, dialogProps } = useModalBehavior({ isOpen, onClose });
-  const { isPresent, presenceProps } = useMotionPresence(isOpen ? true : null);
   const [recoveryPoints, setRecoveryPoints] = useState<RecoveryPoint[]>([]);
 
   const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; message: string; tone?: 'alert' | 'success' }>({
@@ -153,8 +151,6 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
       setPlannerSettings(getPlannerSettings());
     }
   }, [isOpen]);
-
-  if (!isPresent) return null;
 
   const resetForm = () => {
     setName('');
@@ -471,29 +467,28 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
   };
 
   return (
-    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div
-        {...dialogProps}
-        ref={containerRef}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-gray-100 overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
-      >
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Plus size={18} className="text-gray-400" />
-            {t(section === 'habits' ? 'config_habit_title' : 'settings_title')}
-          </h2>
-          <button
+    <>
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        size="md"
+        title={t(section === 'habits' ? 'config_habit_title' : 'settings_title')}
+        icon={<Plus size={18} className="text-gray-400" aria-hidden="true" />}
+        headerClassName="bg-gray-50/50"
+        headerAction={(
+          <IconButton
+            aria-label={t('close')}
+            size="sm"
             onClick={() => {
               resetForm();
               onClose();
             }}
-            className="p-1 hover:bg-gray-200 rounded text-gray-500"
           >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-8">
+            <X size={18} />
+          </IconButton>
+        )}
+      >
+        <div className="space-y-8">
           {section === 'habits' && <>
           {existingHabits.length === 0 && !editingHabitId && (
             <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
@@ -522,103 +517,78 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
             {editingHabitId && (
               <div className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                 <span className="font-semibold">{t('editing_habit_notice')}</span>
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 font-medium text-amber-900 hover:bg-amber-100"
                 >
-                  <RotateCcw size={12} />
+                  <RotateCcw size={12} aria-hidden="true" />
                   {t('cancel_edit')}
-                </button>
+                </Button>
               </div>
             )}
 
             {/* Name */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                {t('habit_name')}
-              </label>
-              <input
+            <Field label={t('habit_name')} required>
+              <Input
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder={t('habit_placeholder')}
-                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
                 autoFocus
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                {t('goal_name')}
-              </label>
-              <input
+            <Field label={t('goal_name')}>
+              <Input
                 type="text"
                 value={goalName}
                 onChange={e => setGoalName(e.target.value)}
                 list="habit-goal-options"
                 placeholder={t('goal_placeholder')}
-                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all"
               />
               <datalist id="habit-goal-options">
                 {goalOptions.map((goal) => (
                   <option key={goal.id} value={goal.name} />
                 ))}
               </datalist>
-            </div>
+            </Field>
 
             {/* Priority */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                {t('priority_class')}
-              </label>
+            <FieldSet>
+              <FieldLegend>{t('priority_class')}</FieldLegend>
               <PrioritySelector value={priority} onChange={setPriority} />
-            </div>
+            </FieldSet>
 
             <div className="grid grid-cols-1 gap-5">
               {/* Quota */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  {t('daily_quota')}
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setQuota(Math.max(1, quota - 1))}
-                    className="w-8 h-8 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center font-bold"
-                  >
-                    -
-                  </button>
-                  <span className="text-xl font-bold flex-1 text-center text-gray-800">{quota}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuota(Math.min(10, quota + 1))}
-                    className="w-8 h-8 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center font-bold"
-                  >
-                    +
-                  </button>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-2 leading-tight">{t('quota_desc', { n: quota })}</p>
-              </div>
+              <Field label={t('daily_quota')} description={t('quota_desc', { n: quota })}>
+                <NumberField
+                  value={quota}
+                  onChange={(next) => setQuota(next === '' ? 1 : next)}
+                  min={1}
+                  max={10}
+                  size="lg"
+                  decreaseLabel={t('stepper_decrease', { label: t('daily_quota') })}
+                  increaseLabel={t('stepper_increase', { label: t('daily_quota') })}
+                />
+              </Field>
 
               {/* Duration */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  {t('habit_duration')}
-                </label>
+              <Field label={t('habit_duration')}>
                 <DurationPicker value={duration} onChange={setDuration} label={t('habit_duration')} />
-              </div>
+              </Field>
             </div>
 
             {/* Effective Mode */}
-            <div className="space-y-3">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                {t('effective_mode')}
-              </label>
+            <FieldSet>
+              <FieldLegend>{t('effective_mode')}</FieldLegend>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setEffectiveType('permanent')}
+                  aria-pressed={effectiveType === 'permanent'}
                   className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${effectiveType === 'permanent' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
                 >
                   {t('mode_permanent')}
@@ -626,6 +596,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                 <button
                   type="button"
                   onClick={() => setEffectiveType('range')}
+                  aria-pressed={effectiveType === 'range'}
                   className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${effectiveType === 'range' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
                 >
                   {t('mode_range')}
@@ -633,37 +604,19 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
               </div>
 
               {effectiveType === 'range' && (
-                <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-2 duration-200">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('start_date')}</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={e => setStartDate(e.target.value)}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
-                      />
-                      {!startDate && <Calendar size={12} className="absolute right-2 top-2.5 text-gray-300 pointer-events-none" />}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('end_date')}</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={e => setEndDate(e.target.value)}
-                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
-                      />
-                      {!endDate && <Calendar size={12} className="absolute right-2 top-2.5 text-gray-300 pointer-events-none" />}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t('start_date')}>
+                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                  </Field>
+                  <Field label={t('end_date')}>
+                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                  </Field>
                 </div>
               )}
-            </div>
+            </FieldSet>
 
-            <fieldset className="space-y-3">
-              <legend className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('repeat_days')}</legend>
+            <FieldSet>
+              <FieldLegend>{t('repeat_days')}</FieldLegend>
               <div className="grid grid-cols-3 gap-2">
                 {(['daily', 'workdays', 'custom'] as const).map((mode) => (
                   <button key={mode} type="button" onClick={() => setRepeatMode(mode)}
@@ -676,31 +629,30 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
               {repeatMode === 'custom' && (
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
                   {Array.from({ length: 7 }, (_, day) => (
-                    <label key={day} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 p-1 text-xs">
-                      <span>{new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'short' })}</span>
-                      <input type="checkbox" checked={customWeekdays.includes(day)}
-                        onChange={() => setCustomWeekdays((days) => days.includes(day) ? days.filter((item) => item !== day) : [...days, day].sort())}
-                        aria-label={new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'long' })}
-                      />
-                    </label>
+                    <CheckboxChip
+                      key={day}
+                      label={new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'short' })}
+                      ariaLabel={new Date(2024, 0, 7 + day).toLocaleDateString(t('date_locale'), { weekday: 'long' })}
+                      checked={customWeekdays.includes(day)}
+                      onChange={(checked) => setCustomWeekdays((days) => checked
+                        ? [...days, day].sort()
+                        : days.filter((item) => item !== day))}
+                    />
                   ))}
                 </div>
               )}
-            </fieldset>
+            </FieldSet>
 
-            <button
-              type="submit"
-              className="w-full py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition-colors shadow-lg shadow-gray-200"
-            >
+            <Button type="submit" size="lg" block>
               {editingHabitId ? t('update_rule') : t('create_rule')}
-            </button>
+            </Button>
           </form>
 
           {/* Existing Habits Section */}
           <div className="border-t border-gray-100 pt-6">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+            <h3 className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
               {t('manage_habits_title')}
-            </label>
+            </h3>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
               {existingHabits.length === 0 ? (
                 <div className="text-center py-4 text-xs text-gray-400 italic">
@@ -734,19 +686,19 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 items-center gap-1">
-                        <button
-                          type="button"
+                        <IconButton
+                          aria-label={t('edit_habit')}
+                          title={t('edit_habit')}
+                          size="sm"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handleEdit(habit);
                           }}
                           style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
-                          title={t('edit_habit')}
                         >
                           <Pencil size={16} style={{ pointerEvents: 'none' }} />
-                        </button>
+                        </IconButton>
                         <DeleteButton label={`${t('delete_habit')} ${habit.name}`} description={t('delete_confirm')} onConfirm={() => handleDelete(habit.id)} />
                       </div>
                     </div>
@@ -762,27 +714,29 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
               handleFocusSettingsChange, handleProfileSettingsChange, handleDesktopSettingsChange, handlePlannerSettingsChange }} />
           {/* Local Data Management Section */}
           <div id="settings-data" className="scroll-mt-4 border-t border-gray-100 pt-6">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            <h3 className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
               {t('data_management')}
-            </label>
+            </h3>
             <div className="flex gap-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
                 onClick={() => void handleBackup()}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
               >
-                <Download size={14} />
+                <Download size={14} aria-hidden="true" />
                 {t('backup_data')}
-              </button>
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
                 onClick={handleRestoreClick}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
               >
-                <Upload size={14} />
+                <Upload size={14} aria-hidden="true" />
                 {t('restore_data')}
-              </button>
+              </Button>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -793,9 +747,9 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => setConfirmConfig({ isOpen: true, message: t('backup_desktop_warning'), onConfirm: () => { setConfirmConfig(c => ({ ...c, isOpen: false })); void handleBackup(true); } })}>{t('backup_desktop_compatible')}</button>
-              <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => setConfirmConfig({ isOpen: true, message: t('backup_android_warning'), onConfirm: () => { setConfirmConfig(c => ({ ...c, isOpen: false })); void handleBackup('android'); } })}>{t('backup_android_compatible')}</button>
-              {isAndroid() && <button type="button" className="min-h-[48px] rounded-lg border px-3 text-xs" onClick={() => void handleBackup(false, true)}>{t('share_backup')}</button>}
+              <Button variant="secondary" size="sm" onClick={() => setConfirmConfig({ isOpen: true, message: t('backup_desktop_warning'), onConfirm: () => { setConfirmConfig(c => ({ ...c, isOpen: false })); void handleBackup(true); } })}>{t('backup_desktop_compatible')}</Button>
+              <Button variant="secondary" size="sm" onClick={() => setConfirmConfig({ isOpen: true, message: t('backup_android_warning'), onConfirm: () => { setConfirmConfig(c => ({ ...c, isOpen: false })); void handleBackup('android'); } })}>{t('backup_android_compatible')}</Button>
+              {isAndroid() && <Button variant="secondary" size="sm" onClick={() => void handleBackup(false, true)}>{t('share_backup')}</Button>}
             </div>
             <p className="mt-2 text-xs text-gray-500">{t('backup_compatibility_hint')}</p>
             {recoveryPoints.length > 0 && (
@@ -814,13 +768,14 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                           {getRecoveryPointReasonLabel(point)} - {t('recovery_point_summary', { habits: point.habitCount, days: point.dayCount })}
                         </div>
                       </div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-shrink-0"
                         onClick={() => handleRestoreRecoveryPoint(point)}
-                        className="flex-shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100"
                       >
                         {t('recovery_point_restore')}
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -831,7 +786,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
           <BuildInformation />
           </>}
         </div>
-      </div>
+      </Dialog>
 
       <AlertModal
         isOpen={alertConfig.isOpen}
@@ -846,7 +801,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
         onConfirm={confirmConfig.onConfirm}
         onCancel={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
       />
-    </div>
+    </>
   );
 };
 
