@@ -183,4 +183,71 @@ describe('useModalBehavior', () => {
     openModal();
     expect((document.activeElement as HTMLElement).dataset.testid).toBe('last-button');
   });
+
+  it('inerts the page behind the dialog and releases it on close', () => {
+    const onClose = vi.fn();
+    act(() => root.render(<Harness onClose={onClose} />));
+
+    const trigger = openModal();
+    expect(trigger.closest('[inert]')).not.toBeNull();
+    const dialog = container.querySelector('[role="dialog"]')!;
+    expect(dialog.closest('[inert]')).toBeNull();
+
+    act(() => {
+      container.querySelector<HTMLButtonElement>('[data-testid="last-button"]')!.click();
+    });
+
+    expect(trigger.closest('[inert]')).toBeNull();
+  });
+
+  it('locks body scrolling while open and restores the previous value', () => {
+    const onClose = vi.fn();
+    const initialOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'scroll';
+
+    try {
+      act(() => root.render(<Harness onClose={onClose} />));
+      openModal();
+      expect(document.body.style.overflow).toBe('hidden');
+
+      act(() => {
+        container.querySelector<HTMLButtonElement>('[data-testid="last-button"]')!.click();
+      });
+      expect(document.body.style.overflow).toBe('scroll');
+    } finally {
+      document.body.style.overflow = initialOverflow;
+    }
+  });
+
+  it('leaves the Tab order to a dialog stacked above it', () => {
+    const onClose = vi.fn();
+    act(() => root.render(<Harness onClose={onClose} />));
+    openModal();
+
+    const stacked = document.createElement('div');
+    stacked.innerHTML = '<div role="dialog"><button>above</button></div>';
+    document.body.appendChild(stacked);
+
+    const last = container.querySelector<HTMLElement>('[data-testid="last-button"]')!;
+    const first = container.querySelector<HTMLElement>('[data-testid="first-input"]')!;
+
+    try {
+      last.focus();
+      let covered: KeyboardEvent | undefined;
+      act(() => {
+        covered = pressKey('Tab');
+      });
+      expect(covered!.defaultPrevented).toBe(false);
+      expect(document.activeElement).toBe(last);
+    } finally {
+      stacked.remove();
+    }
+
+    let exposed: KeyboardEvent | undefined;
+    act(() => {
+      exposed = pressKey('Tab');
+    });
+    expect(exposed!.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
 });
