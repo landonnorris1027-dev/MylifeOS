@@ -50,6 +50,7 @@ main.js
 .playwright-cli/
 .playwright-mcp/
 output/playwright/
+output/ui-forms/
 output/*/test-temp/
 
 # Recoverable local cleanup and migration records

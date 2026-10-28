@@ -21,13 +21,16 @@ import AlertModal from './components/AlertModal';
 import ConfirmModal from './components/ConfirmModal';
 import RecoveryModal from './components/RecoveryModal';
 import TaskReviewModal from './components/TaskReviewModal';
-import TaskSearchModal from './components/TaskSearchModal';
+import CommandPalette from './components/CommandPalette';
 import RescheduleModal from './components/RescheduleModal';
 import { useAppController } from './hooks/useAppController';
 import { useMotionScope, useTaskLayout } from './hooks/useMotionScope';
 import { scrollToElement } from './hooks/useReducedMotion';
 import ErrorBoundary from './components/ErrorBoundary';
+import { Toaster, dismissToast, toast } from './ui';
 import { buildTimelineSlotsForMode } from './services/scheduling';
+
+const UNDO_TOAST_ID = 'undo-delete';
 import { isAndroid } from './services/platform';
 import { App as NativeApp } from '@capacitor/app';
 
@@ -256,6 +259,24 @@ export default function App() {
     openTaskSearch,
     undoCount, handleUndoTaskOperation, openCurrentSession,
   ]);
+
+  // The controller owns the 10s undo window; the toast only mirrors it so the
+  // queue, dismissal and hover-pause behaviour stay in one place.
+  React.useEffect(() => {
+    if (!undoTask) {
+      dismissToast(UNDO_TOAST_ID);
+      return;
+    }
+    toast({
+      id: UNDO_TOAST_ID,
+      message: undoTask.name,
+      tone: 'info',
+      action: { label: t('undo_delete'), onClick: () => { void handleUndoDelete(); } },
+      assertive: true,
+      duration: 0,
+      closeLabel: t('close'),
+    });
+  }, [undoTask, handleUndoDelete, t]);
 
   return (
     <div ref={motionRef} className={`motion-ui min-h-screen pb-24 font-sans ${view === 'planner' ? 'motion-shell' : 'bg-white text-[#202124]'}`}>
@@ -516,11 +537,18 @@ export default function App() {
           onSave={handleTaskReviewSave}
         />
 
-        <TaskSearchModal isOpen={isTaskSearchOpen} onClose={closeTaskSearch} onSelect={(task) => {
-          setSelectedSearchTask(task);
-          setMobilePane(task.status === 'inbox' ? 'inbox' : 'timeline');
-          jumpToTask(task);
-        }} />
+        <CommandPalette
+          open={isTaskSearchOpen}
+          onClose={closeTaskSearch}
+          onSelectTask={(task) => {
+            setSelectedSearchTask(task);
+            setMobilePane(task.status === 'inbox' ? 'inbox' : 'timeline');
+            jumpToTask(task);
+          }}
+          onCreateTask={openManualTask}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenHabits={openHabitConfig}
+        />
         <RescheduleModal task={reschedulingTask} onClose={closeReschedule} onConfirm={handleReschedule} />
 
         <BatchRescheduleModal open={batchOpen} tasks={state.dailyData?.tasks || []} onClose={() => setBatchOpen(false)} onConfirm={handleBatchReschedule} />
@@ -557,12 +585,7 @@ export default function App() {
           onCancel={closeConfirm}
         />
       </ErrorBoundary>
-      {undoTask && (
-        <div role="status" className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-xl bg-gray-900 px-4 py-3 text-sm text-white shadow-lg">
-          <span>{undoTask.name}</span>
-          <button type="button" onClick={handleUndoDelete} className="font-semibold text-blue-200 underline focus-visible:ring-2">{t('undo_delete')}</button>
-        </div>
-      )}
+      <Toaster />
     </div>
   );
 }

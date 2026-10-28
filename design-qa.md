@@ -102,3 +102,116 @@ This entry covers the current layout change only. The 2026-10-19 results above r
 - [x] Preserve trend dimensions, appearance and interactions.
 - [x] Align daily and weekly distribution cards with the trend in one desktop row.
 - [x] Verify responsive wrapping, real rendered screenshots, relevant tests and production build.
+
+## 2026-10-28: form primitive layer (B3 + B4)
+
+final result: passed
+
+Scope: a shared form-control layer (`src/ui/`) plus four call sites. No business logic, storage, or chart code was touched; the licensed Rare UI duration picker keeps its own visuals and only gained a `<Field>` label.
+
+### What changed
+
+- `Field` now owns the control contract: it generates the control id, exposes it through context, and builds `aria-describedby` from a description slot and an error slot. `Input`, `Textarea`, `Select`, `NumberField`, `Switch` and `Checkbox` all read that context, so a call site cannot ship a label that points nowhere.
+- One control skin (`min-height: 40px`, `--ui-*` tokens, `data-invalid`) replaces three hand-written input styles across 25 call sites. `.motion-ui` remaps those tokens to the planner palette instead of forking a second control style.
+- `NumberField` keeps the typed digits intact and clamps only on blur; steppers support press-and-hold and stop at the bounds.
+- `TaskSearchModal`, `ManualTaskModal`, `PreferencesSettings` and `HabitConfig` were migrated. `<label>` used as a section heading in the settings panel became `<h3>` / `FieldLegend`.
+
+### Findings found by rendering, fixed before delivery
+
+1. `P1` The switches and checkboxes did not consume the field context: `label[for]` pointed at an id that was never rendered, so all three settings switches had no accessible name and the row was not clickable. Fixed; `field.test.tsx` now asserts `label.htmlFor === control.id` for a switch.
+2. `P2` Stepper buttons were `#f3f4f6` on `#F7F7F5` with no border, effectively invisible in the settings card. Added a 1px `--ui-line` border and a defined hover state.
+3. `P2` Inside `bg-gray-50` cards the control fill matched the card fill, so the field read as an empty outline. `Field tone="card"` flips the control to white.
+4. `P3` The note textarea exposed a resize handle inside a fixed-height dialog. Set to `resize: none`.
+
+### Verification
+
+- `tsc --noEmit` clean; 312 tests pass (5 new primitive tests); production build passes.
+- Real renderer audit at 1280 × 940 through the DevTools protocol: the settings, manual-task and search dialogs report **0** unlabeled controls (`input`/`select`/`textarea` without `aria-label`, `aria-labelledby`, `<label for>` or wrapping label). Search submit and the adjacent selects measure 40 px each.
+- Global `:focus-visible` outline is preserved on every control; no `outline: none` was introduced.
+- Evidence: [primitives](docs/ui-forms/primitives.png), [settings](docs/ui-forms/dlg-settings.png), [manual task](docs/ui-forms/dlg-manual.png). (The dialog shells shown there were replaced later the same day in C1.)
+- Not covered: installed Electron/Android packages were not rebuilt; the `pointer: coarse` 48 px rule was inherited from `index.css` and not re-measured on a device.
+
+## 2026-10-28: button primitives (B1 + B2)
+
+final result: passed
+
+Scope: one action-button primitive and one icon-button primitive replace six hand-written button styles across the dialog family. Layout, copy, storage and chart code untouched.
+
+### What changed
+
+- `Button`: `primary | secondary | ghost | danger | info | success` × `sm | md | lg`, plus `block`, `loading` and `asChild`. `type` defaults to `button`, so submitting a form is now an explicit decision.
+- `IconButton`: 30 / 36 / 44 px hit areas with a type-enforced `aria-label`; `variant` covers `ghost | secondary | danger` and `tone="inherit"` follows a tinted header's foreground.
+- Migrated: `AlertModal`, `ConfirmModal`, `ManualTaskModal`, `HabitConfig`, `RecoveryModal`, `TimePickerModal`, `TaskSearchModal`.
+- Deliberately **not** migrated: template cards, effective-mode toggles, repeat-day chips, time slots and break-duration options. Those are selection controls, not actions; they stay rectangular until C5 introduces a segmented control.
+
+### Findings found by rendering, fixed before delivery
+
+1. `P1` The `asChild` branch handed Slot a `null` plus an element; Slot requires exactly one child and threw. Split into two render branches.
+2. `P2` `loading` inherited the disabled `opacity: .45`, reading as "unavailable" rather than "in progress". Raised to 0.75 via `:disabled[aria-busy="true"]`.
+3. `P2` Icon buttons had no resting background, so the three sizes were indistinguishable in review and in toolbars. Added a persistent `secondary` variant.
+4. `P3` The migration dropped `title` from the habit-edit control; `DurationInputs.test.tsx` failed on `button[title="编辑习惯"]`. Restored — the DOM contract caught a real regression.
+
+### Verification
+
+- `tsc` clean; 320 tests pass twice in a row (5 button tests, 3 dialog-contract tests added); production build passes.
+- Renderer audit of the settings, manual-task and search dialogs: 0 unnamed form controls, 0 unnamed buttons.
+- `ConfirmModal` keeps its destructive-safety contract: focus lands on `[data-modal-cancel]`, which now travels through `Button`'s prop spread.
+- Evidence: [buttons](docs/ui-forms/buttons.png), plus refreshed [settings](docs/ui-forms/dlg-settings.png) and [manual task](docs/ui-forms/dlg-manual.png).
+- Not covered: `RescheduleModal`, `TaskReviewModal` and `BatchRescheduleModal` still own their buttons; they fold into C1 when the dialog shell is unified.
+
+## 2026-10-28: dialog shell (C1 + C2)
+
+final result: passed
+
+Scope: six dialogs stop owning their own overlay, panel chrome, presence timer and focus setup; they now compose `Dialog` / `AlertDialog`. No business logic moved.
+
+### What changed
+
+- `Dialog` owns `useMotionPresence` + `useModalBehavior`, the overlay, the panel, the header (title/icon/close) and the scroll container. Call sites keep content and actions.
+- The panel stays a **direct child** of the overlay, because the enter/exit keyframes in `ui-motion.css` target `> :is([role="dialog"], [role="alertdialog"])`.
+- Header is fixed and only the body scrolls. `HabitConfig` previously scrolled the whole panel, so the title drifted out of view on a long settings list.
+- Panel titles now feed `aria-labelledby`; `HabitConfig` and `TimePickerModal` previously had **no accessible name** at all (visible `<h2>` only).
+- `AlertDialog` merges the old `AlertModal` and `ConfirmModal`: `tone: info | danger | success`, one button or two, `role="alertdialog"` with `aria-describedby` pointing at the message. Two buttons still autofocus `[data-modal-cancel]`, so Enter cannot fire a destructive action.
+- `AlertModal`'s success branch stays a corner toast; C3 gives it the toast queue.
+
+### Verification
+
+- `tsc` clean; **326 tests** pass (6 new dialog-shell tests); production build passes.
+- Real renderer, driven through the DevTools protocol:
+  - Settings panel: height 908 px = viewport 940 − 32; body client 847 / scroll 1051, i.e. the header stays put and the body scrolls.
+  - Create task → click the new card → scheduling dialog opens with its priority-tinted header and a close control that inherits the tint (validates the whole create-then-schedule path).
+  - Confirmation stacked over settings: alert tier (100) above base (50), two equal-width buttons, `role="alertdialog"`.
+- 0 duplicated `fixed inset-0 bg-black/20` overlays remain; 0 hand-written `role="dialog"` markup outside `src/ui/`.
+- Evidence: [settings](docs/ui-forms/dlg-settings.png), [manual task](docs/ui-forms/dlg-manual.png), [confirmation](docs/ui-forms/dlg-confirm.png), [scheduling](docs/ui-forms/dlg-timepicker.png).
+- Not covered: `TaskSearchModal` keeps its bespoke `motion-search-panel` (own animation and flex-column layout), and `RescheduleModal` / `TaskReviewModal` / `BatchRescheduleModal` still build their own shells. They are candidates for the same shell once their layouts are normalised.
+
+## 2026-10-28: toast queue (C3) + command palette (C7)
+
+final result: passed
+
+Scope: the two remaining transient surfaces. The undo bar and the success card became one queue; the task-search form became a palette. `TaskSearchModal` is deleted, not orphaned.
+
+### What changed
+
+- `toast()` is a module-level queue read through `useSyncExternalStore`, so any layer can post without a provider. Cap 3, default 5 s, pause on hover/focus, dismissible, `duration: 0` for persistent entries, same-id replaces instead of stacking.
+- `App`'s undo bar is now a mirror of the controller's `undoTask` (`duration: 0`): the controller still owns the 10 s window, the toast owns presentation, dismissal and pause. No second timer.
+- `AlertModal`'s success branch posts a toast and closes itself; its public props are unchanged, so 12 call sites did not move.
+- `CommandPalette` replaces the form-first search: live filtering, `role="listbox"` with `aria-activedescendant`, wrapping arrow navigation, Enter to run, group headings, and the five filters preserved behind an "advanced" toggle.
+- `Dialog` gained backdrop dismissal, enabled for `dialog` and disabled for `alertdialog` — a destructive confirmation should not be one stray click away.
+
+### Findings and decisions
+
+1. `P1` The palette's scroll-into-view crashed in jsdom (`scrollIntoView` is missing). Guarded with an optional call; the browser path is unchanged.
+2. `P2` The first version of the palette test created its spy at module scope, so `restoreAllMocks` in `afterEach` silently handed later tests the real search. Moved the spy into `beforeEach`.
+3. `P2` The action row showed a bare "N" as a shortcut hint. The palette does not own that accelerator, so it was removed rather than styled.
+4. A "goals" group was dropped: there is no per-goal destination in the app, so those rows would have been dead ends. Groups are now Tasks / Actions, both runnable.
+
+### Verification
+
+- `tsc` clean; **337 tests** pass (6 toast-queue tests, 5 palette tests, 1 updated success-alert test); production build passes.
+- Renderer:
+  - Palette panel measures 322 px, 0 unnamed controls, active option carries `aria-selected="true"` and a visible fill.
+  - Four toasts in a row leave three on screen; the first is dropped as designed.
+  - Real path: Settings → export backup → confirm produced the green "备份已保存到：…json" toast at the viewport bottom, i.e. the `AlertModal` → toast bridge works end to end.
+- Evidence: [command palette](docs/ui-forms/command.png), [toast stack](docs/ui-forms/toast.png), [undo toast](docs/ui-forms/toast-undo.png), [toast in the app](docs/ui-forms/toast-app.png).
+- Not covered: the palette has no "recent" memory across sessions (results are ordered by date, not by use), and toast actions other than undo have no consumer yet.
