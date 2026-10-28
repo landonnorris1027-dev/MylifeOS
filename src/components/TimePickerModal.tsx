@@ -53,6 +53,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
       open={currentTask !== null}
       onClose={onClose}
       size="xl"
+      sheet
       title={t('schedule_task')}
       icon={<CalendarClock size={16} aria-hidden="true" />}
       headerClassName={`${styles.bg} ${styles.text}`}

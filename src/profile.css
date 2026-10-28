@@ -83,7 +83,7 @@
 }
 .profile-number,
 .profile-target-value,
-.profile-period-summary strong {
+.profile-period-summary dd {
   font-variant-numeric: tabular-nums;
 }
 .profile-metrics {
@@ -212,11 +212,15 @@
 .profile-period-summary > div:last-child {
   border-right: 0;
 }
-.profile-period-summary span {
+.profile-period-summary {
+  margin: 0;
+}
+.profile-period-summary dt {
   font-size: 13px;
   color: var(--motion-muted);
 }
-.profile-period-summary strong {
+.profile-period-summary dd {
+  margin: 0;
   font-size: 20px;
   font-weight: 550;
   overflow-wrap: anywhere;
@@ -244,10 +248,15 @@
 .profile-review-summary {
   margin: -4px 0 18px;
 }
+.profile-review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .profile-review-list details {
   border-top: 1px solid #e8eaed;
 }
-.profile-review-list details:last-child {
+.profile-review-list > li:last-child > details {
   border-bottom: 1px solid #e8eaed;
 }
 .profile-review-list summary {
@@ -313,6 +322,15 @@
   font-size: 13px;
   color: var(--motion-muted);
   margin-bottom: 6px;
+}
+.profile-session-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.profile-session-list li {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 .profile-review-detail p {
   line-height: 1.7;

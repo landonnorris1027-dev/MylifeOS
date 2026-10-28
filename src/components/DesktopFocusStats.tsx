@@ -95,24 +95,24 @@ export default function DesktopFocusStats({
         </section>
       </div>
 
-      <div className="profile-period-summary">
+      <dl className="profile-period-summary">
         <div>
-          <span>{zh ? '计划投入' : 'Planned'}</span>
-          <strong>{duration(planned)}</strong>
+          <dt>{zh ? '计划投入' : 'Planned'}</dt>
+          <dd>{duration(planned)}</dd>
         </div>
         <div>
-          <span>{zh ? '实际投入' : 'Measured'}</span>
-          <strong>{duration(report.measuredSeconds)}</strong>
+          <dt>{zh ? '实际投入' : 'Measured'}</dt>
+          <dd>{duration(report.measuredSeconds)}</dd>
         </div>
         <div>
-          <span>{zh ? '历史时长' : 'Historical'}</span>
-          <strong>{duration(report.historicalSeconds)}</strong>
+          <dt>{zh ? '历史时长' : 'Historical'}</dt>
+          <dd>{duration(report.historicalSeconds)}</dd>
         </div>
         <div>
-          <span>{zh ? '专注会话' : 'Focus sessions'}</span>
-          <strong>{report.sessions.length}</strong>
+          <dt>{zh ? '专注会话' : 'Focus sessions'}</dt>
+          <dd>{report.sessions.length}</dd>
         </div>
-      </div>
+      </dl>
 
       <div className="profile-insights-toolbar">
         <label className="profile-date">
@@ -193,11 +193,12 @@ function WeeklyReview({
         {zh ? '实际' : 'Measured'} {duration(report.measuredSeconds)} ·{' '}
         {zh ? '历史' : 'Historical'} {duration(report.historicalSeconds)}
       </p>
-      <div className="profile-review-list">
+      <ul className="profile-review-list">
         {report.tasks
           .slice(currentPage * 25, (currentPage + 1) * 25)
           .map((task) => (
-            <details key={`${task.date}:${task.id}`}>
+            <li key={`${task.date}:${task.id}`}>
+            <details>
               <summary>
                 <span className="profile-review-date">
                   {task.date.slice(5).replace('-', '/')}
@@ -218,29 +219,32 @@ function WeeklyReview({
                 </div>
                 <div>
                   <h3>{zh ? '关联会话' : 'Related sessions'}</h3>
-                  {report.sessions
-                    .filter((s) => matchesTask(s, task))
-                    .map((s) => (
-                      <p key={s.id}>
-                        {resultLabel(s.result)} ·{' '}
-                        {duration(s.actualFocusSeconds)} ·{' '}
-                        {s.measurement === 'measured'
-                          ? zh
-                            ? '实际计时'
-                            : 'Measured'
-                          : zh
-                            ? '估算'
-                            : 'Estimated'}
-                      </p>
-                    ))}
+                  <ul className="profile-session-list">
+                    {report.sessions
+                      .filter((s) => matchesTask(s, task))
+                      .map((s) => (
+                        <li key={s.id}>
+                          {resultLabel(s.result)} ·{' '}
+                          {duration(s.actualFocusSeconds)} ·{' '}
+                          {s.measurement === 'measured'
+                            ? zh
+                              ? '实际计时'
+                              : 'Measured'
+                            : zh
+                              ? '估算'
+                              : 'Estimated'}
+                        </li>
+                      ))}
+                  </ul>
                   {!report.sessions.some((s) => matchesTask(s, task)) && (
                     <p>—</p>
                   )}
                 </div>
               </div>
             </details>
+            </li>
           ))}
-      </div>
+      </ul>
       {!report.tasks.length && (
         <div className="profile-empty">
           <CalendarDays size={24} aria-hidden="true" />

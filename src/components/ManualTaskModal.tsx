@@ -62,6 +62,7 @@ const ManualTaskModal: React.FC<ManualTaskModalProps> = ({ isOpen, onClose, onCr
       open={isOpen}
       onClose={closeAndReset}
       size="md"
+      sheet
       title={t('manual_task_title')}
       icon={<Plus size={18} className="text-gray-400" aria-hidden="true" />}
       headerClassName="bg-gray-50/50"

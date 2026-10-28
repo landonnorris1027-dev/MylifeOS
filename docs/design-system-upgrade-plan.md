@@ -105,10 +105,10 @@
   *合并*：`App.tsx` 的 undo 条（改为镜像 `undoTask`，10s 窗口仍由控制器拥有）与 `AlertModal` 的 success 分支（改为投递 toast 并自动关闭，不再渲染卡片）。
 - [x] **C7 `Command`（⌘K）** — `src/components/CommandPalette.tsx` 取代 `TaskSearchModal`：输入即搜、`role=listbox` + `aria-activedescendant`、↑↓ 循环、Enter 执行、Esc/点击遮罩关闭、任务按日期倒序、结果分组（任务 / 快捷动作）、底部快捷键提示；原 5 个筛选器收进「高级筛选」二级面板。
   *偏差*：没有单独的"目标"分组——本项目没有按目标跳转的落点，列出来点了没反应，只保留可执行的两组。
-- [ ] **C4 `Popover`**（Radix）— 日期快捷、筛选、任务溢出菜单统一用它，替掉写死 `absolute` 定位的弹层（碰撞翻转 + 焦点归还由 Radix 保证）。
-- [ ] **C5 导航语义** — 主导航从 `aria-pressed` 按钮组改为 `role=tablist` + `aria-selected` + roving tabindex（左右方向键切换）；移动端 `mobilePane` 同理。`SegmentedControl` 保留为**表单型**分段控件（如 timelineMode），两件事分开。
-- [ ] **C6 `Sheet`** — 移动端任务详情/编辑从居中弹窗改为底部抽屉（配合已有 `.motion-mobile-panes`），落进拇指区；桌面仍用 Dialog。
-- [ ] **C8 统计表语义** — 折叠的 details 里已有表格化数据，补 `<table>`/`<th scope>` 或 `role=table`，让读屏能按行列播报。
+- [x] **C4 `Popover`** — `src/ui/popover.tsx`：Radix 负责定位/碰撞翻转/焦点归还/Esc，皮肤用 `--ui-*`。首个消费者是顶栏「快捷键」——原来的 `<details>+<summary>` 弹层没有焦点管理、点外面不关，现在是 `dl` + `<kbd>` 的快捷键表。
+- [x] **C5 导航语义** — `SegmentedControl` 增加 `kind="navigation"`：容器 `role="navigation"`、活动项 `aria-current="page"`、单一 Tab 停靠点 + 左右方向键循环。**没有用 `tablist`**：这里切换的是整页视图，没有 `tabpanel` 从属关系，`aria-current="page"` 才是诚实的语义。表单型分段（timelineMode、图表粒度）保持 `aria-pressed`。
+- [x] **C6 `Sheet`** — `Dialog` 增加 `sheet`：<640px 时贴底、左右满宽、上圆角 20px、最大 88dvh，桌面完全不变。已用于 `ManualTaskModal`、`HabitConfig`、`TimePickerModal`。
+- [x] **C8 统计语义** — 摘要条改成 `<dl>`（`dt`/`dd`，CSS 选择器同步），复盘列表改 `<ul><li><details>`，会话行改 `<ul><li>`。**没有强上 `<table>`**：三行"结果 · 时长 · 计量"用列表更诚实；`FocusCharts` 里本来就有带 `caption` + `th scope` 的真表格，未改。
 
 ### D. 页面级深化
 
@@ -227,6 +227,25 @@
 验证：typecheck 通过；**337 测试通过**（新增 6 条 toast 队列测试 + 5 条命令面板测试）；生产构建通过。
 
 证据：`docs/ui-forms/command.png`、`toast.png`、`toast-undo.png`、`toast-app.png`。
+
+### 2026-10-28 · C 组收尾（C4 / C5 / C6 / C8）
+
+新增 `src/ui/popover.tsx`（Radix Popover）；`Dialog` 增加 `sheet`；`SegmentedControl` 增加 `kind="navigation"`；统计区改用 `dl` / `ul`。
+
+设计决定：
+
+| 决定 | 理由 |
+|---|---|
+| C5 用 `aria-current="page"` 而不是 `tablist` | 切换的是整页视图，没有 `tabpanel` 从属；`tablist` 会让读屏期待一个 tabpanel |
+| C8 不上 `<table>` | 会话行是"结果 · 时长 · 计量"三个自解释短语，列表比表格诚实；图表里的真表格已有 caption + th scope |
+| Sheet 只在 <640px 生效 | 桌面端用户预期是居中弹窗；同一份 JSX 两端复用，不用维护两套弹窗 |
+| Popover 用 Radix 而不是自研 | 碰撞翻转、焦点归还、Esc、外部点击都要写对才不别扭，这正是 Radix 的强项（Dialog 不同，自研的 inert 隔离更强） |
+
+**踩到一个只有 build 能发现的坑**：用正则批量删除 `.motion-shortcut-help` 样式时，`@media (pointer:coarse) { .motion-shortcut-help summary { … } }` 这一行的规则从行中间开始，删除后留下一个悬空的 `@media … {`。`tsc` 通过、`vitest` 通过（jsdom 不解析这条 CSS），**只有 `vite build` 报 "Unclosed block"**。修复后又用花括号计数确认 308/308 平衡。
+
+验证：typecheck 通过；**338 测试通过**（新增 1 条统计语义测试）；生产构建通过；浏览器实测——快捷键弹层六行对齐、390px 下三个弹窗贴底成抽屉、画像页 `summary` 是 `DL`、复盘列表是 `UL > LI > DETAILS`、导航 `role=navigation` + `aria-current=page`。
+
+证据：`docs/ui-forms/popover.png`、`sheet.png`、`profile-semantics.png`。
 
 ---
 

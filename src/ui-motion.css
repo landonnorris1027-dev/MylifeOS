@@ -34,11 +34,13 @@
 .motion-quiet { color: var(--motion-muted); }
 .motion-icon-button { width: 32px; min-height: 32px; padding: 6px; flex-shrink: 0; color: var(--motion-muted); }
 .motion-icon-button:hover:not(:disabled) { background: #e8eaed; color: var(--motion-ink); }
+.motion-shortcut-trigger { margin-left: auto; padding: 8px 10px; font-size: 13px; color: var(--motion-muted); background: transparent; border: 0; border-radius: 8px; cursor: pointer; transition: background-color 160ms, color 160ms; }
+.motion-shortcut-trigger:hover { background: var(--motion-soft); color: var(--motion-ink); }
 .motion-shortcut { font-family: inherit; font-size: 13px; line-height: 1.2; padding: 3px 5px; border-radius: 4px; color: var(--motion-muted); background: #f1f3f4; white-space: nowrap; }
 .motion-segments { position: relative; isolation: isolate; display: inline-grid; grid-template-columns: repeat(var(--segments),minmax(0,1fr)); align-items: stretch; padding: 4px; border-radius: 999px; background: #f1f3f4; flex-shrink: 0; }
 .motion-segment-plate { position: absolute; z-index: -1; inset: 4px auto 4px 4px; width: calc((100% - 8px) / var(--segments)); border-radius: 999px; background: var(--motion-primary); box-shadow: 0 2px 5px #0b57d018; transform: translateX(calc(var(--selected) * 100%)); transition: transform 420ms var(--motion-spring); }
 .motion-segment-button { padding: 8px 17px; border-radius: 999px; font-size: 14px; font-weight: 550; line-height: 1.3; color: var(--motion-muted); white-space: nowrap; transition: color 160ms; }
-.motion-segment-button[aria-pressed="true"] { color: #fff; }
+.motion-segment-button[aria-pressed="true"], .motion-segment-button[aria-current="page"] { color: #fff; }
 .motion-main-nav .motion-segment-button { padding-inline: 23px; font-size: 14px; }
 .motion-overview { display: flex; align-items: center; gap: 44px; padding: 24px 0 20px; }
 .motion-page-title { flex: 1; min-width: 0; }
@@ -70,9 +72,6 @@
 .motion-operation-toolbar { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 10px 0 18px; }
 .motion-operation-toolbar .motion-button { min-height: 34px; padding: 6px 10px; font-size: 14px; }
 .motion-count { font-size: 13px; font-variant-numeric: tabular-nums; }
-.motion-shortcut-help { margin-left: auto; position: relative; font-size: 13px; color: var(--motion-muted); }
-.motion-shortcut-help summary { cursor: pointer; padding: 8px; }
-.motion-shortcut-help p { position: absolute; right: 0; top: 100%; z-index: 35; padding: 16px; width: 320px; max-width: calc(100vw - 48px); border-radius: 16px; border: 1px solid var(--motion-line); background: white; box-shadow: 0 12px 36px #20212412; line-height: 1.8; }
 .motion-recovery-entry { margin-top: 16px; padding: 10px 16px; border-radius: 12px; font-size: 14px; color: #254a83; background: #e9eff9; }
 .motion-planner-grid { display: grid; grid-template-columns: 320px minmax(0,1fr); gap: 24px; align-items: start; }
 .motion-inbox-column, .motion-timeline-column { min-width: 0; }
@@ -186,8 +185,7 @@
   .motion-date-tools .motion-icon-button { width: 30px; }.motion-today { padding-inline: 10px; }
   .motion-schedule-tools { width: 100%; justify-content: space-between; }.motion-interval-label { padding-left: 0; }
   .motion-operation-toolbar { padding-bottom: 12px; gap: 1px; }.motion-operation-toolbar .motion-shortcut { display: none; }
-  .motion-shortcut-help { margin-left: 0; }.motion-shortcut-help p { left: 0; right: auto; }
-  .motion-planner-grid { grid-template-columns: minmax(0,1fr); gap: 16px; }
+    .motion-planner-grid { grid-template-columns: minmax(0,1fr); gap: 16px; }
   .motion-mobile-panes { display: flex; align-items: center; gap: 8px; }.motion-mobile-panes .motion-segments { flex: 1; }
   .motion-panel { padding: 20px; }.motion-inbox-panel { min-height: 300px; }
   .motion-inbox-column.is-hidden, .motion-timeline-column.is-hidden { display: none; }
@@ -228,16 +226,9 @@
   .motion-overview { padding-block: 14px; row-gap: 10px; }
   .motion-page-title > p { display: none; }
   .motion-planner-toolbar { gap: 8px; }
-  .motion-shortcut-help { margin-left: auto; }
-  .motion-shortcut-help summary { font-size: 0; list-style: none; min-width: 32px; text-align: center; }
-  .motion-shortcut-help summary::after { content: '?'; font-size: 14px; }
-  .motion-shortcut-help summary::-webkit-details-marker { display: none; }
-  .motion-shortcut-help p { left: auto; right: 0; }
-  .motion-panel { padding: 16px; }
+            .motion-panel { padding: 16px; }
   .motion-panel-heading { margin-bottom: 16px; }
 }
-@media (pointer:coarse) { .motion-shortcut-help summary { min-width: 48px; min-height: 48px; display: grid; place-items: center; } }
-
 /* Keep the narrowest supported windows readable without losing tool names for
    assistive technology; icon buttons already carry localized aria-labels. */
 @media (max-width:360px) {
@@ -277,8 +268,7 @@
 .motion-ui [data-motion-reveal="pending"] { opacity: 0; }
 .motion-ui .motion-mobile-panes + .motion-inbox-column,
 .motion-ui .motion-timeline-column { animation: motion-page-enter 380ms var(--motion-ease) both; }
-.motion-ui .motion-shortcut-help[open] p { animation: motion-panel-enter 220ms var(--motion-ease) both; }
-
+.motion-ui 
 /* Only animate compositor-friendly opacity and transforms on scrolling content. */
 .motion-modal-overlay { overflow-y: auto; overscroll-behavior: contain; }
 .motion-modal-overlay[data-motion-state="open"] { animation: motion-backdrop-enter 220ms ease both; }

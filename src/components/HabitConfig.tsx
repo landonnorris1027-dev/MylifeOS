@@ -472,6 +472,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
         open={isOpen}
         onClose={onClose}
         size="md"
+        sheet
         title={t(section === 'habits' ? 'config_habit_title' : 'settings_title')}
         icon={<Plus size={18} className="text-gray-400" aria-hidden="true" />}
         headerClassName="bg-gray-50/50"

@@ -27,7 +27,7 @@ import { useAppController } from './hooks/useAppController';
 import { useMotionScope, useTaskLayout } from './hooks/useMotionScope';
 import { scrollToElement } from './hooks/useReducedMotion';
 import ErrorBoundary from './components/ErrorBoundary';
-import { Toaster, dismissToast, toast } from './ui';
+import { Popover, PopoverContent, PopoverTrigger, Toaster, dismissToast, toast } from './ui';
 import { buildTimelineSlotsForMode } from './services/scheduling';
 
 const UNDO_TOAST_ID = 'undo-delete';
@@ -287,7 +287,7 @@ export default function App() {
             <img className="motion-brand-mark" src="./assets/icons/app-64.png" width={36} height={36} alt="" draggable={false} />
             <span>{t('app_title')}</span>
           </button>
-          <SegmentedControl className="motion-main-nav" label={t('ui_navigation')} value={view}
+          <SegmentedControl className="motion-main-nav" kind="navigation" label={t('ui_navigation')} value={view}
             options={[{value:'planner',label:t('view_planner')},{value:'profile',label:t('view_profile')}]}
             onChange={value => setView(value as 'planner' | 'profile')} />
           <div className="motion-header-actions">
@@ -341,7 +341,21 @@ export default function App() {
           <button type="button" className="motion-button motion-quiet" onClick={() => void openCurrentSession()}><Timer size={16}/>{t('ui_current_session')}<kbd className="motion-shortcut">Ctrl J</kbd></button>
           <button type="button" disabled={!undoCount} className="motion-button motion-quiet" onClick={() => void handleUndoTaskOperation()}><Undo2 size={16}/>{t('ui_undo')}<span className="motion-count">{undoCount}/20</span></button>
           <button type="button" className="motion-button motion-quiet" onClick={() => setBatchOpen(true)}><Calendar size={16}/>{t('ui_batch_reschedule')}</button>
-          <details className="motion-shortcut-help"><summary>{t('ui_shortcuts')}</summary><p>N: {t('ui_new_task')} · Ctrl+K: {t('task_search_title')} · Ctrl+J: {t('ui_current_session')} · Ctrl+Z: {t('ui_undo')} · Ctrl+1/2: {t('view_planner')}/{t('view_profile')} · Esc: {t('close')}</p></details>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className="motion-shortcut-trigger">{t('ui_shortcuts')}</button>
+            </PopoverTrigger>
+            <PopoverContent align="end" aria-label={t('ui_shortcuts')}>
+              <dl className="ui-shortcut-list">
+                <div><dt><kbd className="motion-shortcut">N</kbd></dt><dd>{t('ui_new_task')}</dd></div>
+                <div><dt><kbd className="motion-shortcut">Ctrl K</kbd></dt><dd>{t('task_search_title')}</dd></div>
+                <div><dt><kbd className="motion-shortcut">Ctrl J</kbd></dt><dd>{t('ui_current_session')}</dd></div>
+                <div><dt><kbd className="motion-shortcut">Ctrl Z</kbd></dt><dd>{t('ui_undo')}</dd></div>
+                <div><dt><kbd className="motion-shortcut">Ctrl 1 / 2</kbd></dt><dd>{t('view_planner')} / {t('view_profile')}</dd></div>
+                <div><dt><kbd className="motion-shortcut">Esc</kbd></dt><dd>{t('close')}</dd></div>
+              </dl>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>}
 
@@ -392,7 +406,7 @@ export default function App() {
         ) : (
           <div className="motion-planner-grid">
             <div className="motion-mobile-panes">
-              <SegmentedControl label={t('ui_navigation')} value={mobilePane} options={[{value:'inbox',label:t('inbox')},{value:'timeline',label:t('timeline')}]} onChange={value => setMobilePane(value as 'inbox' | 'timeline')} />
+              <SegmentedControl label={t('ui_navigation')} kind="navigation" value={mobilePane} options={[{value:'inbox',label:t('inbox')},{value:'timeline',label:t('timeline')}]} onChange={value => setMobilePane(value as 'inbox' | 'timeline')} />
               <button type="button" className="motion-icon-button" onClick={jumpToCurrentTime} aria-label={t('jump_current_time')} title={t('jump_current_time')}><Timer size={18}/></button>
             </div>
             <div className={`motion-inbox-column ${mobilePane !== 'inbox' ? 'is-hidden' : ''}`}>

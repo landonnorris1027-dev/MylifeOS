@@ -4,6 +4,8 @@ export type { ButtonProps, ButtonVariant, ButtonSize, IconButtonProps } from './
 export { Dialog, DialogFooter } from './dialog';
 export type { DialogProps } from './dialog';
 export { AlertDialog } from './alert-dialog';
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverClose } from './popover';
+export type { PopoverContentProps } from './popover';
 export { Toaster, toast, dismissToast, clearToasts } from './toast';
 export type { ToastOptions, ToastTone } from './toast';
 export type { AlertDialogProps, AlertDialogTone } from './alert-dialog';

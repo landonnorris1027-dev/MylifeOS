@@ -20,6 +20,8 @@ export interface DialogProps {
   layer?: 'base' | 'alert' | 'critical';
   /** `panel` = header + scrollable body. `notice` = single centred block. */
   variant?: 'panel' | 'notice';
+  /** Below 640px the panel docks to the bottom edge as a sheet. Desktop is unchanged. */
+  sheet?: boolean;
   title?: React.ReactNode;
   icon?: React.ReactNode;
   headerClassName?: string;
@@ -53,6 +55,7 @@ export const Dialog: React.FC<DialogProps> = ({
   size = 'md',
   layer = 'base',
   variant = 'panel',
+  sheet = false,
   title,
   icon,
   headerClassName,
@@ -87,6 +90,7 @@ export const Dialog: React.FC<DialogProps> = ({
       {...presenceProps}
       className="motion-modal-overlay ui-dialog-overlay"
       data-layer={layer}
+      data-sheet={sheet ? 'true' : undefined}
       data-slot="dialog-overlay"
       onMouseDown={(event) => {
         if (!dismissOnBackdrop || event.target !== event.currentTarget) return;
@@ -103,6 +107,7 @@ export const Dialog: React.FC<DialogProps> = ({
         className={cn('ui-dialog', panelClassName)}
         data-variant={variant}
         data-size={size}
+        data-sheet={sheet ? 'true' : undefined}
         data-slot="dialog"
       >
         {variant === 'panel' ? (

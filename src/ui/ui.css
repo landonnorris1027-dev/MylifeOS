@@ -603,3 +603,46 @@
 }
 .ui-command-enter { display: inline-flex; align-items: center; gap: 4px; }
 .ui-command-count { font-variant-numeric: tabular-nums; }
+
+/* ---------- Popover ---------- */
+:root { --ui-z-popover: 70; }
+
+.ui-popover {
+  z-index: var(--ui-z-popover);
+  min-width: 11rem;
+  max-width: min(22rem, calc(100vw - 24px));
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(25, 25, 25, .14);
+  animation: ui-popover-in 160ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.ui-popover[data-state="closed"] { animation: ui-popover-out 120ms ease both; }
+
+.ui-shortcut-list { display: grid; gap: 8px; margin: 0; }
+.ui-shortcut-list > div { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr); align-items: center; gap: 12px; }
+.ui-shortcut-list dt { margin: 0; }
+.ui-shortcut-list dd { margin: 0; color: var(--ui-label); }
+
+@keyframes ui-popover-in { from { opacity: 0; translate: 0 -4px; } to { opacity: 1; translate: 0 0; } }
+@keyframes ui-popover-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ui-popover, .ui-popover[data-state="closed"] { animation: none; }
+}
+
+/* Sheet presentation: only below the panel breakpoint, so desktop is untouched. */
+@media (max-width: 639px) {
+  .ui-dialog-overlay[data-sheet="true"] { align-items: flex-end; padding: 0; }
+  .ui-dialog[data-sheet="true"] {
+    max-width: 100%;
+    max-height: 88dvh;
+    border-radius: 20px 20px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .ui-dialog[data-sheet="true"] .ui-dialog-header { border-radius: 20px 20px 0 0; }
+}

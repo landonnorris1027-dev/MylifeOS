@@ -215,3 +215,27 @@ Scope: the two remaining transient surfaces. The undo bar and the success card b
   - Real path: Settings → export backup → confirm produced the green "备份已保存到：…json" toast at the viewport bottom, i.e. the `AlertModal` → toast bridge works end to end.
 - Evidence: [command palette](docs/ui-forms/command.png), [toast stack](docs/ui-forms/toast.png), [undo toast](docs/ui-forms/toast-undo.png), [toast in the app](docs/ui-forms/toast-app.png).
 - Not covered: the palette has no "recent" memory across sessions (results are ordered by date, not by use), and toast actions other than undo have no consumer yet.
+
+## 2026-10-28: closing batch C (popover, navigation, sheet, statistics)
+
+final result: passed
+
+### What changed
+
+- `Popover` (Radix) replaces the shortcut `<details>` panel: collision-aware placement, focus return, outside click and Escape now behave; content is a `dl` of `<kbd>` rows instead of a single paragraph.
+- `SegmentedControl` gained `kind="navigation"`: the page switcher is a `navigation` landmark whose active item is `aria-current="page"`, with one tab stop and ArrowLeft/ArrowRight cycling. Form-type segments keep `aria-pressed`.
+- `Dialog` gained `sheet`: below 640 px the panel docks to the bottom edge (full width, 20 px top radius, 88 dvh cap); desktop is untouched.
+- Statistics: the summary strip is a `dl`, the review list is `ul > li > details`, and session rows are a `ul`. The chart table already had `caption` + `th scope` and was left alone.
+
+### Findings
+
+1. `P0` A regex-based CSS cleanup removed a rule that started mid-line inside `@media (pointer:coarse) { … }`, leaving an unclosed block. `tsc` and the whole test suite passed; **only `vite build` failed**. Fixed, then verified with a brace count (308/308). Lesson: CSS edits need the build in the loop, not just tests.
+2. `P2` The first shortcut list used one grid for all six rows, so every `div` wrapper became a single grid item and the layout scrambled. Each row is now its own two-column grid.
+3. A `tablist` was considered for the page switcher and rejected: there is no `tabpanel` relationship, so `aria-current="page"` is the honest semantic.
+
+### Verification
+
+- `tsc` clean; **338 tests** pass (1 new statistics-semantics test asserting `DL`, `UL > LI > DETAILS` and the session list); production build passes.
+- Renderer: shortcut popover renders six aligned rows; at 390 × 844 the manual-task dialog measures 564 px and docks to the bottom; the profile page reports `summary = DL` with four `dt`/`dd` pairs, `review list = UL` and `nav role=navigation` + `aria-current=page` reading 画像.
+- Evidence: [popover](docs/ui-forms/popover.png), [sheet](docs/ui-forms/sheet.png), [profile semantics](docs/ui-forms/profile-semantics.png).
+- Not covered: review rows were not re-screenshotted with real data (the empty state was); the structure is instead locked by the new test.

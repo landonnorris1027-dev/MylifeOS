@@ -32,6 +32,35 @@ describe('minute precision focus reports', () => {
     expect(Array.from(row!.querySelectorAll('td')).map(cell => cell.textContent)).toEqual(['65', '60', '0', '4']);
     expect(getStorageItem(KEYS.FOCUS_SESSIONS)).toBe(original);
   });
+  it('exposes the summary and the review rows with list/definition semantics', async () => {
+    setStorageItem(KEYS.LANGUAGE, 'zh');
+    const date = formatDateLocal(new Date());
+    setStorageItem(KEYS.DAILY_LOGS, JSON.stringify({ [date]: { date, tasks: [
+      { id: 'semantics', name: '语义任务', priority: 'P1', status: 'completed', date, durationMinutes: 25 },
+    ] } }));
+    setStorageItem(KEYS.FOCUS_SESSIONS, JSON.stringify([
+      { id: 's1', timerId: 't1', taskId: 'semantics', taskDate: date, taskName: '语义任务',
+        priority: 'P1', plannedSeconds: 1500, actualFocusSeconds: 1500, startedAt: 1000,
+        endedAt: 1501000, result: 'completed', measurement: 'measured' },
+    ]));
+    await act(async () => root.render(<LanguageProvider><DesktopFocusStats /></LanguageProvider>));
+
+    const summary = container.querySelector('.profile-period-summary')!;
+    expect(summary.tagName).toBe('DL');
+    expect(Array.from(summary.querySelectorAll('dt')).map(node => node.textContent))
+      .toEqual(['计划投入', '实际投入', '历史时长', '专注会话']);
+
+    const list = container.querySelector('.profile-review-list')!;
+    expect(list.tagName).toBe('UL');
+    expect(list.firstElementChild?.tagName).toBe('LI');
+    expect(list.querySelector(':scope > li > details')).not.toBeNull();
+
+    await act(async () => (list.querySelector('summary') as HTMLElement).click());
+    const sessions = container.querySelector('.profile-session-list')!;
+    expect(sessions.tagName).toBe('UL');
+    expect(sessions.querySelectorAll(':scope > li')).toHaveLength(1);
+  });
+
   it('keeps recurring task sessions attached to their own date when expanding a review', async () => {
     setStorageItem(KEYS.LANGUAGE, 'en');
     const today = formatDateLocal(new Date());
