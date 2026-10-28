@@ -52,7 +52,10 @@ main.js
 # Everything under output/ is produced locally: browser profiles, review
 # screenshots and the computed-style snapshots. The snapshot sets run to
 # hundreds of megabytes, and the useful evidence is copied into docs/ui-forms.
-output/
+# One directory is exempt because its contents are already committed and are
+# still referenced from the review notes.
+output/*
+!output/ui-profile-layout-20261027/
 
 # Recoverable local cleanup and migration records
 .local-archive/
