@@ -70,9 +70,10 @@
 
 - [ ] **A1 `cn()` + `src/ui/` 目录** — 装 `clsx` + `tailwind-merge`（各 ~1KB），新建 `src/ui/` 放原语、`src/patterns/` 放复合块；先把现有 176 处 `motion-*` 字符串归口到常量或组件，禁止新增裸类名。
   *验收*：`src/ui/` 下每个文件只导出组件；`grep` 无新增 `className="motion-`。
-- [ ] **A2 语义 token 层** `src/styles/tokens.css` — 按 shadcn 配对约定定义：`--background/--foreground`、`--card/--card-foreground`、`--popover`、`--primary/--primary-foreground`、`--secondary`、`--muted/--muted-foreground`、`--accent`、`--destructive`、`--border`、`--input`、`--ring`、`--success`。
-  *关键约束*：命名可借，**取值必须等于现有视觉**。用 hex→oklch 转换后回读验证 ΔE < 1，并把 `--priority-p1..none` 降级为"数据色"，另派生 `--p1-soft` / `--p1-line` / `--p1-ink` 三档，消灭 `#a8c7fa` `#e8f0fe` 这类手工浅色。
-  *验收*：`design-qa.md` 的原截图逐屏 diff 无可见差异（阈值沿用现有做法）。
+- [x] **A2 语义 token 层** `src/styles/tokens.css` — 承接两套语言（planner 的蓝灰、`:root --ui-*` 的 Tailwind 灰），暴露 `--background/--foreground`、`--card`、`--muted/--muted-foreground`、`--border`、`--primary(+hover/soft/line)`、`--success`、`--danger` 七档、`--page`、`--surface-sunken`。
+  *数据色*：`--priority-p1..none` 降为 `--p1-solid` 等，并补齐 `soft / line / ink / tag / hover`，共 24 档；`PRIORITY_STYLES` 从 24 个 Tailwind 任意值 hex 改为引用这些变量。
+  *偏离计划*：**没有转 oklch**。项目 target 是 es5 + Capacitor WebView，oklch 需要较新内核；而 hex 逐字节相等意味着 ΔE 恒为 0，比"ΔE < 1"更强，也更容易验证。
+  *验收方式也改了*：不用截图肉眼 diff，改用 `scripts/style-snapshot.mjs` 采集 **9 个场景 / 9,062 个元素 × 24 个计算样式属性**，前后逐字节比较 → **21.7 万次比对，零差异**。截图看的是抗锯齿，计算样式看的是真值。
 - [ ] **A3 圆角阶梯** — `--radius: 16px`，派生 `sm/md/lg/xl/2xl` + 单独 `--radius-pill`；把 12 种取值收敛到 5 档（`profile.css` 的 25px 卡片刻意保留为 `--radius-card-profile`，因为它是像素级验收过的）。
 - [ ] **A4 抬升与层级两套阶梯** — `--shadow-1..3`、`--z-base/nav/popover/modal/toast/tooltip`。
   *不动时长*：`ui-motion.css` 的 120 / 160 / 360ms 是有意分工（按压 / 颜色 / 面板），`--motion-ease` 与 `--motion-spring` 也已存在。上一轮已核实，**不做时长 token 化**，避免纯 churn。
@@ -282,6 +283,36 @@
 验证：typecheck 通过；eslint（jsx-a11y）0 error 0 warn；`contract:dom:check` 通过；**346 测试通过**（新增 3 条页面层 a11y）；生产构建通过。浏览器实测：两个 navigation landmark 分别读作「主导航 / 视图切换」，`−7` 按钮可访问名为「−7 上一周」，设置面板 `aria-labelledby` 指向标题。
 
 证据：`docs/dom-contract.md`。
+
+### 2026-10-28 · A2 落地（语义 token 层）
+
+新增 `src/styles/tokens.css`；`src/index.css`、`src/ui-motion.css`、`src/ui/ui.css`、`src/types.ts` 改为引用它。新增 `scripts/style-snapshot.mjs`、`style-diff.mjs`、`style-capture.mjs`。
+
+设计决定：
+
+| 决定 | 理由 |
+|---|---|
+| `--motion-*` 降为别名，不改 300 处引用 | 迁移是"换表达"不是"换写法"；删旧名留给 A1 收口，现在改会制造大片无关 diff |
+| `:root --ui-*` 直接指向语义层，删掉 `.motion-ui` 的十行重映射 | 原来预览页渲染在 `.motion-ui` 之外，看到的是产品从未用过的 Tailwind 灰——"预览页和应用长得不一样"是真实存在的缺陷 |
+| 不转 oklch | 见 A2 条目的偏离说明；hex 相等 = ΔE 0，比近似更强 |
+| 优先级 24 档全部命名，但不合并 | 7 个 danger 红、4 组优先级各有来源，合并是视觉变更；命名让 D6 能一次改完 |
+| `focus-history.css` / `rare-ui.css` 不动 | 它们各自自洽且自带变量，并进来必然改像素，属于 D 组 |
+
+**两个只有动手才会撞到的坑**：
+
+1. **Tailwind 扫描原始文本，包括注释。** 第一版把 `bg`/`border`/`text` 写成模板函数 `` `bg-[var(--${key}-soft)]` ``，结果：① 运行时类名根本不存在（Tailwind 只看到 `bg-[var(--` 片段）；② 注释里出现同样字符串时，Tailwind 把它当候选类名生成 `.bg-\[var\(--\$\{key\}-soft\)\]`，lightningcss 压缩时直接报 `Unexpected token Delim('$')`，**构建失败**。改成 4 组完整字面量后正常。这正是"CSS 改动必须让构建在环里"的第二个实例。
+2. **空数据快照说明不了任何事。** 第一轮 6 个场景全部零差异，看起来很成功——但 planner 当时没有任务卡，而 `PRIORITY_STYLES` 恰好只作用于任务卡和弹窗。给采样器加 `--seed=tasks`（4 种优先级 + 收件箱 + 已完成）后元素数从 320 涨到 629，这才真正覆盖到改动面。
+
+**第三个坑是工具自身的**：同一份代码连采两次出现过 2 处 `opacity` 差异，来自入场动画的中间态。采样前设 `prefers-reduced-motion: reduce` 后完全确定（连跑两次零差异）。没有这一步，任何"零差异"结论都可能是运气。
+
+验证：
+- **计算样式**：9 个场景 / 9,062 元素 × 24 属性，前后逐字节相同（21.7 万次比对，0 差异）。
+- **静态值**：`PRIORITY_STYLES` 旧版 20 个字面量与 tokens 逐项相等，4 个 `accent` 别名链完整。
+- **渲染值**：用探针把 20 个类名挂到页面上读计算值，全部等于原 hex。
+- **产物**：`build/assets/index-legacy-*.js` 内联的 CSS 中，`var(--p1-soft)` 等各出现 2 次（定义 + 引用），无非法占位符。
+- typecheck / eslint / contract / 346 测试 / 生产构建全绿。
+
+证据：`output/style-snapshots/final-{before,after}/`（本地，12MB 不入库）、`docs/ui-forms/preview-a2.png`。
 
 ---
 

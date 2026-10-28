@@ -79,7 +79,9 @@
     "android:verify:compile": "node scripts/verify-android.js --compile-only",
     "lint:a11y": "eslint \"src/**/*.{ts,tsx}\"",
     "contract:dom": "node scripts/dom-contract.mjs",
-    "contract:dom:check": "node scripts/dom-contract.mjs --check"
+    "contract:dom:check": "node scripts/dom-contract.mjs --check",
+    "styles:capture": "node scripts/style-capture.mjs",
+    "styles:diff": "node scripts/style-diff.mjs"
   },
   "build": {
     "extends": null,

@@ -1,19 +1,12 @@
-﻿@tailwind base;
+﻿@import './styles/tokens.css';
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Shared task and statistics palette. */
-:root {
-  --priority-p1: #9d7bf5;
-  --priority-p2: #5b8def;
-  --priority-p3: #9ab8db;
-  --priority-none: #f2c46d;
-}
 
 html {
   padding: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) var(--safe-area-inset-right, env(safe-area-inset-right, 0px))
     var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
-  background: #F7F7F5;
+  background: var(--page);
 }
 .safe-area-padding {
   padding: calc(1rem + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
@@ -37,7 +30,7 @@ html {
 }
 
 body {
-  background-color: #F7F7F5;
+  background-color: var(--page);
   color: #37352F;
 }
 

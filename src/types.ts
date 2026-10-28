@@ -48,33 +48,50 @@ export interface DailyData {
   tasks: Task[];
 }
 
+/**
+ * Priority is data, not chrome: a task's colour encodes which bucket it is in.
+ * The six roles per key live in src/styles/tokens.css as `--p<key>-<role>`, so
+ * a theme can restate them in one place instead of chasing arbitrary values
+ * through JSX.
+ *
+ * The class strings are spelled out per key on purpose. Tailwind scans raw
+ * source text, including comments, and it cannot follow string interpolation:
+ * a class name assembled at runtime emits a rule with the placeholder still in
+ * it, which then fails to minify. A shared helper that builds the names
+ * therefore compiles to unstyled cards — that was the first version of this
+ * refactor.
+ */
 export const PRIORITY_STYLES = {
   none: {
-    bg: 'bg-[#fff7e8]', border: 'border-[#f9e5bb]', text: 'text-[#533c16]',
-    tag: 'bg-[#fbedcf]', accent: 'bg-[var(--priority-none)]', hover: 'hover:bg-[#fff0d4]',
+    bg: 'bg-[var(--pnone-soft)]',
+    border: 'border-[var(--pnone-line)]',
+    text: 'text-[var(--pnone-ink)]',
+    tag: 'bg-[var(--pnone-tag)]',
+    accent: 'bg-[var(--pnone-solid)]',
+    hover: 'hover:bg-[var(--pnone-hover)]',
   },
   P1: {
-    bg: 'bg-[#f4effe]',
-    border: 'border-[#e4d9fc]',
-    text: 'text-[#3d2b65]',
-    tag: 'bg-[#e8defc]',
-    accent: 'bg-[var(--priority-p1)]',
-    hover: 'hover:bg-[#eee5fd]'
+    bg: 'bg-[var(--p1-soft)]',
+    border: 'border-[var(--p1-line)]',
+    text: 'text-[var(--p1-ink)]',
+    tag: 'bg-[var(--p1-tag)]',
+    accent: 'bg-[var(--p1-solid)]',
+    hover: 'hover:bg-[var(--p1-hover)]',
   },
   P2: {
-    bg: 'bg-[#edf3fe]',
-    border: 'border-[#d3e1fc]',
-    text: 'text-[#183456]',
-    tag: 'bg-[#dce7fd]',
-    accent: 'bg-[var(--priority-p2)]',
-    hover: 'hover:bg-[#e1ebfd]'
+    bg: 'bg-[var(--p2-soft)]',
+    border: 'border-[var(--p2-line)]',
+    text: 'text-[var(--p2-ink)]',
+    tag: 'bg-[var(--p2-tag)]',
+    accent: 'bg-[var(--p2-solid)]',
+    hover: 'hover:bg-[var(--p2-hover)]',
   },
   P3: {
-    bg: 'bg-[#eef4fa]',
-    border: 'border-[#d7e4f1]',
-    text: 'text-[#25435e]',
-    tag: 'bg-[#dce8f4]',
-    accent: 'bg-[var(--priority-p3)]',
-    hover: 'hover:bg-[#e1ecf7]'
-  }
+    bg: 'bg-[var(--p3-soft)]',
+    border: 'border-[var(--p3-line)]',
+    text: 'text-[var(--p3-ink)]',
+    tag: 'bg-[var(--p3-tag)]',
+    accent: 'bg-[var(--p3-solid)]',
+    hover: 'hover:bg-[var(--p3-hover)]',
+  },
 };

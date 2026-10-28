@@ -1,42 +1,39 @@
 /* Form primitive layer.
-   Scope: form controls only. These tokens are a deliberately small subset of the
-   future whole-app token set, so nothing outside forms changes. `.motion-ui`
-   remaps them to the planner palette instead of forking a second control style. */
+   Scope: form controls only.
+   
+   These used to be defined twice: Tailwind greys on `:root` and a ten-line
+   remap inside `.motion-ui`. The review page rendered outside `.motion-ui`, so
+   it previewed a palette the product never used — a theme that looked right in
+   one place and different in the other. They now resolve directly against
+   src/styles/tokens.css and there is nothing left to remap. */
 :root {
-  --ui-ink: #1f2937;
-  --ui-label: #6b7280;
-  --ui-hint: #6b7280;
-  --ui-placeholder: #9ca3af;
-  --ui-line: #e5e7eb;
-  --ui-line-strong: #d1d5db;
-  --ui-field: #f9fafb;
-  --ui-surface: #ffffff;
-  --ui-accent: #111827;
+  --ui-ink: var(--foreground);
+  --ui-label: var(--muted-foreground);
+  --ui-hint: var(--muted-foreground);
+  --ui-placeholder: var(--placeholder);
+  --ui-line: var(--border);
+  --ui-line-strong: var(--primary-line);
+  --ui-field: var(--card);
+  --ui-surface: var(--card);
+  --ui-surface-soft: var(--muted);
+  --ui-accent: var(--primary);
+  --ui-accent-strong: var(--primary-hover);
+
+  /* Two reds coexist on purpose: the control red (#b3261e) and the overload
+     red (#a63b35). Merging them changes pixels, so the dark-mode batch owns
+     that decision. */
   --ui-danger: #b3261e;
   --ui-danger-soft: #fdf2f1;
-  --ui-danger-strong: #8f1d17;
+  --ui-danger-strong: var(--danger-strong);
   --ui-disabled: #f3f4f6;
-  --ui-surface-soft: #f3f4f6;
-  --ui-accent-strong: #000000;
-  --ui-info-soft: #eff6ff;
-  --ui-info-ink: #1d4ed8;
-  --ui-success-soft: #ecfdf5;
-  --ui-success-ink: #047857;
-  --ui-radius-control: 8px;
-  --ui-control-height: 40px;
-}
 
-.motion-ui {
-  --ui-ink: var(--motion-ink);
-  --ui-label: var(--motion-muted);
-  --ui-hint: var(--motion-muted);
-  --ui-line: var(--motion-line);
-  --ui-line-strong: #a8c7fa;
-  --ui-field: #ffffff;
-  --ui-accent: var(--motion-primary);
-  --ui-accent-strong: #0842a0;
-  --ui-surface-soft: var(--motion-soft);
+  --ui-info-soft: var(--info-soft);
+  --ui-info-ink: var(--info-ink);
+  --ui-success-soft: var(--success-soft);
+  --ui-success-ink: var(--success-ink);
+
   --ui-radius-control: 10px;
+  --ui-control-height: 40px;
 }
 
 /* ---------- Field anatomy ---------- */

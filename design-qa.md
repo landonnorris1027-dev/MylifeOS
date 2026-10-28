@@ -289,3 +289,33 @@ final result: passed
 - Evidence: [DOM contract ledger](docs/dom-contract.md).
 - Not covered: `color-contrast` and `region` are disabled under jsdom (no layout), so contrast still rests on the screenshot review. Scrollable-region and focus-order behaviour on coarse pointers was not re-measured on a device.
 
+## 2026-10-28: semantic token layer (A2)
+
+final result: passed
+
+### What changed
+
+- `src/styles/tokens.css` is now the only place colour is defined. Two palettes resolve through it: the planner's blue-grey (`.motion-ui`) and the Tailwind greys that `:root --ui-*` used to carry on its own.
+- `.motion-ui` no longer remaps ten `--ui-*` tokens. That remap existed only because the two sets disagreed; now they are the same set, so the primitive review page finally previews the palette the product actually uses.
+- `PRIORITY_STYLES` stopped carrying 24 arbitrary hex values in JSX and references `--p<key>-<role>` instead. Priority is data, so it gets a six-step ramp per key rather than borrowing the neutral scale.
+- `--motion-*` survives as aliases. Deleting 300 call sites is a separate, mechanical change; mixing it into this one would have buried the actual diff.
+
+### Findings
+
+1. `P0` The first attempt built the priority class names with a template literal. Tailwind scans raw source and cannot follow interpolation, so **no rules were emitted at all** — every priority card would have rendered unstyled. Worse, the same string appeared in a comment, which Tailwind happily turned into a rule, and lightningcss then failed the build on `Unexpected token Delim('$')`. Both symptoms have one cause: class names must be literal text.
+2. `P0` The first verification round reported zero differences across six snapshots and was worthless: the planner had no tasks, and `PRIORITY_STYLES` only reaches task cards and dialogs. Seeding four priorities plus inbox and completed raised the element count from 320 to 629 and made the audit meaningful.
+3. `P1` Snapshots of identical code differed in two `opacity` values — an entrance animation caught mid-flight. Emulating `prefers-reduced-motion: reduce` made capture deterministic; two consecutive runs now match exactly.
+4. `P1` The settings scenario clicked a button that did not exist yet, because only the no-interaction path waited for mount. Intermittent, and it failed on the first scripted run.
+5. `P2` The value-comparison script matched one field per line, so the three fields sharing a line in `none` were skipped (17 of 20 checked). Fixed, then all 20 matched.
+
+### Verification
+
+- **Computed styles**: 9 scenarios, 9,062 elements × 24 properties, byte-identical before and after — 217,488 comparisons, zero differences. The populated scenarios include all four priorities.
+- **Static values**: the 20 literals removed from `PRIORITY_STYLES` equal their token counterparts exactly; the four `accent` aliases resolve through `--priority-*` → `--p*-solid`.
+- **Rendered values**: mounting all 20 class names on a probe element returns the original hex for every one.
+- **Bundle**: the inlined stylesheet in `build/assets/index-legacy-*.js` contains each `var(--p1-soft)`-style reference twice (declaration + use) and no unsubstituted placeholders.
+- `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass, production build passes.
+- Snapshot tooling proven to bite: changing one token by 1/255 produced 7 differences; two runs of unchanged code produce none.
+- Evidence: [preview page after unification](docs/ui-forms/preview-a2.png). Snapshots live in `output/style-snapshots/` (12 MB, not committed).
+- Not covered: hover states were checked statically, not by driving a pointer; `focus-history.css` and `rare-ui.css` keep their own ramps on purpose — folding them in changes pixels and belongs to the page batch.
+

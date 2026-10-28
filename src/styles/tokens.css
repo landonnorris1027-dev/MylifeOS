@@ -1,0 +1,121 @@
+/* Design tokens — the single source of truth for colour.
+ *
+ * Before this file the app carried four palettes that never met:
+ *
+ *   1. `.motion-ui`      — the planner language (blue-grey, #0b57d0 primary)
+ *   2. `:root --ui-*`    — Tailwind greys, used by the primitive preview page
+ *   3. `focus-history.css` — its own neutral ramp (#77787c … #191a1c)
+ *   4. `rare-ui.css`     — a violet-tinted ramp (--rare-surface: #f4f4f9)
+ *
+ * This layer absorbs 1 and 2: both now resolve to the same names, so the
+ * preview page stops showing a different skin from the app it previews.
+ * 3 and 4 stay as they are — merging them changes pixels, and a token refactor
+ * must not. They are marked at the bottom so the page batch can pick them up.
+ *
+ * Every value here is copied verbatim from the layer it replaces. That is the
+ * whole point: `scripts/style-snapshot.mjs` proves the rendered result is
+ * byte-identical, which is a stronger claim than "looks the same".
+ */
+
+:root {
+  /* ---------- surfaces ---------- */
+  --background: #f8fafd;        /* app canvas (was --motion-canvas) */
+  --page: #f7f7f5;              /* html backdrop, visible at the viewport edge */
+  --foreground: #202124;        /* primary text (was --motion-ink) */
+  --card: #ffffff;              /* panels, dialogs, inputs (was --motion-panel) */
+  --card-foreground: #202124;
+  --surface-sunken: #f1f1f2;    /* recessed panel inside a card */
+
+  /* ---------- neutrals ---------- */
+  --muted: #f1f3f4;             /* secondary fill: chips, segment track */
+  --muted-hover: #e8eaed;       /* hover for the above, and for ghost buttons */
+  --muted-foreground: #5f6368;  /* secondary text (was --motion-muted) */
+  --border: #dadce0;            /* default hairline (was --motion-line) */
+  --divider: #e8eaed;           /* lighter rule between rows */
+  --placeholder: #9ca3af;
+
+  /* ---------- primary ---------- */
+  --primary: #0b57d0;
+  --primary-foreground: #ffffff;
+  --primary-hover: #0842a0;
+  --primary-soft: #e8f0fe;      /* selected row / today pill */
+  --primary-line: #a8c7fa;      /* border of the selected state */
+
+  /* ---------- status ---------- */
+  --success: #0b8043;
+  --success-soft: #ecfdf5;
+  --success-ink: #047857;
+
+  /* Seven steps, none of them merged yet: they came from four different
+   * components and two of them look identical at a glance. Naming them is all
+   * this step does; consolidating is a visual change and belongs to the dark
+   * mode batch, which needs every one of them anyway. */
+  --danger: #a63b35;            /* overload, delete failure */
+  --danger-ink: #a03c31;        /* error text on --danger-surface */
+  --danger-hover: #f7e9e6;      /* hover on a danger action */
+  --danger-surface: #fcf0ec;    /* inline error block */
+  --danger-soft: #fff5f1;       /* delete-error popover (rare-ui) */
+  --danger-line: #f2c8bc;
+  --danger-warm: #e74f25;       /* destructive confirm affordance */
+  --danger-strong: #8f1d17;
+
+  --info-soft: #eff6ff;
+  --info-ink: #1d4ed8;
+
+  /* ---------- data colours: priority ----------
+   * Not UI chrome. These encode a value, so they get a full ramp per key
+   * instead of borrowing the neutral scale. Naming is `<key>-<role>`:
+   *   solid = the data mark (chart segment, dot, accent bar)
+   *   soft  = card background    line = card border
+   *   ink   = text on soft       tag  = denser chip background
+   *   hover = hover for soft
+   */
+  --p1-solid: #9d7bf5;
+  --p1-soft: #f4effe;
+  --p1-line: #e4d9fc;
+  --p1-ink: #3d2b65;
+  --p1-tag: #e8defc;
+  --p1-hover: #eee5fd;
+
+  --p2-solid: #5b8def;
+  --p2-soft: #edf3fe;
+  --p2-line: #d3e1fc;
+  --p2-ink: #183456;
+  --p2-tag: #dce7fd;
+  --p2-hover: #e1ebfd;
+
+  --p3-solid: #9ab8db;
+  --p3-soft: #eef4fa;
+  --p3-line: #d7e4f1;
+  --p3-ink: #25435e;
+  --p3-tag: #dce8f4;
+  --p3-hover: #e1ecf7;
+
+  --pnone-solid: #f2c46d;
+  --pnone-soft: #fff7e8;
+  --pnone-line: #f9e5bb;
+  --pnone-ink: #533c16;
+  --pnone-tag: #fbedcf;
+  --pnone-hover: #fff0d4;
+
+  /* A task with no priority assignment at all, distinct from "none". */
+  --p-unassigned: #9ab9df;
+
+  /* ---------- legacy aliases ----------
+   * Kept so the ~300 existing references keep working. New code should use the
+   * semantic names above; these exist only to make this migration a refactor
+   * instead of a rewrite. Delete once `grep -- '--motion-'` comes back empty.
+   */
+  --priority-p1: var(--p1-solid);
+  --priority-p2: var(--p2-solid);
+  --priority-p3: var(--p3-solid);
+  --priority-none: var(--pnone-solid);
+
+  /* ---------- not yet folded in ----------
+   * `focus-history.css` runs its own neutral ramp and `rare-ui.css` a
+   * violet-tinted one. Both are self-consistent, both already use local
+   * variables, and neither can move here without changing pixels. They stay
+   * scoped to their components until the page batch decides what they should
+   * become.
+   */
+}
