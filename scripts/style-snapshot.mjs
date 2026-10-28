@@ -256,7 +256,16 @@ if (scenarioScript !== 'true') {
   await sleep(500);
 }
 
+/**
+ * Everything worth comparing between two states.
+ *
+ * The visual half came first, for the token work: a colour or radius change
+ * shows up here and nowhere else. The layout half was added before the page
+ * batch, because a re-arranged settings page moves pixels without touching a
+ * single colour — and a diff that cannot see that is not a diff.
+ */
 const PROPERTIES = [
+  // colour
   'color',
   'background-color',
   'background-image',
@@ -265,9 +274,23 @@ const PROPERTIES = [
   'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius',
   'box-shadow',
   'opacity',
-  'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing',
-  'fill', 'stroke',
   'outline-color', 'outline-width',
+  'fill', 'stroke',
+  // type
+  'font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing',
+  'text-align', 'text-transform', 'white-space',
+  // box
+  'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+  'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'box-sizing', 'display', 'visibility', 'pointer-events',
+  // placement and flow
+  'position', 'top', 'right', 'bottom', 'left', 'z-index',
+  'flex-direction', 'flex-wrap', 'align-items', 'justify-content',
+  'flex-grow', 'flex-shrink', 'flex-basis',
+  'gap', 'row-gap', 'column-gap',
+  'grid-template-columns', 'grid-template-rows',
+  'overflow-x', 'overflow-y',
 ];
 
 const snapshot = await evaluate(`(() => {
@@ -280,12 +303,24 @@ const snapshot = await evaluate(`(() => {
     while (current && current !== document.body) {
       const parent = current.parentElement;
       if (!parent) break;
-      const index = [...parent.children].indexOf(current);
-      const cls = (current.getAttribute('class') || '').split(/\\s+/).filter(Boolean)[0] || '';
-      parts.unshift(current.tagName.toLowerCase() + (cls ? '.' + cls : '') + '[' + index + ']');
+      const tag = current.tagName.toLowerCase();
+      const id = current.getAttribute('id');
+      const slot = current.getAttribute('data-slot');
+      if (id) {
+        parts.unshift(tag + '#' + id);
+      } else if (slot) {
+        parts.unshift(tag + '[' + slot + ']');
+      } else {
+        const index = [...parent.children].indexOf(current);
+        parts.unshift(tag + '[' + index + ']');
+      }
       current = parent;
     }
     return parts.join('>');
+  };
+  const hintOf = (node) => {
+    const cls = (node.getAttribute('class') || '').split(/\\s+/).filter(Boolean);
+    return cls.length ? '.' + cls.slice(0, 2).join('.') : '';
   };
   const rows = [];
   for (const node of nodes) {
@@ -299,6 +334,7 @@ const snapshot = await evaluate(`(() => {
     const seenCount = (seen.get(key) || 0) + 1;
     seen.set(key, seenCount);
     rows.push({
+      hint: hintOf(node),
       path: seenCount > 1 ? key + '#' + seenCount : key,
       visible,
       values,

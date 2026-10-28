@@ -348,3 +348,33 @@ final result: passed
 - Evidence: [planner](docs/ui-forms/planner-a34.png), [profile](docs/ui-forms/profile-a34.png). The heat map still reads as one surface.
 - Not covered: `z-index` is not part of the captured property set — every stacking change in this batch was a same-value rename, verified against the token table rather than by diff.
 
+## 2026-10-28: settings navigation and focus ring (D1, D4)
+
+final result: passed
+
+### What changed
+
+- The settings panel's anchor list became a sticky tab bar that follows the scroll: it sticks to the top of the dialog body without a jump, highlights the section you are reading, and scrolls the container itself when you click an entry.
+- `aria-current="location"` marks the active entry. This is in-page navigation, not a tab set — there is no tabpanel relationship to describe.
+- The focus ring became one value. `--ring` / `--ring-offset` replaced the Notion ink `#37352F` in the global `:focus-visible` rule; the hard-coded primary blue in `rare-ui` now references the same token, and the redundant `.motion-ui` input override is gone.
+- The snapshot tool now captures 58 properties instead of 24, adding the layout half (box, flow, placement). A re-arranged settings page moves pixels without touching a colour, and the old sampler could not see that.
+
+### Findings
+
+1. `P0` The app had two focus rings: inputs inside `.motion-ui` were primary blue, everything else was dark grey. A keyboard user met a different colour depending on what they had focused. Both are now `--ring`.
+2. `P0` The navigation order did not match the visual order — 桌面端 sits above 计划 on the page but was listed after it. Fixed to follow the page.
+3. `P0` Clicking 专注偏好 scrolled to the bottom and highlighted 数据管理: the scroll handler recomputed the active entry on every frame of the smooth scroll and overwrote the click. The clicked entry is now held for 1.2 s.
+4. `P1` The scroll test took the last entry in the array rather than the lowest heading that had passed the header. Those differ once a section is shorter than the viewport.
+5. `P1` The path used in the snapshot embedded the first class name, so any rename read as a pile of added and removed elements. Paths are now anchored on `id`, then `data-slot`, then child index; the class name is kept aside as a hint.
+6. `P2` `:focus-visible` cannot be triggered in a headless browser — a scripted `.focus()` does not count, a number input does not get Chrome's text-input exemption, and `Emulation.setFocusEmulationEnabled` only affects `:focus`. The rule was therefore verified through the CSSOM instead, and the unused `--focus` switch was removed rather than left as a trap.
+7. `P2` A `cp` during a stash round-trip overwrote the token file and dropped the `--ring` definition. The diff then reported "no unexpected differences", which looked exactly like success. The capture now runs only after `git diff --stat` confirms the change is in the working tree.
+
+### Verification
+
+- **Computed styles**: 8 scenarios, 9,062 elements × 58 properties. 84 differences, every one of them in the settings panel's navigation bar or the body's inherited colour; every other surface is untouched.
+- Browser: the bar measures `position: sticky` and sits at the same offset before and after scrolling, so there is no jump. Clicking each of the five entries lands on the right section, the URL keeps no fragment, and the highlighted entry matches the measured position of every heading at three different scroll offsets.
+- CSSOM: the global rule reads `:focus-visible { outline: 2px solid var(--ring); outline-offset: var(--ring-offset) }` with `--ring` resolving to `#0b57d0`.
+- `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass, production build passes.
+- Evidence: [settings panel](docs/ui-forms/settings-d1d4.png).
+- Not covered: the settings panel is only 205 px taller than the viewport, so only two of the five sections can be told apart by scrolling alone; the rest are reachable by clicking. That is a content-length limit, not a behaviour gap.
+

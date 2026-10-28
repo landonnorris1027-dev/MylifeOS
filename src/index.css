@@ -31,14 +31,14 @@ html {
 
 body {
   background-color: var(--page);
-  color: #37352F;
+  color: var(--foreground);
 }
 
 /* Keyboard users need a visible focus indicator; mouse users keep the
    clean look thanks to :focus-visible. */
 :focus-visible {
-  outline: 2px solid #37352F;
-  outline-offset: 2px;
+  outline: 2px solid var(--ring);
+  outline-offset: var(--ring-offset);
   border-radius: var(--radius-sm);
 }
 

@@ -6,8 +6,8 @@
 .rare-duration-unit { color:var(--rare-ink); font-size:12px; font-weight:550; white-space:nowrap; }
 .rare-duration-toggle { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; color:var(--rare-ink); background:var(--rare-surface); }
 .rare-duration-hint { margin-top:8px; color:#737985; font-size:11px; line-height:1.6; }
-.rare-duration-input:focus-visible { outline:0; box-shadow:inset 0 -2px #0b57d0; border-radius:var(--radius-sm); }
-.rare-duration-toggle:focus-visible, .rare-delete-anchor button:focus-visible { outline:2px solid #0b57d0; outline-offset:-3px; }
+.rare-duration-input:focus-visible { outline:0; box-shadow:inset 0 -2px var(--primary); border-radius:var(--radius-sm); }
+.rare-duration-toggle:focus-visible, .rare-delete-anchor button:focus-visible { outline:2px solid var(--ring); outline-offset:-3px; }
 .rare-delete-anchor { --delete-tile:48px; position:relative; display:inline-block; flex-shrink:0; width:var(--delete-tile); height:var(--delete-tile); vertical-align:middle; }
 .rare-delete-anchor.is-compact { --delete-tile:32px; }
 .rare-delete-button { position:absolute; right:0; top:0; height:100%; overflow:hidden; border-radius:var(--radius-xl); background:var(--rare-surface); color:var(--rare-ink); box-shadow:0 .5px 1px #00000006; }

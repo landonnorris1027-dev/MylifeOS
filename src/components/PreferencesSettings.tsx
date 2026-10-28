@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Target, Volume2, Bell, Minimize2, Coffee } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isAndroid } from '../services/platform';
@@ -16,27 +16,112 @@ interface Props {
  handlePlannerSettingsChange: (patch: Partial<PlannerSettings>) => void;
 }
 const BREAK_DURATION_OPTIONS = [3, 5, 10, 15];
+
+/**
+ * The in-page sections this navigation jumps between. `#settings-data` lives in
+ * the parent panel rather than here, so the list has to be resolved against the
+ * document, not against a parent element.
+ */
+const SETTINGS_SECTIONS = [
+  ['#settings-profile', 'profile_settings_title'],
+  ['#settings-focus', 'focus_preferences'],
+  ['#settings-desktop', 'desktop_section_title'],
+  ['#settings-planner', 'planner_settings_title'],
+  ['#settings-data', 'data_management'],
+] as const;
 const ROW_CLASS = 'rounded-xl border border-gray-100 bg-gray-50 px-4 py-3';
 export default function PreferencesSettings({ focusSettings, profileSettings, desktopSettings, plannerSettings,
  handleFocusSettingsChange, handleProfileSettingsChange, handleDesktopSettingsChange, handlePlannerSettingsChange }: Props) {
  const { t } = useLanguage();
  const decreaseLabel = (label: string) => t('stepper_decrease', { label });
  const increaseLabel = (label: string) => t('stepper_increase', { label });
+
+  const sections = useMemo(
+    () => SETTINGS_SECTIONS.filter(([href]) => !isAndroid() || href !== '#settings-desktop'),
+    [],
+  );
+  const [activeSection, setActiveSection] = useState<string>(sections[0][0]);
+  const lockRef = React.useRef<string | null>(null);
+  const lockTimer = React.useRef<number | null>(null);
+
+  /**
+   * Follow the scroll position.
+   *
+   * A hash link would not work here: the panel scrolls inside the dialog body,
+   * not the document, so the browser would scroll the page behind the dialog
+   * and put the fragment in the URL. The navigation scrolls the container
+   * itself and reports which section is under the header.
+   */
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>('[data-slot="dialog-body"]');
+    if (!root) return undefined;
+    const update = () => {
+      const rootTop = root.getBoundingClientRect().top;
+      // Pick the lowest heading that has already passed the header, rather than
+      // the last one in the list: the two orders are not the same thing once a
+      // section is shorter than the viewport.
+      let current = sections[0][0];
+      let bestTop = -Infinity;
+      for (const [id] of sections) {
+        const target = document.getElementById(id.slice(1));
+        if (!target) continue;
+        const top = target.getBoundingClientRect().top - rootTop;
+        if (top <= 48 && top > bestTop) {
+          bestTop = top;
+          current = id;
+        }
+      }
+      if (lockRef.current) {
+        setActiveSection(lockRef.current);
+        return;
+      }
+      setActiveSection(current);
+    };
+    root.addEventListener('scroll', update, { passive: true });
+    update();
+    return () => root.removeEventListener('scroll', update);
+  }, [sections]);
+
+  const jumpTo = (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    event.preventDefault();
+    const root = document.querySelector<HTMLElement>('[data-slot="dialog-body"]');
+    const target = document.getElementById(id.slice(1));
+    if (!root || !target) return;
+    const offset = target.getBoundingClientRect().top - root.getBoundingClientRect().top - 12;
+    root.scrollTo({ top: root.scrollTop + offset, behavior: 'smooth' });
+    // Hold the clicked entry while the smooth scroll runs. Without this the
+    // scroll handler overwrites it on the very next frame, and a click on a
+    // section that cannot reach the top of the viewport lands on the wrong
+    // label entirely.
+    lockRef.current = id;
+    setActiveSection(id);
+    if (lockTimer.current) window.clearTimeout(lockTimer.current);
+    lockTimer.current = window.setTimeout(() => { lockRef.current = null; }, 1200);
+  };
  return <>
-            <nav aria-label={t('settings_title')} className={`grid ${isAndroid() ? 'grid-cols-4' : 'grid-cols-5'} gap-1 text-center text-[11px]`}>
-            {([
-              ['#settings-profile', 'profile_settings_title'],
-              ['#settings-focus', 'focus_preferences'],
-              ['#settings-planner', 'planner_settings_title'],
-              ['#settings-desktop', 'desktop_section_title'],
-              ['#settings-data', 'data_management'],
-              ] as const).filter(([href]) => !isAndroid() || href !== '#settings-desktop').map(([href, key]) => (
-              <a key={href} href={href} className="rounded-lg bg-gray-100 px-1 py-2 text-gray-700 hover:bg-gray-200 focus-visible:ring-2">{t(key)}</a>
-            ))}
-          </nav>
+<nav
+              aria-label={t('settings_title')}
+              className={`sticky top-0 z-10 -mx-6 -mt-6 grid ${isAndroid() ? 'grid-cols-4' : 'grid-cols-5'} gap-1 border-b border-gray-100 bg-white/95 px-6 pt-4 pb-2 text-center text-[11px] backdrop-blur`}
+            >
+              {sections.map(([href, key]) => (
+                <a
+                  key={href}
+                  href={href}
+                  onClick={(event) => jumpTo(event, href)}
+                  aria-current={activeSection === href ? 'location' : undefined}
+                  className={`rounded-lg px-1 py-2 transition-colors focus-visible:ring-2 ${
+                    activeSection === href
+                      ? 'bg-[var(--primary-soft)] font-semibold text-[var(--primary)]'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {t(key)}
+                </a>
+              ))}
+            </nav>
           {/* Profile settings */}
           <div className="border-t border-gray-100 pt-6">
-            <h3 id="settings-profile" className="mb-3 block scroll-mt-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <h3 id="settings-profile" className="mb-3 block scroll-mt-16 text-xs font-semibold text-gray-400 uppercase tracking-wider">
               {t('profile_settings_title')}
             </h3>
             <div className="space-y-3">
@@ -58,7 +143,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 />
               </Field>
 
-              <div id="settings-focus" className="scroll-mt-4 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('focus_preferences')}</div>
+              <div id="settings-focus" className="scroll-mt-16 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('focus_preferences')}</div>
 
               <Field
                 orientation="horizontal"
@@ -100,7 +185,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 <AndroidReminderSettings />
               </>}
               <div className={`border-t border-gray-100 pt-6 ${isAndroid() ? 'hidden' : ''}`}>
-                <h3 id="settings-desktop" className="mb-3 block scroll-mt-4 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <h3 id="settings-desktop" className="mb-3 block scroll-mt-16 text-xs font-semibold uppercase tracking-wider text-gray-400">
                   {t('desktop_section_title')}
                 </h3>
                 <div className="space-y-3">
@@ -142,7 +227,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
           </div>
 
           <FieldSet className="border-t border-gray-100 pt-6">
-            <FieldLegend id="settings-planner" className="mb-3 block scroll-mt-4">
+            <FieldLegend id="settings-planner" className="mb-3 block scroll-mt-16">
               {t('planner_settings_title')}
             </FieldLegend>
             <div className="grid grid-cols-2 gap-2">

@@ -42,7 +42,7 @@ for (const file of files) {
     for (const [prop, value] of Object.entries(row.values)) {
       const next = other.values[prop];
       if (next !== value) {
-        diffs.push({ kind: 'changed', path, prop, before: value, after: next, visible: row.visible && other.visible });
+        diffs.push({ kind: 'changed', path, hint: other.hint || row.hint || '', prop, before: value, after: next, visible: row.visible && other.visible });
         const bucket = summary.get(prop) || 0;
         summary.set(prop, bucket + 1);
       }
@@ -63,7 +63,7 @@ for (const file of files) {
   for (const diff of shown) {
     if (diff.kind === 'changed') {
       console.log(`  ${diff.visible ? '●' : '○'} ${diff.prop}: ${diff.before} → ${diff.after}`);
-      console.log(`      @ ${diff.path}`);
+      console.log(`      @ ${diff.path}${diff.hint ? ' ' + diff.hint : ''}`);
     } else {
       console.log(`  ${diff.kind === 'added' ? '+' : '−'} ${diff.path}`);
     }

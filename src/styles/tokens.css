@@ -120,6 +120,12 @@
    * Everything that used to sit between two steps moved to the nearer one:
    * 2/3/5 → 4, 6 → 8, 10/11/12.5/13 → 12, 14/18 → 16, 26/28 → 24, 99 → pill.
    */
+  /* Focus ring. The app used two rings: inputs inside .motion-ui were primary
+   * blue, everything else was the Notion ink #37352F, so a keyboard user met a
+   * different colour depending on what they had focused. One value now. */
+  --ring: var(--primary);
+  --ring-offset: 2px;
+
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;

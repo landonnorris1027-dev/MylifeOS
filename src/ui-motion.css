@@ -239,7 +239,6 @@
 .motion-ui :where(input, select, textarea) {
   transition: background-color 180ms, border-color 180ms, box-shadow 220ms;
 }
-.motion-ui :where(input, select, textarea):focus-visible { outline-color: var(--motion-primary); }
 .motion-scene { min-width: 0; }
 .motion-page-title h1 { animation: motion-content-enter 240ms var(--motion-ease) both; }
 .motion-panel-count { animation: motion-count-enter 320ms var(--motion-spring) both; }
