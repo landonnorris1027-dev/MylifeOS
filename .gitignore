@@ -48,4 +48,12 @@ main.js
 
 # Isolated UI validation artifacts (representative evidence lives in docs)
 .playwright-cli/
-output/playwright/ui-motion/
+.playwright-mcp/
+output/playwright/
+output/*/test-temp/
+
+# Recoverable local cleanup and migration records
+.local-archive/
+
+# Local agent workspace notes
+.workbuddy/
