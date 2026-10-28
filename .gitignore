@@ -49,12 +49,17 @@ main.js
 # Isolated UI validation artifacts (representative evidence lives in docs)
 .playwright-cli/
 .playwright-mcp/
-output/playwright/
-output/ui-forms/
-output/*/test-temp/
+# Everything under output/ is produced locally: browser profiles, review
+# screenshots and the computed-style snapshots. The snapshot sets run to
+# hundreds of megabytes, and the useful evidence is copied into docs/ui-forms.
+output/
 
 # Recoverable local cleanup and migration records
 .local-archive/
 
 # Local agent workspace notes
 .workbuddy/
+
+# Local working-directory rules. The file records an absolute path on this
+# machine, so it means nothing to anyone who clones the repository.
+AGENTS.md
