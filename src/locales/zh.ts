@@ -288,7 +288,14 @@ const zh = {
   less: '少',
   more: '多',
   hours_suffix: '小时',
+  command_tasks: '任务',
+  command_actions: '快捷动作',
+  command_advanced: '高级筛选',
+  command_hint: '↑↓ 选择 · Enter 打开 · Esc 关闭',
+  command_empty_hint: '输入任务名、目标或备注试试',
   date_locale: 'zh-CN',
+  stepper_decrease: '减少{label}',
+  stepper_increase: '增加{label}',
 } as const;
 
 export default zh;

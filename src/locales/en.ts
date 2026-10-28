@@ -288,7 +288,14 @@ const en = {
   less: 'Less',
   more: 'More',
   hours_suffix: 'h',
+  command_tasks: 'Tasks',
+  command_actions: 'Actions',
+  command_advanced: 'Filters',
+  command_hint: '↑↓ to move · Enter to open · Esc to close',
+  command_empty_hint: 'Try a task name, goal or note',
   date_locale: 'en-US',
+  stepper_decrease: 'Decrease {label}',
+  stepper_increase: 'Increase {label}',
 } as const;
 
 export default en;
