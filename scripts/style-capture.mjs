@@ -30,8 +30,12 @@ const SCENARIOS = [
   // Populated states: the only ones that render task cards and the priority ramp.
   { name: 'planner', size: '1280x940', seed: 'tasks' },
   { name: 'planner', size: '390x844', seed: 'tasks' },
-  { name: 'schedule', size: '1280x940', seed: 'tasks' },
 ];
+
+/* The scheduling dialog is deliberately not in this list. Its available slots
+ * are generated from the current clock, so two captures an hour apart show
+ * different buttons and the baseline stops being a baseline. It remains
+ * available as a standalone scenario for inspecting that one surface. */
 
 let failed = 0;
 for (const scenario of SCENARIOS) {

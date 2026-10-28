@@ -12,7 +12,7 @@ export default function BatchRescheduleModal({ open, tasks, onClose, onConfirm }
   const { isPresent, presenceProps } = useMotionPresence(open ? true : null);
   useEffect(() => { if (open) { setSelected([]); setDate(''); } }, [open]);
   if (!isPresent) return null;
-  return <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
+  return <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/20 p-4">
     <div {...dialogProps} ref={containerRef} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"><form onSubmit={async e => {
       e.preventDefault(); if (busy) return; setBusy(true);
       try { if (await onConfirm(eligible.filter(t => selected.includes(t.id)), date)) onClose(); } finally { setBusy(false); }

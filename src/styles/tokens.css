@@ -1,6 +1,6 @@
-/* Design tokens — the single source of truth for colour.
+/* Design tokens — colour, radius, elevation and stacking.
  *
- * Before this file the app carried four palettes that never met:
+ * Colour history: the app carried four palettes that never met:
  *
  *   1. `.motion-ui`      — the planner language (blue-grey, #0b57d0 primary)
  *   2. `:root --ui-*`    — Tailwind greys, used by the primitive preview page
@@ -9,12 +9,13 @@
  *
  * This layer absorbs 1 and 2: both now resolve to the same names, so the
  * preview page stops showing a different skin from the app it previews.
- * 3 and 4 stay as they are — merging them changes pixels, and a token refactor
- * must not. They are marked at the bottom so the page batch can pick them up.
+ * 3 and 4 stay as they are — merging them changes pixels, and the colour
+ * migration must not.
  *
- * Every value here is copied verbatim from the layer it replaces. That is the
- * whole point: `scripts/style-snapshot.mjs` proves the rendered result is
- * byte-identical, which is a stronger claim than "looks the same".
+ * Radius and elevation are different: their sections below *do* change pixels.
+ * Twelve radius values collapse into five steps plus a pill, because a scale
+ * nobody can state from memory is not a scale. The one value that must not move
+ * is the 25px profile card — it was signed off pixel by pixel.
  */
 
 :root {
@@ -110,6 +111,64 @@
   --priority-p2: var(--p2-solid);
   --priority-p3: var(--p3-solid);
   --priority-none: var(--pnone-solid);
+
+  /* ---------- radius ----------
+   * Five steps, named by size rather than by component. The px values keep the
+   * 1 : 2 : 3 : 4 : 6 ratio around a 16px base, so they stay integers when the
+   * base changes (calc() would produce fractions at most base values).
+   *
+   * Everything that used to sit between two steps moved to the nearer one:
+   * 2/3/5 → 4, 6 → 8, 10/11/12.5/13 → 12, 14/18 → 16, 26/28 → 24, 99 → pill.
+   */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* Signed off pixel by pixel in design-qa.md; not part of the scale above. */
+  --radius-card-profile: 25px;
+
+  /* Contribution-graph cells. Two pixels on purpose: neighbouring cells have to
+   * read as one continuous heat map, and a 4px corner opens visible white
+   * seams between them. It was the last value on the scale that looked
+   * arbitrary and turned out not to be. */
+  --radius-cell: 2px;
+
+  /* ---------- elevation ----------
+   * Three steps plus the dialog, all sharing one shadow colour so they differ
+   * only in spread and blur. Values were lifted from the surfaces that already
+   * used them, then re-expressed as one ramp.
+   */
+  --shadow-1: 0 1px 3px rgba(25, 25, 25, .06);
+  --shadow-2: 0 4px 10px rgba(25, 25, 25, .07);
+  --shadow-3: 0 16px 40px rgba(25, 25, 25, .14);
+  --shadow-dialog: 0 24px 64px rgba(25, 25, 25, .18);
+
+  /* Shadows that stay literal, and why:
+   *   toast         0 12px 32px rgba(17,24,39,.28)  — a dark surface needs more
+   *                                                    weight than .14 or it
+   *                                                    stops reading as floating
+   *   switch knob   0 1px 2px rgba(17,24,39,.25)     — part of a moulded control
+   *   brand tint    0 2px 5px / 0 5px 16px #0b57d0   — coloured, not neutral
+   *   inset rules   inset 0 -2px …                   — underline, not elevation
+   */
+
+  /* ---------- stacking ----------
+   * A single ladder. Before this, values ranged from 1 to 120 with no stated
+   * order, and two components both claimed 50.
+   */
+  --z-base: 0;
+  --z-raised: 10;      /* decorative lift inside a card */
+  --z-nav: 30;         /* sticky top bar */
+  --z-status: 40;      /* safe-area status strip */
+  --z-modal: 50;
+  --z-popover: 70;     /* must sit above the dialog that owns it */
+  --z-alert: 100;
+  --z-critical: 110;   /* recovery prompt over everything but toasts */
+  --z-toast: 120;
 
   /* ---------- not yet folded in ----------
    * `focus-history.css` runs its own neutral ramp and `rare-ui.css` a

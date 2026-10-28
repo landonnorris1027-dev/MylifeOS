@@ -192,7 +192,7 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
                         key={day.date || `empty-${wIndex}-${dayIndex}`}
                         title={day.date ? `${day.date} · ${Math.floor(day.minutes)} ${t('minute_unit_short')}` : undefined}
                         className={`
-                           profile-activity-cell rounded-[2px] border
+                           profile-activity-cell rounded-[var(--radius-cell)] border
                            ${getColorClass(day.level, day.isFuture, day.date === '')}
                            transition-all group relative
                            hover:scale-125 hover:z-50 cursor-default
@@ -232,12 +232,12 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
           {/* Legend */}
           <div className="profile-activity-legend flex items-center justify-end gap-2 mt-6 profile-activity-label text-xs text-gray-500">
             <span>{t('less')}</span>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(0, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(1, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(2, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(3, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(4, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[2px] ${getColorClass(5, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(0, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(1, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(2, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(3, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(4, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(5, false, false)}`}></div>
             <span>{t('more')}</span>
           </div>
 

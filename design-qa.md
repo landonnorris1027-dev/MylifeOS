@@ -319,3 +319,32 @@ final result: passed
 - Evidence: [preview page after unification](docs/ui-forms/preview-a2.png). Snapshots live in `output/style-snapshots/` (12 MB, not committed).
 - Not covered: hover states were checked statically, not by driving a pointer; `focus-history.css` and `rare-ui.css` keep their own ramps on purpose — folding them in changes pixels and belongs to the page batch.
 
+## 2026-10-28: radius, elevation and stacking scales (A3, A4)
+
+final result: passed
+
+### What changed
+
+- Radius now has five steps (4 / 8 / 12 / 16 / 24) plus a pill, a circle and two values that stay on their own. The 22 distinct literals in CSS collapsed to 9 in the rendered output.
+- Tailwind's `rounded-*` classes point at the same tokens while keeping the pixel value they already rendered, so the utility classes in JSX look unchanged.
+- Elevation gained `--shadow-1..3` and `--shadow-dialog`; the surfaces that already used those shapes now reference them. Shadows with a reason to be literal — the toast's dark-surface shadow, the switch knob, brand tints, inset underlines — stay literal, with the reason recorded in the token file.
+- Stacking became one ladder. `ui.css`'s local `--ui-z-*` now point at it, and the three hand-built overlays use `z-[var(--z-modal)]`.
+- Removed 22 lines of `.motion-search-*` and `.motion-success-toast` rules that no longer had a single reference, and that still occupied the 50 and 100 slots.
+
+### Findings
+
+1. `P0` The 2px on the contribution-graph cells survived the first pass and would have become 4px. That is the one value on the scale that looks arbitrary and is not: neighbouring cells have to read as one continuous heat map, and a 4px corner opens visible white seams. It now has a name (`--radius-cell`) and a reason.
+2. `P0` The scheduling dialog is not a usable baseline. Its available slots are generated from the current clock, so two captures an hour apart show different buttons — 90 "colour differences" that were really different content. Removed from the baseline list.
+3. `P1` The stylesheet is injected asynchronously, and the one-shot token check failed on alternate runs. It looked like a broken build; polling fixed it.
+4. `P1` The A2 baseline was captured while Vite was still rebuilding after a checkout swap. The zero-difference result was real, but the process could have hidden a half-applied stylesheet. The capture now verifies the sheet is loaded and pulls it with the cache disabled.
+5. `P2` `rounded-sm` (2px) and `rounded-md` (6px) were Tailwind's only two off-scale values; they now land on 4 and 8. Every other utility class kept its exact rendering.
+
+### Verification
+
+- **Computed styles**: 8 scenarios, 9,062 elements × 24 properties. 1,310 differences, every one of them a radius (1,308) or a shadow (2) — **no colour moved**.
+- Radius values in the rendered output: 20 before, 9 after (4 / 8 / 12 / 16 / 24 / 25 / 50% / 999px / 2px).
+- The scheduler was still not a usable baseline; the three captures taken in a row now match exactly.
+- `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass, production build passes.
+- Evidence: [planner](docs/ui-forms/planner-a34.png), [profile](docs/ui-forms/profile-a34.png). The heat map still reads as one surface.
+- Not covered: `z-index` is not part of the captured property set — every stacking change in this batch was a same-value rename, verified against the token table rather than by diff.
+

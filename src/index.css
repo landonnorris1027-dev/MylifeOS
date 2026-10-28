@@ -16,7 +16,7 @@ html {
 }
 .safe-area-sticky-top { top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); }
 .safe-area-status-bar {
-  position: fixed; z-index: 40; top: 0; left: 0; right: 0; pointer-events: none;
+  position: fixed; z-index: var(--z-status); top: 0; left: 0; right: 0; pointer-events: none;
   height: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   background: rgba(255,255,255,.8); backdrop-filter: blur(16px);
 }
@@ -39,7 +39,7 @@ body {
 :focus-visible {
   outline: 2px solid #37352F;
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -64,7 +64,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: #D3D1CB;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {

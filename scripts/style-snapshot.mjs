@@ -108,6 +108,10 @@ const evaluate = async (expression) => {
 
 await send('Page.enable');
 await send('Runtime.enable');
+// Always pull the current stylesheet. A dev server may have rebuilt it since
+// the last capture, and a cached copy would silently compare the wrong thing.
+await send('Network.enable');
+await send('Network.setCacheDisabled', { cacheDisabled: true });
 // Freeze motion. Several surfaces run an entrance animation, so a snapshot
 // taken mid-transition records an opacity that depends on timing rather than on
 // tokens — the one source of nondeterminism this tool had.
@@ -177,13 +181,53 @@ const scenarioScript = {
   })()`,
   // Opens the scheduling dialog, whose header is tinted by the task's priority —
   // the surface that actually renders PRIORITY_STYLES.bg / .text.
-  schedule: `(() => {
-    const card = document.querySelector('.motion-task');
+  // The card has to be waited for: after the seeded reload the task list can
+  // still be empty, and clicking then lands on a different control than on a
+  // later run, which makes two captures of the same code disagree.
+  schedule: `(async () => {
+    const t0 = Date.now();
+    let card = null;
+    while (Date.now() - t0 < 8000) {
+      card = document.querySelector('.motion-task');
+      if (card) break;
+      await new Promise(r => setTimeout(r, 80));
+    }
     if (!card) return 'no-card';
     card.click();
     return 'clicked';
   })()`,
 }[SCENARIO] || 'true';
+
+// Guard against a stale stylesheet. Vite rebuilds CSS on change, but a rebuild
+// that is interrupted — or a checkout that swaps files under a running server —
+// leaves the page serving half of the old sheet and half of the new one. Two
+// captures of the same source then disagree for reasons that have nothing to
+// do with the change under test.
+// The stylesheet arrives as an injected module, so it can land after the page
+// has already rendered. Poll for it rather than checking once: a single check
+// failed on alternate runs, which looked like a broken build and was really
+// just a race.
+const tokenCheck = await evaluate(`(async () => {
+  const t0 = Date.now();
+  let last = {};
+  while (Date.now() - t0 < 8000) {
+    const root = document.querySelector('.motion-ui') || document.documentElement;
+    const style = getComputedStyle(root);
+    const read = (name) => style.getPropertyValue(name).trim();
+    // Only the colour layer is required. The radius and stacking tokens are
+    // exactly what a batch may be adding, so demanding them here would refuse
+    // to capture the state before the change.
+    last = { primary: read('--primary'), foreground: read('--foreground') };
+    if (last.primary && last.foreground) return { ...last, ok: true };
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return { ...last, ok: false };
+})()`);
+if (!tokenCheck.ok) {
+  console.error(`样式表未在 8 秒内加载，缺少：${Object.entries(tokenCheck).filter(([k, v]) => k !== 'ok' && !v).map(([k]) => k).join(', ')}。`);
+  console.error('重启开发服务器后再采样。');
+  process.exit(1);
+}
 
 // Every scenario needs the app mounted first — including the ones that click
 // something. Skipping this made the settings scenario fail intermittently,

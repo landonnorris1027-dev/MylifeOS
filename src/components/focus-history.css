@@ -6,7 +6,7 @@
   max-width: 100%;
   padding: 20px;
   border: 0;
-  border-radius: 25px;
+  border-radius: var(--radius-card-profile);
   background: #fff;
   color: #191a1c;
   font-family: Arial, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
@@ -14,19 +14,19 @@
 .focus-history-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; height: 42.5px; }
 .focus-history-heading h2 { font-size: 17.5px; font-weight: 500; line-height: 22.5px; letter-spacing: -.3px; }
 .focus-history-heading p { font-size: 16px; line-height: 20px; color: #868788; }
-.focus-history-card .motion-segments { padding: 2.5px; border-radius: 12.5px; background: #f1f1f2; }
+.focus-history-card .motion-segments { padding: 2.5px; border-radius: var(--radius-lg); background: #f1f1f2; }
 .focus-history-card .motion-segment-plate {
   inset: 2.5px auto 2.5px 2.5px;
   width: calc((100% - 5px) / var(--segments));
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: white;
-  box-shadow: 0 1px 3px #00000006;
+  box-shadow: var(--shadow-1);
 }
 .focus-history-card .motion-segment-button {
   min-height: 35px;
   min-width: 65.3125px;
   padding: 7.5px 13px;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-family: inherit;
   font-size: 15px;
   font-weight: 500;
@@ -40,7 +40,7 @@
 .focus-history-plot { position: relative; height: 158.75px; touch-action: pan-y; }
 .focus-history-plot::before { content: ''; position: absolute; left: 0; right: 0; top: 130px; border-top: 1.25px solid #e3e3e4; }
 .focus-history-columns { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); column-gap: 7.5px; height: 100%; }
-.focus-history-column { position: relative; display: grid; grid-template-rows: 127.5px 25px; row-gap: 6.25px; min-width: 0; padding: 0; background: transparent; border: 0; cursor: pointer; outline-offset: 4px; border-radius: 5px; }
+.focus-history-column { position: relative; display: grid; grid-template-rows: 127.5px 25px; row-gap: 6.25px; min-width: 0; padding: 0; background: transparent; border: 0; cursor: pointer; outline-offset: 4px; border-radius: var(--radius-sm); }
 .focus-history-column::after {
   content: '';
   position: absolute;
@@ -48,7 +48,7 @@
   top: calc(127.5px - var(--focus-positive) - 4px);
   bottom: calc(25px - var(--focus-negative) - 4px);
   border: 1px solid #d2d3d7;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   opacity: 0;
   pointer-events: none;
   transition: opacity 140ms;
@@ -58,17 +58,17 @@
 .focus-history-columns[data-active='true'] .focus-history-column:not([aria-pressed='true']) { opacity: .35; }
 .focus-history-positive { display: flex; align-items: flex-end; }
 .focus-history-stack { display: flex; flex-direction: column-reverse; width: 100%; transform-origin: center bottom; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
-.focus-history-segment { display: block; width: 100%; flex-shrink: 0; min-height: 0; border-radius: 3px; box-shadow: inset 0 -2px #fff; }
+.focus-history-segment { display: block; width: 100%; flex-shrink: 0; min-height: 0; border-radius: var(--radius-sm); box-shadow: inset 0 -2px #fff; }
 .focus-history-negative { display: block; }
-.focus-history-negative > i { display: block; width: 100%; border-radius: 3px; background: #e5484d; transform-origin: center top; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
+.focus-history-negative > i { display: block; width: 100%; border-radius: var(--radius-sm); background: #e5484d; transform-origin: center top; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
 .profile-panel[data-motion-reveal='pending'] .focus-history-stack,
 .profile-panel[data-motion-reveal='pending'] .focus-history-negative > i { animation-play-state: paused; }
 .focus-history-endpoints { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; line-height: 17.5px; color: #a3a3a6; }
 .focus-history-tooltip {
   position: absolute; z-index: 4; top: 2px;
   width: 165px; padding: 10px 12px;
-  border: 1px solid #ededee; border-radius: 13px;
-  background: #fff; box-shadow: 0 5px 20px #00000010;
+  border: 1px solid #ededee; border-radius: var(--radius-lg);
+  background: #fff; box-shadow: var(--shadow-3);
   font-size: 12.5px; line-height: 17.5px; font-variant-numeric: tabular-nums;
   pointer-events: none;
   transition: left 200ms var(--motion-ease);
@@ -78,7 +78,7 @@
 .focus-history-tooltip-heading strong { color: #242426; font-weight: 500; }
 .focus-history-tooltip > span { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: #77787c; }
 .focus-history-tooltip b { margin-left: auto; font-weight: 500; color: #242426; }
-.focus-history-key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.focus-history-key { display: inline-block; width: 8px; height: 8px; border-radius: var(--radius-sm); flex-shrink: 0; }
 .stack-P1 { background: var(--stack-p1); }
 .stack-P2 { background: var(--stack-p2); }
 .stack-P3 { background: var(--stack-p3); }

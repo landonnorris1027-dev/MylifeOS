@@ -26,7 +26,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task: currentTask, on
   if (!task) return null;
 
   return (
-    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
       <div
         {...dialogProps}
         aria-label={t('task_review_title')}
