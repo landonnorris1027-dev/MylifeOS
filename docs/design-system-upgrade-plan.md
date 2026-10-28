@@ -123,7 +123,7 @@
 
 - [ ] **E1 视觉基线先行** — 动手前先把 planner / profile / settings / 3 个弹窗 / 375px 与 1280px 两档截图入库，重构后逐屏 diff，结论写回 `design-qa.md`（沿用现有证据格式）。
 - [ ] **E2 DOM 契约清单** — 列出 296 个测试依赖的 `aria-label` / `data-testid` / 可见文案，重构前后跑 `npm run verify:quality`；契约变更必须单独提交。
-- [ ] **E3 a11y 门禁** — 加 `eslint-plugin-jsx-a11y` + 一个 axe 冒烟测试（3 个主视图 + 2 个弹窗），进 CI。
+- [x] **E3 a11y 门禁（第一步）** — `src/ui/a11y.test.tsx` 用 axe-core 扫描表单原语、Dialog、AlertDialog、Toast 视口，并且带一条**反向自检**（渲染裸 `<input>` 必须报 `label` 违规），保证"全绿"不是因为没扫到东西。`eslint-plugin-jsx-a11y` 和主视图扫描仍未做。
 - [ ] **E4 原语预览页** — 不引 Storybook（体积/维护成本不划算），改为 `src/ui/__preview__/` 一个内部路由，按 Origin UI 的方式展示每个原语的状态矩阵；改 token 时一屏就能看出破没破。
   *已完成雏形*：`ui-preview.html` + `src/ui/preview.tsx`（`?only=<section>` 可单独看一屏；不进入生产构建）。
 

@@ -239,3 +239,23 @@ final result: passed
 - Renderer: shortcut popover renders six aligned rows; at 390 × 844 the manual-task dialog measures 564 px and docks to the bottom; the profile page reports `summary = DL` with four `dt`/`dd` pairs, `review list = UL` and `nav role=navigation` + `aria-current=page` reading 画像.
 - Evidence: [popover](docs/ui-forms/popover.png), [sheet](docs/ui-forms/sheet.png), [profile semantics](docs/ui-forms/profile-semantics.png).
 - Not covered: review rows were not re-screenshotted with real data (the empty state was); the structure is instead locked by the new test.
+
+## 2026-10-28: accessibility gate (E3, first step)
+
+final result: passed
+
+### What changed
+
+- `src/ui/a11y.test.tsx` runs axe-core over the form primitives, an open Dialog, an open AlertDialog and the toast viewport.
+- It contains a **negative control**: rendering a bare `<input>` must report the `label` violation. Without that, a green run could simply mean the scanner never worked.
+- jsdom has no canvas, and axe probes icon ligatures through a 2d context; the test stubs `getContext` locally so the suite stays quiet.
+- Colour-contrast and region rules are disabled because jsdom has no layout; those stay covered by the browser screenshots.
+
+### Verification
+
+- `tsc` clean; **343 tests** pass; production build passes.
+- The negative control fails the way it should when the input has no label, which is the only evidence that the gate has teeth.
+
+### Not covered
+
+`eslint-plugin-jsx-a11y` and axe runs over the three main views are still open. The gate currently covers the component layer, not whole screens.
