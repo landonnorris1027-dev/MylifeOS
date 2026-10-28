@@ -1,4 +1,5 @@
 const zh = {
+  ui_mobile_view: '视图切换',
   ui_navigation: '主导航',
   delete_habit: '删除习惯',
   ui_daily_plan: '每日计划',

@@ -1,4 +1,5 @@
 const en = {
+  ui_mobile_view: 'View switch',
   ui_navigation: 'Main navigation',
   delete_habit: 'Delete habit',
   ui_daily_plan: 'Daily planner',

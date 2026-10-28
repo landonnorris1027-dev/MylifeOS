@@ -744,6 +744,9 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                 onChange={handleFileChange}
                 accept=".json"
                 className="hidden"
+                // Opened by the button above; named anyway so the control stays
+                // labelled if it is ever revealed or reached directly.
+                aria-label={t('restore_data')}
               />
             </div>
 

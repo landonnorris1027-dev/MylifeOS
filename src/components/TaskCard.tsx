@@ -49,6 +49,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onClick, onFocus, onDeleteTod
     {mode === 'pool' && !isCompleted && <p className="motion-task-schedule-hint">{t('ui_task_schedule_hint')}</p>}
     <div className="motion-task-footer">
       {onFocus && task.status !== 'completed' && <button type="button" className="motion-task-focus" onClick={event => action(event, () => onFocus(task))}><Play size={12} fill="currentColor"/>{t('start_focus')}</button>}
+      {/* Containment: keeps action taps from also selecting the card. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div className="motion-task-actions" onClick={event => event.stopPropagation()}>
         {onEditReview && <button type="button" className="motion-icon-button" title={t('task_review_edit')} aria-label={t('task_review_edit')} onClick={event => action(event, () => onEditReview(task))}><FileText size={15}/></button>}
         {onReschedule && (task.origin === 'manual' || !task.habitId) && task.status !== 'completed' && <button type="button" className="motion-icon-button" title={t('reschedule_title')} aria-label={t('reschedule_title')} onClick={event => action(event, () => onReschedule(task))}><CalendarDays size={15}/></button>}

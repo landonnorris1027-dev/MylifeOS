@@ -86,6 +86,9 @@ export const Dialog: React.FC<DialogProps> = ({
   const dismissOnBackdrop = closeOnOverlayClick ?? role === 'dialog';
 
   return (
+    // Backdrop dismissal is the pointer convenience; Escape and the close
+    // button are the keyboard path, so this wrapper is not a control.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       {...presenceProps}
       className="motion-modal-overlay ui-dialog-overlay"

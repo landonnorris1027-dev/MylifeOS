@@ -83,6 +83,10 @@ export default function DeleteButton({ label, description, onConfirm, compact = 
     } finally { busyRef.current = false; }
   };
   const busy = status === 'pending';
+  // Containment, not interaction: this handler only stops a click from
+  // reaching the task card behind it. The delete itself lives on the
+  // trigger button below, which is a real <button>.
+  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
   return <div ref={bindRef}
     data-motion-feedback="self" data-inline-escape={open || undefined}
     className={`rare-delete-anchor ${compact ? 'is-compact' : ''}`} style={{ zIndex: open ? 60 : undefined }}

@@ -122,8 +122,15 @@
 ### E. 质量门（贯穿全程，不是最后做）
 
 - [ ] **E1 视觉基线先行** — 动手前先把 planner / profile / settings / 3 个弹窗 / 375px 与 1280px 两档截图入库，重构后逐屏 diff，结论写回 `design-qa.md`（沿用现有证据格式）。
-- [ ] **E2 DOM 契约清单** — 列出 296 个测试依赖的 `aria-label` / `data-testid` / 可见文案，重构前后跑 `npm run verify:quality`；契约变更必须单独提交。
-- [x] **E3 a11y 门禁（第一步）** — `src/ui/a11y.test.tsx` 用 axe-core 扫描表单原语、Dialog、AlertDialog、Toast 视口，并且带一条**反向自检**（渲染裸 `<input>` 必须报 `label` 违规），保证"全绿"不是因为没扫到东西。`eslint-plugin-jsx-a11y` 和主视图扫描仍未做。
+- [x] **E2 DOM 契约清单** — `scripts/dom-contract.mjs` 从全部测试文件提取 91 条 `querySelector` / `closest` / `matches` 选择器与 39 条直接断言的文案，按**断裂方式**分五级（结构 / 类名 / 组合 / 语义 / 标签），生成 `docs/dom-contract.md`。
+  *门禁*：`npm run contract:dom:check` 已接入 `verify:quality`——清单与测试不一致时退出码 1，逼着契约变更单独提交。
+  *额外产出*：交叉校验 `[data-slot]` / `[data-testid]` 是否还在源码里，报出 3 条**失效契约**（实为测试内 fixture，已修正扫描范围）。
+  *副产品*：清单里 6 条把中文写进 `aria-label`/`title` 的选择器被单独列出——切语言就会静默失配，已提示改造方向。
+- [x] **E3 a11y 门禁** — 两层：
+  1. *组件层*：`src/ui/a11y.test.tsx` 用 axe-core 扫描表单原语、Dialog、AlertDialog、Toast 视口，带**反向自检**（渲染裸 `<input>` 必须报 `label` 违规）。
+  2. *页面层*：`src/app-views.a11y.test.tsx` 挂载真实 `<App/>`，扫描 planner / profile / 设置面板三个界面，并用「按钮数 > 5」「面板含『每周目标』」这类内容断言防止扫空壳。
+  3. *静态层*：`eslint.config.mjs` 只跑 jsx-a11y（不引入通用 lint 基线，否则 a11y 信号会被淹没），`npm run lint:a11y` 已接入 `verify:quality`。
+  *实测抓到 4 个真问题*：`−7/+7` 按钮的可访问名与可见文本不符（WCAG 2.5.3）、两个 navigation landmark 同名、隐藏的 file input 无标签、以及上批遗留的一处 TS 报错。
 - [ ] **E4 原语预览页** — 不引 Storybook（体积/维护成本不划算），改为 `src/ui/__preview__/` 一个内部路由，按 Origin UI 的方式展示每个原语的状态矩阵；改 token 时一屏就能看出破没破。
   *已完成雏形*：`ui-preview.html` + `src/ui/preview.tsx`（`?only=<section>` 可单独看一屏；不进入生产构建）。
 
@@ -246,6 +253,35 @@
 验证：typecheck 通过；**338 测试通过**（新增 1 条统计语义测试）；生产构建通过；浏览器实测——快捷键弹层六行对齐、390px 下三个弹窗贴底成抽屉、画像页 `summary` 是 `DL`、复盘列表是 `UL > LI > DETAILS`、导航 `role=navigation` + `aria-current=page`。
 
 证据：`docs/ui-forms/popover.png`、`sheet.png`、`profile-semantics.png`。
+
+### 2026-10-28 · E2 + E3 收尾（契约清单与无障碍门禁）
+
+新增 `scripts/dom-contract.mjs`、`docs/dom-contract.md`、`eslint.config.mjs`、`src/app-views.a11y.test.tsx`。
+
+设计决定：
+
+| 决定 | 理由 |
+|---|---|
+| E2 用生成器而不是手写清单 | 手写清单第二次重构就过期了；生成 + `--check` 才有约束力 |
+| 契约按「哪类改动会断」分级 | 「结构 / 类名 / 语义」三类要求的谨慎程度完全不同，混在一张表里看不出风险 |
+| `contract:dom:check` 进 `verify:quality` | 契约漂移必须在提交前暴露，不能等 CI |
+| E3 只装 jsx-a11y，不装通用 lint 基线 | 项目本来零 ESLint；一次性引入全部推荐规则会产出上千条样式噪声，a11y 信号会被淹掉 |
+| `handlers` 收窄到 `onClick`/`onMouseDown`/`onMouseUp` | 规则无法区分「可点目标」与「阻止冒泡 / hover 增强 / 拖放区」，收窄后 11 条噪声降到 5 条，剩下 5 条逐条加注释豁免，计数归零 |
+| `no-noninteractive-tabindex` 关闭 | 横向滚动容器必须可聚焦（WCAG 2.1.1），这条规则与该要求冲突 |
+| 页面层测试加内容断言 | 否则 App 渲染失败时会扫一个空 div 然后"全绿" |
+
+**实测抓到的真问题**（都是 axe / lint 跑出来、肉眼没发现的）：
+
+1. `−7` / `+7` 两个按钮的可见文本与 `aria-label`（「上一周」/「下一周」）完全不重叠 → 语音控制用户说"点击 −7"永远匹配不到（WCAG 2.5.3）。改为 `aria-label="−7 上一周"`。
+2. planner 里同时存在两个 `role="navigation"` 且标签都是「主导航」→ landmark 不唯一。移动端那个改为「视图切换」。
+3. HabitConfig 里隐藏的 `<input type="file">` 没有名字。真实浏览器里 `display:none` 不进入可访问树，jsdom 不加载 Tailwind 才暴露它——仍然补了 `aria-label`，避免将来改成 `sr-only` 时漏掉。
+4. 上一批的 `src/ui/a11y.test.tsx` 有一处 TS 报错没被发现：当时只跑了 `vitest` 与 `vite build`，而 esbuild 不做类型检查。这一条直接说明了为什么 lint/typecheck 要进同一个门禁。
+
+**E2 的副产品**：清单把 6 条把中文写进 `aria-label`/`title` 的查询单独列了出来（切语言即失配）。顺手把本次新增的两处改成 `[data-slot="settings-trigger"]` / `[data-slot="profile-view"]`，没给清单添新债。
+
+验证：typecheck 通过；eslint（jsx-a11y）0 error 0 warn；`contract:dom:check` 通过；**346 测试通过**（新增 3 条页面层 a11y）；生产构建通过。浏览器实测：两个 navigation landmark 分别读作「主导航 / 视图切换」，`−7` 按钮可访问名为「−7 上一周」，设置面板 `aria-labelledby` 指向标题。
+
+证据：`docs/dom-contract.md`。
 
 ---
 

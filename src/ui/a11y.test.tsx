@@ -24,7 +24,9 @@ const originalGetContext = HTMLCanvasElement.prototype.getContext;
 beforeAll(() => {
   HTMLCanvasElement.prototype.getContext = function stub() {
     return { measureText: () => ({ width: 0 }), fillText: () => undefined } as unknown as CanvasRenderingContext2D;
-  } as typeof HTMLCanvasElement.prototype.getContext;
+    // getContext is an overload set whose return type also covers WebGL and
+    // ImageBitmap contexts; the stub only ever serves the 2d probe.
+  } as unknown as typeof HTMLCanvasElement.prototype.getContext;
 });
 afterAll(() => {
   HTMLCanvasElement.prototype.getContext = originalGetContext;

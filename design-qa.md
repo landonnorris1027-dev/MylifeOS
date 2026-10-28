@@ -259,3 +259,33 @@ final result: passed
 ### Not covered
 
 `eslint-plugin-jsx-a11y` and axe runs over the three main views are still open. The gate currently covers the component layer, not whole screens.
+
+## 2026-10-28: DOM contract ledger (E2) and accessibility gate (E3)
+
+final result: passed
+
+### What changed
+
+- `scripts/dom-contract.mjs` extracts every `querySelector` / `closest` / `matches` argument and every directly asserted text from the 22 test files, grades each selector by *how it breaks*, and writes `docs/dom-contract.md`. `--check` fails when the ledger and the tests disagree.
+- `contract:dom:check` and `lint:a11y` are now part of `verify:quality`, so a contract change cannot ride along inside a refactor.
+- `eslint.config.mjs` runs jsx-a11y only. There was no lint baseline at all; adding a full recommended set would have buried the accessibility signal under style noise.
+- `src/app-views.a11y.test.tsx` mounts the real `<App/>` and audits the planner, the profile and the settings panel.
+
+### Findings
+
+1. `P0` The `−7` / `+7` buttons announced themselves as "上一周" / "下一周" while showing `−7` / `+7`. WCAG 2.5.3 requires the accessible name to contain the visible label; speech-control users could never hit these buttons. Fixed by prefixing the visible text.
+2. `P0` The planner rendered two `role="navigation"` landmarks both labelled 主导航. The mobile pane switcher is now 视图切换.
+3. `P0` `src/ui/a11y.test.tsx` had a TypeScript error that had been shipped in the previous batch: that batch ran `vitest` and `vite build`, and esbuild does not type-check. The suite was green and the build passed while `tsc` failed. This is the clearest argument for keeping typecheck and lint in the same gate as the tests.
+4. `P1` The contract extractor first matched only 24 of 91 call sites because the regex did not allow `querySelector<HTMLButtonElement>('…')`. Caught by comparing against a manual count.
+5. `P1` Three selectors were reported as dangling contract (`[data-testid="trigger"]` and friends) — they belong to a harness defined inside `useModalBehavior.test.tsx`. The cross-reference now scans test files too.
+6. `P2` `no-noninteractive-tabindex` fired on the horizontally scrollable contribution graph. That `tabIndex={0} role="region"` is the documented remedy for WCAG 2.1.1, so the rule is off with that reason recorded.
+7. `P2` `no-static-element-interactions` and `click-events-have-key-events` treat `onClick={e => e.stopPropagation()}`, hover pause and drop zones as click targets. Narrowing `handlers` to `onClick`/`onMouseDown`/`onMouseUp` took 11 findings down to 5; the remaining five got a comment stating why they are containment rather than interaction.
+
+### Verification
+
+- `tsc` clean; `eslint` 0 errors / 0 warnings over 300+ files; `contract:dom:check` clean; **346 tests** pass (3 new page-level a11y tests); production build passes.
+- The gate was proven to bite, not just to exist: rendering a bare `<input>` in the axe suite still reports the `label` violation, and mutating one selector in `TaskCard.test.tsx` makes `contract:dom:check` exit 1.
+- Renderer: the two navigation landmarks read 主导航 / 视图切换; the `−7` button's accessible name is `−7 上一周`; the settings panel takes its name from its title via `aria-labelledby`; the profile view exposes `data-slot="profile-view"` with `summary = DL` and review list `= UL`.
+- Evidence: [DOM contract ledger](docs/dom-contract.md).
+- Not covered: `color-contrast` and `region` are disabled under jsdom (no layout), so contrast still rests on the screenshot review. Scrollable-region and focus-order behaviour on coarse pointers was not re-measured on a device.
+

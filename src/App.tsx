@@ -299,7 +299,7 @@ export default function App() {
             <button type="button" className="motion-button motion-quiet" onClick={openHabitConfig} title={t('config_habits')} aria-label={t('config_habits')}>
               <Settings2 size={17} /><span className="motion-tool-label">{t('mobile_nav_habits')}</span>
             </button>
-            <button type="button" className="motion-button motion-quiet" onClick={() => setSettingsOpen(true)} title={t('settings_title')} aria-label={t('settings_title')}>
+            <button type="button" className="motion-button motion-quiet" data-slot="settings-trigger" onClick={() => setSettingsOpen(true)} title={t('settings_title')} aria-label={t('settings_title')}>
               <User size={17} /><span className="motion-tool-label">{t('settings_title')}</span>
             </button>
             {view === 'planner' && <button type="button" onClick={openManualTask} className="motion-button motion-primary motion-create-task" aria-label={t('ui_new_task')} title={t('ui_new_task')}><Plus size={17} aria-hidden="true"/><span className="motion-create-label">{t('ui_new_task')}</span></button>}
@@ -324,11 +324,11 @@ export default function App() {
         {dayLoadSummary.isOverloaded && <p role="status" className="motion-overload-note">{t('today_load_overloaded', {inbox:formatHours(dayLoadSummary.inboxMinutes),free:formatHours(dayLoadSummary.freeTimelineMinutes)})}</p>}
         <div className="motion-planner-toolbar">
           <div className="motion-date-tools">
-            <button type="button" className="motion-icon-button" onClick={() => changeDate(-7)} title={t('previous_week')} aria-label={t('previous_week')}>−7</button>
+            <button type="button" className="motion-icon-button" onClick={() => changeDate(-7)} title={t('previous_week')} aria-label={`−7 ${t('previous_week')}`}>−7</button>
             <button type="button" className="motion-icon-button" onClick={() => changeDate(-1)} aria-label={t('ui_previous_day')}><ChevronLeft size={17}/></button>
             <label className="motion-date-input"><input type="date" value={selectedDate} aria-label={t('select_date')} title={t('select_date')} onChange={event => {if(event.target.value) selectDate(event.target.value);}} /></label>
             <button type="button" className="motion-icon-button" onClick={() => changeDate(1)} aria-label={t('ui_next_day')}><ChevronRight size={17}/></button>
-            <button type="button" className="motion-icon-button" onClick={() => changeDate(7)} title={t('next_week')} aria-label={t('next_week')}>+7</button>
+            <button type="button" className="motion-icon-button" onClick={() => changeDate(7)} title={t('next_week')} aria-label={`+7 ${t('next_week')}`}>+7</button>
             <button type="button" onClick={goToToday} className="motion-button motion-today" aria-pressed={isToday}>{t('today_btn')}</button>
           </div>
           <div className="motion-schedule-tools">
@@ -382,7 +382,7 @@ export default function App() {
           className="bg-transparent"
         >
         {view === 'profile' ? (
-          <div className="profile-view">
+          <div className="profile-view" data-slot="profile-view">
             <div className="profile-page-heading">
               <div className="profile-avatar">
                 <User size={28} aria-hidden="true" />
@@ -406,7 +406,7 @@ export default function App() {
         ) : (
           <div className="motion-planner-grid">
             <div className="motion-mobile-panes">
-              <SegmentedControl label={t('ui_navigation')} kind="navigation" value={mobilePane} options={[{value:'inbox',label:t('inbox')},{value:'timeline',label:t('timeline')}]} onChange={value => setMobilePane(value as 'inbox' | 'timeline')} />
+              <SegmentedControl label={t('ui_mobile_view')} kind="navigation" value={mobilePane} options={[{value:'inbox',label:t('inbox')},{value:'timeline',label:t('timeline')}]} onChange={value => setMobilePane(value as 'inbox' | 'timeline')} />
               <button type="button" className="motion-icon-button" onClick={jumpToCurrentTime} aria-label={t('jump_current_time')} title={t('jump_current_time')}><Timer size={18}/></button>
             </div>
             <div className={`motion-inbox-column ${mobilePane !== 'inbox' ? 'is-hidden' : ''}`}>
