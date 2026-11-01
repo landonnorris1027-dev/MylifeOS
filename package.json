@@ -66,7 +66,7 @@
     "test": "vitest run",
     "build:main": "tsc -p tsconfig.main.json && node scripts/build-metadata.js dist-main",
     "check:electron": "tsc --noEmit -p tsconfig.main.json",
-    "verify:quality": "npm run typecheck && npm run lint:a11y && npm run contract:dom:check && npm run test && npm run build && npm run build:main",
+    "verify:quality": "npm run typecheck && npm run lint:a11y && npm run contract:dom:check && npm run contrast:check && npm run test && npm run build && npm run build:main",
     "verify:release": "npm run verify:quality && npm run check:electron",
     "clean:build": "node ./scripts/clean-build.js",
     "smoke:packaged": "node ./scripts/smoke-packaged.js",
@@ -82,7 +82,8 @@
     "contract:dom": "node scripts/dom-contract.mjs",
     "contract:dom:check": "node scripts/dom-contract.mjs --check",
     "styles:capture": "node scripts/style-capture.mjs",
-    "styles:diff": "node scripts/style-diff.mjs"
+    "styles:diff": "node scripts/style-diff.mjs",
+    "contrast:check": "node scripts/contrast-check.mjs"
   },
   "build": {
     "extends": null,

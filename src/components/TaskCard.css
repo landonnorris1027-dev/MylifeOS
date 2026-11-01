@@ -4,7 +4,7 @@
 .task-card.priority-P2 { --task-completion-color: var(--priority-p2); }
 .task-card.priority-P3 { --task-completion-color: var(--priority-p3); }
 .task-card.priority-none { --task-completion-color: var(--priority-none); }
-.task-card { --task-completion-ink: #202124; }
+.task-card { --task-completion-ink: var(--ink); }
 
 .task-card,
 .task-card.motion-task {
@@ -39,17 +39,17 @@
 .task-card.is-completed .task-meta,
 .task-card.is-completed .task-label {
   background-color: transparent;
-  border-color: #20212430;
+  border-color: color-mix(in srgb, var(--ink) 18.8%, transparent);
 }
 .task-card.is-completed .motion-unprioritized-dot { background-color: var(--task-completion-ink); }
 .task-card.is-completed button {
   color: var(--task-completion-ink);
-  border-color: #20212430;
+  border-color: color-mix(in srgb, var(--ink) 18.8%, transparent);
   background-color: transparent;
   transition: color 800ms ease, background-color 160ms ease, border-color 800ms ease;
 }
 .task-card.is-completed button:hover,
-.task-card.is-completed button:focus-visible { background-color: #20212412; }
+.task-card.is-completed button:focus-visible { background-color: color-mix(in srgb, var(--ink) 7%, transparent); }
 .task-card.is-completed :focus-visible { outline-color: var(--task-completion-ink); }
 
 @media (prefers-reduced-motion: reduce) {

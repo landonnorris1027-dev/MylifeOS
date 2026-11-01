@@ -22,10 +22,10 @@
   /* Two reds coexist on purpose: the control red (#b3261e) and the overload
      red (#a63b35). Merging them changes pixels, so the dark-mode batch owns
      that decision. */
-  --ui-danger: #b3261e;
-  --ui-danger-soft: #fdf2f1;
+  --ui-danger: var(--danger-control);
+  --ui-danger-soft: var(--danger-control-soft);
   --ui-danger-strong: var(--danger-strong);
-  --ui-disabled: #f3f4f6;
+  --ui-disabled: var(--surface-muted);
 
   --ui-info-soft: var(--info-soft);
   --ui-info-ink: var(--info-ink);
@@ -209,8 +209,8 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  color: #4b5563;
-  background: #f3f4f6;
+  color: var(--ink-muted);
+  background: var(--surface-muted);
   border: 1px solid var(--ui-line);
   border-radius: var(--radius-md);
   transition: background-color 160ms, color 160ms, border-color 160ms, scale 120ms;
@@ -228,7 +228,7 @@
   height: 22px;
   margin: 0;
   border-radius: var(--radius-pill);
-  background: #d1d5db;
+  background: var(--line-strong);
   cursor: pointer;
   transition: background-color 160ms;
 }
@@ -240,7 +240,7 @@
   width: 16px;
   height: 16px;
   border-radius: var(--radius-circle);
-  background: #fff;
+  background: var(--surface-card);
   box-shadow: 0 1px 2px rgba(17, 24, 39, .25);
   transition: translate 180ms cubic-bezier(.22, 1, .36, 1);
 }
@@ -282,7 +282,7 @@
 .ui-checkbox-chip[data-checked="true"] {
   border-color: var(--ui-accent);
   color: var(--ui-ink);
-  background: #f8fafc;
+  background: var(--surface-faint);
 }
 
 /* ---------- Button ---------- */
@@ -310,18 +310,18 @@
 .ui-btn[data-size="lg"] { min-height: 48px; padding: 0 20px; font-size: 15px; }
 .ui-btn[data-block="true"] { width: 100%; }
 
-.ui-btn[data-variant="primary"] { background: var(--ui-accent); color: #fff; }
+.ui-btn[data-variant="primary"] { background: var(--ui-accent); color: var(--surface-card); }
 .ui-btn[data-variant="primary"]:hover:not(:disabled) { background: var(--ui-accent-strong); }
 .ui-btn[data-variant="secondary"] { background: var(--ui-surface-soft); color: var(--ui-ink); }
-.ui-btn[data-variant="secondary"]:hover:not(:disabled) { background: #e5e7eb; }
+.ui-btn[data-variant="secondary"]:hover:not(:disabled) { background: var(--line); }
 .ui-btn[data-variant="ghost"] { background: transparent; color: var(--ui-label); }
 .ui-btn[data-variant="ghost"]:hover:not(:disabled) { background: var(--ui-surface-soft); color: var(--ui-ink); }
-.ui-btn[data-variant="danger"] { background: var(--ui-danger); color: #fff; }
+.ui-btn[data-variant="danger"] { background: var(--ui-danger); color: var(--surface-card); }
 .ui-btn[data-variant="danger"]:hover:not(:disabled) { background: var(--ui-danger-strong); }
 .ui-btn[data-variant="info"] { background: var(--ui-info-soft); color: var(--ui-info-ink); }
-.ui-btn[data-variant="info"]:hover:not(:disabled) { background: #dbeafe; }
+.ui-btn[data-variant="info"]:hover:not(:disabled) { background: var(--surface-tint); }
 .ui-btn[data-variant="success"] { background: var(--ui-success-soft); color: var(--ui-success-ink); }
-.ui-btn[data-variant="success"]:hover:not(:disabled) { background: #d1fae5; }
+.ui-btn[data-variant="success"]:hover:not(:disabled) { background: var(--success-soft); }
 
 .ui-icon-btn {
   display: inline-flex;
@@ -350,7 +350,7 @@
 .ui-icon-btn[data-tone="inherit"]:hover:not(:disabled) { background: rgba(255, 255, 255, .5); color: inherit; }
 .ui-btn[aria-busy="true"]:disabled { opacity: .75; cursor: progress; }
 .ui-icon-btn[data-variant="secondary"] { background: var(--ui-surface-soft); color: var(--ui-ink); }
-.ui-icon-btn[data-variant="secondary"]:hover:not(:disabled) { background: #e5e7eb; color: var(--ui-ink); }
+.ui-icon-btn[data-variant="secondary"]:hover:not(:disabled) { background: var(--line); color: var(--ui-ink); }
 
 /* ---------- Dialog ---------- */
 :root {
@@ -418,8 +418,8 @@
 
 .ui-dialog[data-variant="notice"] .ui-dialog-body { text-align: center; }
 
-.ui-alert-dialog.tone-danger { border-color: #fecaca; }
-.ui-alert-dialog.tone-success { border-color: #a7f3d0; }
+.ui-alert-dialog.tone-danger { border-color: var(--danger-line); }
+.ui-alert-dialog.tone-success { border-color: var(--success-line); }
 .ui-alert-icon {
   display: flex;
   align-items: center;
@@ -429,8 +429,8 @@
   margin: 0 auto 16px;
   border-radius: var(--radius-circle);
 }
-.ui-alert-icon.tone-info { background: #eff6ff; color: #2563eb; }
-.ui-alert-icon.tone-danger { background: #fdf2f1; color: var(--ui-danger); }
+.ui-alert-icon.tone-info { background: var(--info-soft); color: var(--info-ink); }
+.ui-alert-icon.tone-danger { background: var(--ui-danger-soft); color: var(--ui-danger); }
 .ui-alert-icon.tone-success { background: #ecfdf5; color: var(--ui-success-ink); }
 .ui-alert-title { font-size: 18px; font-weight: 600; line-height: 1.35; color: var(--ui-ink); }
 .ui-alert-message {
@@ -440,7 +440,7 @@
   color: var(--ui-label);
   white-space: pre-line;
 }
-.ui-alert-icon.tone-warning { background: #fffbeb; color: #b45309; }
+.ui-alert-icon.tone-warning { background: var(--surface-card)beb; color: #b45309; }
 
 /* ---------- Toast ---------- */
 
@@ -491,9 +491,9 @@
   cursor: pointer;
   transition: background-color 160ms, color 160ms;
 }
-.ui-toast-action:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.ui-toast-action:hover { background: rgba(255, 255, 255, .1); color: var(--surface-card); }
 .ui-toast-close { color: #9ca3af; }
-.ui-toast-close:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, .1); }
+.ui-toast-close:hover:not(:disabled) { color: var(--surface-card); background: rgba(255, 255, 255, .1); }
 
 @keyframes ui-toast-in { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
 @keyframes ui-toast-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 6px; } }
@@ -653,10 +653,11 @@
   padding: 2px 6px;
 }
 .ui-badge-default { background: var(--muted); color: var(--foreground); }
-.ui-badge-P1 { background: var(--p1-solid); color: var(--foreground); }
-.ui-badge-P2 { background: var(--p2-solid); color: var(--foreground); }
-.ui-badge-P3 { background: var(--p3-solid); color: var(--foreground); }
+.ui-badge-P1 { background: var(--p1-solid); color: var(--p1-on-solid); }
+.ui-badge-P2 { background: var(--p2-solid); color: var(--p2-on-solid); }
+.ui-badge-P3 { background: var(--p3-solid); color: var(--p3-on-solid); }
 .ui-badge-none { background: var(--muted); color: var(--muted-foreground); }
+.ui-badge-pnone { background: var(--pnone-solid); color: var(--pnone-on-solid); }
 
 /* ---------- Menu ---------- */
 .ui-menu {

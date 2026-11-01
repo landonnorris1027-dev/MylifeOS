@@ -18,7 +18,7 @@ html {
 .safe-area-status-bar {
   position: fixed; z-index: var(--z-status); top: 0; left: 0; right: 0; pointer-events: none;
   height: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
-  background: rgba(255,255,255,.8); backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--surface-card) 80%, transparent); backdrop-filter: blur(16px);
 }
 @media (pointer: coarse) {
   button, [role="button"], a, label.flex, label.inline-flex { min-height: 48px; min-width: 48px; touch-action: manipulation; }
@@ -63,10 +63,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D3D1CB;
+  background: var(--scrollbar-thumb);
   border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B6B4AE;
+  background: var(--scrollbar-thumb-hover);
 }

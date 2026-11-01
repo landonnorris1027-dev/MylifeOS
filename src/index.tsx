@@ -10,6 +10,11 @@ import StorageBoundary from './components/StorageBoundary';
 import { isAndroid } from './services/platform';
 import { bootstrapNativeStorage } from './services/nativeRuntime';
 import { KEYS } from './services/storage/localStorageStore';
+import { bootstrapTheme } from './services/theme';
+
+// Applied before React mounts: a frame of white before the app turns dark
+// would be worse than having no dark theme at all.
+bootstrapTheme();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

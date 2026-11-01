@@ -15,7 +15,7 @@
   height: 56px;
   flex-shrink: 0;
   border-radius: var(--radius-xl);
-  background: #e8f0fe;
+  background: var(--surface-tint);
   color: var(--motion-primary);
 }
 .profile-page-heading h1 {
@@ -35,7 +35,7 @@
   --stack-p2: var(--priority-p2);
   --stack-p3: var(--priority-p3);
   --stack-none: var(--priority-none);
-  --stack-unassigned: #9ab9df;
+  --stack-unassigned: var(--p-unassigned);
   display: grid;
   gap: 24px;
   min-width: 0;
@@ -48,7 +48,7 @@
   align-items: start;
   padding: 24px;
   border-radius: var(--radius-2xl);
-  background: #f1f1f2;
+  background: var(--surface-sunken);
 }
 .profile-insights-toolbar {
   display: flex;
@@ -61,8 +61,8 @@
 }
 .profile-panel {
   min-width: 0;
-  background: white;
-  border: 1px solid #eeeeef;
+  background: var(--surface-card);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-2xl);
   padding: 24px;
 }
@@ -97,7 +97,7 @@
   gap: 10px;
 }
 .profile-metric-label svg {
-  color: #8a8b90;
+  color: var(--ink-soft);
   flex-shrink: 0;
   margin-top: 3px;
 }
@@ -135,7 +135,7 @@
   margin-top: 4px;
 }
 .profile-week-target {
-  border-color: #eeeeef;
+  border-color: var(--line-soft);
 }
 .profile-date {
   display: inline-flex;
@@ -165,7 +165,7 @@
 .profile-target-value > strong {
   font-size: 36px;
   font-weight: 600;
-  color: #202124;
+  color: var(--ink);
   letter-spacing: -1px;
   line-height: 1.2;
 }
@@ -176,14 +176,14 @@
 .profile-track {
   height: 8px;
   border-radius: var(--radius-pill);
-  background: #f1f3f4;
+  background: var(--surface-muted);
   overflow: hidden;
 }
 .profile-track > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #5888f5;
+  background: var(--accent-blue);
   transition: width 480ms var(--motion-ease);
 }
 .profile-week-target > .profile-caption {
@@ -195,7 +195,7 @@
 .profile-period-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-block: 1px solid #e8eaed;
+  border-block: 1px solid var(--line);
   padding: 18px 0;
   gap: 16px;
 }
@@ -204,7 +204,7 @@
   flex-direction: column;
   gap: 7px;
   padding-inline: 20px;
-  border-right: 1px solid #e8eaed;
+  border-right: 1px solid var(--line);
 }
 .profile-period-summary > div:first-child {
   padding-left: 0;
@@ -227,7 +227,7 @@
 }
 .profile-count {
   border-radius: var(--radius-pill);
-  background: #e8f0fe;
+  background: var(--surface-tint);
   color: var(--motion-primary);
   padding: 6px 12px;
   font-size: 13px;
@@ -241,10 +241,10 @@
   list-style: none;
 }
 .profile-review-list details {
-  border-top: 1px solid #e8eaed;
+  border-top: 1px solid var(--line);
 }
 .profile-review-list > li:last-child > details {
-  border-bottom: 1px solid #e8eaed;
+  border-bottom: 1px solid var(--line);
 }
 .profile-review-list summary {
   display: flex;
@@ -262,8 +262,8 @@
   content: '';
   width: 7px;
   height: 7px;
-  border-right: 1.5px solid #5f6368;
-  border-bottom: 1.5px solid #5f6368;
+  border-right: 1.5px solid var(--ink-muted);
+  border-bottom: 1.5px solid var(--ink-muted);
   transform: rotate(-45deg);
   flex-shrink: 0;
   margin-left: 3px;
@@ -285,14 +285,14 @@
 }
 .profile-status {
   border-radius: var(--radius-pill);
-  background: #f1f3f4;
+  background: var(--surface-muted);
   color: var(--motion-muted);
   font-size: 13px;
   padding: 4px 10px;
   flex-shrink: 0;
 }
 .profile-status.status-completed {
-  background: #e8f0fe;
+  background: var(--surface-tint);
   color: var(--motion-primary);
 }
 .profile-review-detail {
@@ -342,19 +342,19 @@
   margin-top: 16px;
   padding: 12px 14px;
   border-radius: var(--radius-lg);
-  background: #f8fafd;
+  background: var(--surface-faint);
   color: var(--motion-muted);
   font-size: 13px;
   line-height: 1.6;
 }
 .profile-view .profile-activity {
-  border: 1px solid #e8eaed;
+  border: 1px solid var(--line);
   border-radius: var(--radius-2xl);
   box-shadow: none;
   padding: 24px;
 }
 .profile-activity .profile-year {
-  background: #e8f0fe;
+  background: var(--surface-tint);
   color: var(--motion-primary);
   border-radius: var(--radius-pill);
   padding: 7px 14px;
@@ -586,7 +586,7 @@
 .profile-donut-track {
   fill: none;
   stroke-width: 24px;
-  stroke: #f1f3f4;
+  stroke: var(--surface-muted);
 }
 .profile-donut-total {
   position: absolute;

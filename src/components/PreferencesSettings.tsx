@@ -3,6 +3,8 @@ import { Target, Volume2, Bell, Minimize2, Coffee } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isAndroid } from '../services/platform';
 import { Field, FieldLegend, FieldSet, NumberField, Switch } from '../ui';
+import SegmentedControl from './SegmentedControl';
+import { ThemePreference, applyTheme, readTheme, watchSystemTheme, writeTheme } from '../services/theme';
 import type { FocusSettings } from '../services/focusSettings';
 import type { ProfileSettings } from '../services/profileSettings';
 import type { DesktopSettings } from '../services/desktopSettings';
@@ -35,6 +37,18 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
  const { t } = useLanguage();
  const decreaseLabel = (label: string) => t('stepper_decrease', { label });
  const increaseLabel = (label: string) => t('stepper_increase', { label });
+
+  const [theme, setTheme] = useState<ThemePreference>(() => readTheme());
+
+  // A preference of "system" has to follow the system while the panel is open.
+  useEffect(() => watchSystemTheme(() => setTheme(readTheme())), []);
+
+  const handleThemeChange = (value: string) => {
+    const preference = value as ThemePreference;
+    writeTheme(preference);
+    applyTheme(preference);
+    setTheme(preference);
+  };
 
   const sections = useMemo(
     () => SETTINGS_SECTIONS.filter(([href]) => !isAndroid() || href !== '#settings-desktop'),
@@ -119,6 +133,22 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 </a>
               ))}
             </nav>
+          <FieldSet className="border-t border-gray-100 pt-6">
+            <FieldLegend id="settings-appearance" className="mb-3 block scroll-mt-16">
+              {t('theme_setting')}
+            </FieldLegend>
+            <SegmentedControl
+              label={t('theme_setting')}
+              value={theme}
+              options={[
+                { value: 'system', label: t('theme_system') },
+                { value: 'light', label: t('theme_light') },
+                { value: 'dark', label: t('theme_dark') },
+              ]}
+              onChange={handleThemeChange}
+            />
+          </FieldSet>
+
           {/* Profile settings */}
           <div className="border-t border-gray-100 pt-6">
             <h3 id="settings-profile" className="mb-3 block scroll-mt-16 text-xs font-semibold text-gray-400 uppercase tracking-wider">

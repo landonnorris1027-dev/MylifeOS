@@ -60,6 +60,11 @@
   --danger-warm: #e74f25;       /* destructive confirm affordance */
   --danger-strong: #8f1d17;
 
+  /* The red the form controls use, which is not the overload red. */
+  --danger-control: #b3261e;
+  --danger-control-soft: #fdf2f1;
+  --success-line: #a7f3d0;
+
   --info-soft: #eff6ff;
   --info-ink: #1d4ed8;
 
@@ -71,6 +76,13 @@
    *   ink   = text on soft       tag  = denser chip background
    *   hover = hover for soft
    */
+  /* Text that sits on the solid data colour. The solid marks are lightened for
+     a dark page, so the text on them has to darken to match. */
+  --p1-on-solid: #202124;
+  --p2-on-solid: #202124;
+  --p3-on-solid: #202124;
+  --pnone-on-solid: #202124;
+
   --p1-solid: #9d7bf5;
   --p1-soft: #f4effe;
   --p1-line: #e4d9fc;
@@ -111,6 +123,44 @@
   --priority-p2: var(--p2-solid);
   --priority-p3: var(--p3-solid);
   --priority-none: var(--pnone-solid);
+
+  /* ---------- layered surfaces and inks ----------
+   * The app carried three greyscale ramps that never met: a Notion-like one,
+   * a second neutral one in the focus history, and a violet-tinted one in the
+   * delete control. They are now one ramp, which means a couple of the
+   * intermediate shades moved by a few percent — invisible on their own, and
+   * the price of being able to restate them for a dark theme.
+   */
+  --surface-card: #ffffff;
+  --surface-faint: #f8fafc;
+  --surface-sunken: #f1f1f2;
+  --surface-muted: #f1f3f4;
+  --surface-tint: #e8f0fe;
+  --surface-recess: #e7e7ef;
+
+  --ink-strong: #191a1c;
+  --ink: #202124;
+  /* The soft ink was three different greys in three different ramps, and the
+     lightest of them sat at 3.6:1 on white — below AA for body text. This is
+     the shade that clears 4.5:1, and it happens to be the one the delete
+     control was already using, so that surface does not move at all. */
+  --ink-soft: #747382;
+  --ink-placeholder: #9ca3af;
+
+  --line: #dadce0;
+  --line-soft: #eeeeef;
+  --line-strong: #d2d3d7;
+
+  /* Text that sits on a surface: white on light, light on dark. */
+  --on-surface: #ffffff;
+
+  /* The one accent the app uses outside the primary blue. */
+  --accent-blue: #5888f5;
+  --accent-blue-soft: #7baaf7;
+  --primary-ink: #254a83;
+
+  --scrollbar-thumb: #d3d1cb;
+  --scrollbar-thumb-hover: #b6b4ae;
 
   /* ---------- radius ----------
    * Five steps, named by size rather than by component. The px values keep the
@@ -183,4 +233,123 @@
    * scoped to their components until the page batch decides what they should
    * become.
    */
+}
+
+/* ==========================================================================
+   Dark theme
+   ==========================================================================
+   One rule, restating every semantic token. Nothing below this line is
+   allowed to hold a colour of its own — that is the whole reason the ramps
+   above were merged.
+
+   The values were chosen for contrast first and hue second: the text tokens
+   clear WCAG AA against the surfaces they sit on, the data colours are
+   lightened because the palette was tuned for a white page, and the shadows
+   are near black because a shadow on a dark surface reads as a glow.
+   ========================================================================== */
+.dark {
+  /* surfaces */
+  --page: #0d0f12;
+  --background: #14171c;
+  --foreground: #e6e8ec;
+  --card: #1b1f26;
+  --card-foreground: #e6e8ec;
+
+  --surface-card: #1b1f26;
+  --surface-faint: #171a20;
+  --surface-sunken: #22262e;
+  --surface-muted: #262b33;
+  --surface-tint: #1a2a44;
+  --surface-recess: #2b313a;
+
+  /* ink */
+  --ink: #e6e8ec;
+  --ink-strong: #f2f4f7;
+  --ink-soft: #a3abb6;
+  --ink-placeholder: #7d858f;
+
+  /* neutral */
+  --muted: #262b33;
+  --muted-hover: #31373f;
+  --muted-foreground: #a3abb6;
+  --placeholder: #7d858f;
+
+  /* lines */
+  --border: #333941;
+  --divider: #282d35;
+  --line: #333941;
+  --line-soft: #262b33;
+  --line-strong: #454c56;
+
+  /* primary — the blue was tuned for white, so it is lightened */
+  --primary: #8ab4f8;
+  --primary-foreground: #0d1524;
+  --primary-hover: #a3c6ff;
+  --primary-soft: #1a2b47;
+  --primary-line: #33517f;
+  --primary-ink: #a3c6ff;
+
+  --accent-blue: #7aa7f7;
+  --accent-blue-soft: #9dbdfa;
+  --on-surface: #e6e8ec;
+
+  /* status */
+  --success: #6fd68c;
+  --success-soft: #16301f;
+  --success-ink: #8fe5a6;
+  --success-line: #2c5a3c;
+
+  --danger: #f2b8b5;
+  --danger-ink: #f6a9a5;
+  --danger-warm: #f9a26c;
+  --danger-strong: #ff9a94;
+  --danger-soft: #3a1f1e;
+  --danger-hover: #3d2322;
+  --danger-surface: #38201f;
+  --danger-line: #5a3230;
+  --danger-control: #f2b8b5;
+  --danger-control-soft: #3a1f1e;
+
+  --info-soft: #17233a;
+  --info-ink: #8ab4f8;
+
+  --scrollbar-thumb: #3a4048;
+  --scrollbar-thumb-hover: #4a515b;
+
+  /* priority data colours — lightened, with their ramps inverted for the ink
+     and the soft fills, which are backgrounds rather than marks */
+  --p1-on-solid: #1a1030;
+  --p2-on-solid: #10233f;
+  --p3-on-solid: #16283a;
+  --pnone-on-solid: #33260a;
+
+  --p1-solid: #b195f7;
+  --p1-soft: #241d3d;
+  --p1-line: #3d3358;
+  --p1-ink: #d8c9f7;
+  --p1-tag: #302750;
+  --p1-hover: #2a2247;
+
+  --p2-solid: #8fb4ff;
+  --p2-soft: #1c2b45;
+  --p2-line: #2f4468;
+  --p2-ink: #c3d8fb;
+  --p2-tag: #26385a;
+  --p2-hover: #22334f;
+
+  --p3-solid: #a9c8e8;
+  --p3-soft: #1e2a36;
+  --p3-line: #33424f;
+  --p3-ink: #c2d5e6;
+  --p3-tag: #283642;
+  --p3-hover: #243039;
+
+  --pnone-solid: #f5cd80;
+  --pnone-soft: #33290f;
+  --pnone-line: #4d3e1b;
+  --pnone-ink: #f0d9a6;
+  --pnone-tag: #43361a;
+  --pnone-hover: #3a2e14;
+
+  --p-unassigned: #b3cbe8;
 }

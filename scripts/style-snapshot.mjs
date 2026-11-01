@@ -108,6 +108,15 @@ const evaluate = async (expression) => {
 
 await send('Page.enable');
 await send('Runtime.enable');
+
+// The app now follows the system theme, and headless Chrome reports a dark
+// system. Pin the preference instead of emulating the media query: emulation
+// does not reach the stored preference, and the stored preference is what the
+// app actually reads.
+const SCHEME = (process.argv.find((a) => a.startsWith('--scheme=')) || '--scheme=light').split('=')[1];
+await send('Page.addScriptToEvaluateOnNewDocument', {
+  source: `try { localStorage.setItem('mylifeos_theme', ${JSON.stringify(SCHEME)}); } catch (e) {}`,
+});
 // Always pull the current stylesheet. A dev server may have rebuilt it since
 // the last capture, and a cached copy would silently compare the wrong thing.
 await send('Network.enable');

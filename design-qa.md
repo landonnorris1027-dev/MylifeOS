@@ -378,3 +378,31 @@ final result: passed
 - Evidence: [settings panel](docs/ui-forms/settings-d1d4.png).
 - Not covered: the settings panel is only 205 px taller than the viewport, so only two of the five sections can be told apart by scrolling alone; the rest are reachable by clicking. That is a content-length limit, not a behaviour gap.
 
+## 2026-10-28: dark theme (D6)
+
+final result: passed
+
+### What changed
+
+- A dark theme, stated as one rule in the token file. Every colour below it is a token, which is the only reason it could be written at all: the app carried about fifty literals across three greyscale ramps that had never met, and none of them would have moved.
+- The three ramps became one layered set — `--surface-*`, `--ink-*`, `--line-*` — so one rule can restate the lot.
+- Three states instead of two: follow the system, or pin it either way. The preference is applied before React mounts, because a frame of white before the app turns dark is worse than no dark theme.
+- `scripts/contrast-check.mjs` measures twenty-six pairs across both themes and is part of `verify:quality`.
+
+### Findings
+
+1. `P0` The priority badges were unreadable in the dark theme: their text was the foreground colour, and against a lightened data colour that is light text on a light background, 1.4:1. The data colours needed a second step — a foreground for the solid variant — which is what `--p*-on-solid` is.
+2. `P0` The top bar still had `rgba(255,255,255,.94)` written literally, so it stayed white in the dark theme. A runtime audit of the rendered page found it; no amount of reading the token file would have.
+3. `P0` Five rules used the keyword `white` rather than `#fff`, so the replacement pass missed them. The "start focus" button became light text on a light button.
+4. `P1` `--ink-soft` sat at 3.6:1 on white, below AA, and merging the three ramps had made it worse by picking the lightest of the three. It is now 4.65:1, and the shade that achieves it is the one the delete control already used, so that surface does not move.
+5. `P1` Headless Chrome reports a dark system, so once the app started following the system the capture tool began sampling the dark theme against light baselines — 2,489 differences became 9,289. The capture tool now pins the stored preference rather than emulating the media query, because emulation does not reach what the app reads.
+
+### Verification
+
+- **Static contrast**: every required pair clears AA in both themes. The two that do not — the placeholder at 2.54:1 and the chart rule at 1.50:1 — were already below the bar before this batch; they are printed as recorded rather than enforced, so the debt stays visible.
+- **Runtime contrast**: walking the rendered page and measuring every leaf's text against its effective background found six failures before the fixes and none after, apart from two false positives caused by a selection plate that is a sibling rather than an ancestor.
+- **Light regression**: 2,489 differences across eight scenarios, every one of them explained — the darker soft ink, the surfaces moving onto the shared ramp, and the new appearance section in the settings panel.
+- Screenshots of both themes are in `docs/ui-forms/`.
+- `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass, production build passes.
+- Not covered: the date input renders its inner control light in headless Chrome even though its computed background is transparent and `color-scheme` is dark — a browser rendering detail rather than a style this app controls.
+
