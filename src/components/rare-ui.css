@@ -16,7 +16,7 @@
 .rare-delete-panel { position:absolute; inset-block:0; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:var(--radius-xl); background:var(--rare-recess); }
 .rare-delete-circle { display:grid; place-items:center; width:28px; height:28px; min-width:28px; min-height:28px; border-radius:var(--radius-circle); background:var(--rare-surface); color:var(--rare-ink); box-shadow:0 .5px 1px #0000000d,0 1px 3px #00000014,inset 0 .5px 0 var(--surface-card)e6; }
 .rare-delete-confirm { color:var(--danger-warm); }
-.rare-delete-error { position:absolute; right:0; top:calc(100% + 5px); z-index:65; width:max-content; max-width:210px; padding:6px 9px; border:1px solid #f2c8bc; border-radius:var(--radius-md); background:var(--surface-card)5f1; color:#a63b35; font-size:12px; }
+.rare-delete-error { position:absolute; right:0; top:calc(100% + 5px); z-index:65; width:max-content; max-width:210px; padding:6px 9px; border:1px solid var(--danger-line); border-radius:var(--radius-md); background:var(--danger-soft); color:var(--danger); font-size:12px; }
 .task-card.is-completed .rare-delete-trigger { color:var(--rare-ink); }
 .rare-delete-circle:hover:not(:disabled) { background:var(--surface-faint); }
 .rare-delete-anchor button:disabled { cursor:default; }

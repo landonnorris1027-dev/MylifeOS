@@ -58,7 +58,7 @@
 .focus-history-columns[data-active='true'] .focus-history-column:not([aria-pressed='true']) { opacity: .35; }
 .focus-history-positive { display: flex; align-items: flex-end; }
 .focus-history-stack { display: flex; flex-direction: column-reverse; width: 100%; transform-origin: center bottom; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
-.focus-history-segment { display: block; width: 100%; flex-shrink: 0; min-height: 0; border-radius: var(--radius-sm); box-shadow: inset 0 -2px #fff; }
+.focus-history-segment { display: block; width: 100%; flex-shrink: 0; min-height: 0; border-radius: var(--radius-sm); box-shadow: inset 0 -2px var(--surface-card); }
 .focus-history-negative { display: block; }
 .focus-history-negative > i { display: block; width: 100%; border-radius: var(--radius-sm); background: var(--danger); transform-origin: center top; animation: focus-bar-enter 500ms var(--motion-ease) var(--focus-delay) both; }
 .profile-panel[data-motion-reveal='pending'] .focus-history-stack,

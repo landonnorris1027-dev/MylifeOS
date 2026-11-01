@@ -32,6 +32,7 @@
   --muted-hover: #e8eaed;       /* hover for the above, and for ghost buttons */
   --muted-foreground: #5f6368;  /* secondary text (was --motion-muted) */
   --border: #dadce0;            /* default hairline (was --motion-line) */
+  --border-subtle: #edf1f7;     /* topbar and panel hairline (was a literal) */
   --divider: #e8eaed;           /* lighter rule between rows */
   --placeholder: #9ca3af;
 
@@ -281,18 +282,18 @@
    ========================================================================== */
 .dark {
   /* surfaces */
-  --page: #0d0f12;
-  --background: #14171c;
+  --page: #07080a;
+  --background: #0b0d11;
   --foreground: #e6e8ec;
-  --card: #1b1f26;
+  --card: #111419;
   --card-foreground: #e6e8ec;
 
-  --surface-card: #1b1f26;
-  --surface-faint: #171a20;
-  --surface-sunken: #22262e;
-  --surface-muted: #262b33;
-  --surface-tint: #1a2a44;
-  --surface-recess: #2b313a;
+  --surface-card: #111419;
+  --surface-faint: #0e1014;
+  --surface-sunken: #171a20;
+  --surface-muted: #1b1f26;
+  --surface-tint: #16243a;
+  --surface-recess: #20242b;
 
   /* ink */
   --ink: #e6e8ec;
@@ -301,25 +302,27 @@
   --ink-placeholder: #8b939e;
 
   /* neutral */
-  --muted: #262b33;
-  --muted-hover: #31373f;
+  --muted: #1b1f26;
+  --muted-hover: #242a32;
   --muted-foreground: #a3abb6;
   --placeholder: #7d858f;
 
   /* lines */
-  --border: #333941;
-  --divider: #282d35;
-  --line: #333941;
-  --line-soft: #262b33;
-  --line-strong: #454c56;
+  --border: #2f353e;
+  --border-subtle: #2f353e;
+  --divider: #242a32;
+  --line: #2f353e;
+  --line-soft: #1e232a;
+  --line-strong: #414954;
 
-  /* primary — the blue was tuned for white, so it is lightened */
-  --primary: #8ab4f8;
-  --primary-foreground: #0d1524;
-  --primary-hover: #a3c6ff;
-  --primary-soft: #1a2b47;
-  --primary-line: #33517f;
-  --primary-ink: #a3c6ff;
+  /* primary — the blue was tuned for white, so it is lightened, then pulled
+     back a little for the darker page so a selected pill does not glow */
+  --primary: #7ea7f0;
+  --primary-foreground: #0b1220;
+  --primary-hover: #92b7f7;
+  --primary-soft: #16243a;
+  --primary-line: #2c456b;
+  --primary-ink: #9bbdf7;
 
   --accent-blue: #7aa7f7;
   --accent-blue-soft: #9dbdfa;
@@ -345,8 +348,8 @@
   --info-soft: #17233a;
   --info-ink: #8ab4f8;
 
-  --scrollbar-thumb: #3a4048;
-  --scrollbar-thumb-hover: #4a515b;
+  --scrollbar-thumb: #2f353e;
+  --scrollbar-thumb-hover: #3d444e;
 
   /* priority data colours — lightened, with their ramps inverted for the ink
      and the soft fills, which are backgrounds rather than marks */
@@ -388,19 +391,19 @@
   /* Tailwind bridge, inverted. Each step keeps its role: the light end of the
    * scale becomes the dark end, so a rule written against `gray-900` still
    * means "the strongest ink" and `gray-50` still means "barely there". */
-  --n-white: 27 31 38;
-  --n-gray-50: 28 33 40;
-  --n-gray-100: 38 44 52;
-  --n-gray-200: 51 57 65;
-  --n-gray-300: 74 81 91;
-  --n-gray-400: 139 147 158;
-  --n-gray-500: 163 171 182;
-  --n-gray-600: 188 196 206;
-  --n-gray-700: 211 217 225;
-  --n-gray-800: 230 232 236;
+  --n-white: 17 20 25;
+  --n-gray-50: 19 22 27;
+  --n-gray-100: 30 35 42;
+  --n-gray-200: 42 48 57;
+  --n-gray-300: 65 72 83;
+  --n-gray-400: 128 136 147;
+  --n-gray-500: 156 164 175;
+  --n-gray-600: 182 190 200;
+  --n-gray-700: 207 213 221;
+  --n-gray-800: 228 231 236;
   --n-gray-900: 242 244 247;
-  --n-slate-100: 34 40 48;
-  --n-slate-700: 200 208 218;
+  --n-slate-100: 24 29 36;
+  --n-slate-700: 196 204 214;
 
   --scrim: rgb(0 0 0 / 0.55);
   --inverse-hover: #ffffff;
