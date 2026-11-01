@@ -300,7 +300,10 @@ if (process.argv.includes('--check')) {
     console.error('docs/dom-contract.md 不存在，先运行 `npm run contract:dom`。');
     process.exit(1);
   }
-  if (current !== markdown) {
+  // A Windows checkout may hand us CRLF while the generator writes LF. The
+  // contract is the selector ledger, not the byte representation of its line
+  // endings, so compare the normalized text in both cases.
+  if (current.replace(/\r\n?/g, '\n') !== markdown) {
     console.error('DOM 契约清单与测试源码不一致。');
     console.error('若这是有意的契约变更，运行 `npm run contract:dom` 并把生成的 diff 一起提交；');
     console.error('若不是有意的，说明某个测试的选择器已经指向了不存在的东西。');
