@@ -83,7 +83,9 @@
     "contract:dom:check": "node scripts/dom-contract.mjs --check",
     "styles:capture": "node scripts/style-capture.mjs",
     "styles:diff": "node scripts/style-diff.mjs",
-    "contrast:check": "node scripts/contrast-check.mjs"
+    "contrast:check": "node scripts/contrast-check.mjs",
+    "theme:audit": "node scripts/theme-audit.mjs",
+    "verify:visual": "npm run styles:capture current && npm run theme:audit -- --theme=dark && npm run theme:audit -- --theme=light"
   },
   "build": {
     "extends": null,

@@ -28,7 +28,7 @@ const render = () => ReactDOM.createRoot(rootElement).render(
         title="Application failed to start"
         message="The app hit an unexpected error while rendering. Try reloading this view."
         resetLabel="Reload app"
-        className="min-h-screen bg-[#F7F7F5] p-6 flex items-center justify-center"
+        className="min-h-screen bg-[var(--page)] p-6 flex items-center justify-center"
       >
         <StorageBoundary><App /></StorageBoundary>
       </ErrorBoundary>

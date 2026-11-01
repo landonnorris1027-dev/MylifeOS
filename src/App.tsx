@@ -279,7 +279,7 @@ export default function App() {
   }, [undoTask, handleUndoDelete, t]);
 
   return (
-    <div ref={motionRef} className={`motion-ui min-h-screen pb-24 font-sans ${view === 'planner' ? 'motion-shell' : 'bg-white text-[#202124]'}`}>
+    <div ref={motionRef} className={`motion-ui min-h-screen pb-24 font-sans ${view === 'planner' ? 'motion-shell' : 'bg-[var(--background)] text-[var(--foreground)]'}`}>
       <div className="safe-area-status-bar" aria-hidden="true" />
       <header className="motion-topbar safe-area-sticky-top">
         <div className="motion-container motion-topbar-inner">

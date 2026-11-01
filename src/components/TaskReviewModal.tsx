@@ -26,7 +26,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task: currentTask, on
   if (!task) return null;
 
   return (
-    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+    <div {...presenceProps} className="motion-modal-overlay fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-[var(--scrim)] p-4 backdrop-blur-sm">
       <div
         {...dialogProps}
         aria-label={t('task_review_title')}
@@ -91,7 +91,7 @@ const TaskReviewModal: React.FC<TaskReviewModalProps> = ({ task: currentTask, on
                 onSave(task, note, review);
                 onClose();
               }}
-              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--inverse-hover)]"
             >
               {t('save_review')}
             </button>

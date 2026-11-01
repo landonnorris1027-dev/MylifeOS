@@ -141,10 +141,10 @@
   --ink-strong: #191a1c;
   --ink: #202124;
   /* The soft ink was three different greys in three different ramps, and the
-     lightest of them sat at 3.6:1 on white — below AA for body text. This is
-     the shade that clears 4.5:1, and it happens to be the one the delete
-     control was already using, so that surface does not move at all. */
-  --ink-soft: #747382;
+     lightest of them sat at 3.6:1 on white — below AA for body text. It now
+     clears 4.5:1 on the *sunken* surface (#f1f1f2), which is the darkest thing
+     it is ever placed on, not just on white. */
+  --ink-soft: #6d6c7a;
   --ink-placeholder: #9ca3af;
 
   --line: #dadce0;
@@ -226,6 +226,38 @@
   --z-critical: 110;   /* recovery prompt over everything but toasts */
   --z-toast: 120;
 
+  /* ---------- Tailwind bridge ----------
+   * JSX still says `bg-white`, `text-gray-900`, `border-gray-100` — 268 times.
+   * Those compile to literal values, so no theme can reach them, and the
+   * settings panel stayed white in a dark app for exactly that reason.
+   *
+   * Rewriting 268 class names would be churn with no upside; the palette those
+   * names point at now resolves through tokens instead. Values are Tailwind's
+   * own, unchanged, so light mode is byte-identical. They are stored as
+   * channel triplets rather than hex because Tailwind rewrites `/95` into an
+   * alpha slot, and `rgb(var(--x) / 0.95)` only works if the token holds
+   * channels.
+   */
+  --n-white: 255 255 255;
+  --n-gray-50: 249 250 251;
+  --n-gray-100: 243 244 246;
+  --n-gray-200: 229 231 235;
+  --n-gray-300: 209 213 219;
+  --n-gray-400: 156 163 175;
+  --n-gray-500: 107 114 128;
+  --n-gray-600: 75 85 99;
+  --n-gray-700: 55 65 81;
+  --n-gray-800: 31 41 55;
+  --n-gray-900: 17 24 39;
+  --n-slate-100: 241 245 249;
+  --n-slate-700: 51 65 85;
+
+  /* The dimmer behind a modal. Darker in the dark theme: a black panel over a
+   * black page needs more separation, not less. */
+  --scrim: rgb(0 0 0 / 0.2);
+  /* Hover for a surface that is the inverse of the page (a "solid" button). */
+  --inverse-hover: #000000;
+
   /* ---------- not yet folded in ----------
    * `focus-history.css` runs its own neutral ramp and `rare-ui.css` a
    * violet-tinted one. Both are self-consistent, both already use local
@@ -266,7 +298,7 @@
   --ink: #e6e8ec;
   --ink-strong: #f2f4f7;
   --ink-soft: #a3abb6;
-  --ink-placeholder: #7d858f;
+  --ink-placeholder: #8b939e;
 
   /* neutral */
   --muted: #262b33;
@@ -352,4 +384,25 @@
   --pnone-hover: #3a2e14;
 
   --p-unassigned: #b3cbe8;
+
+  /* Tailwind bridge, inverted. Each step keeps its role: the light end of the
+   * scale becomes the dark end, so a rule written against `gray-900` still
+   * means "the strongest ink" and `gray-50` still means "barely there". */
+  --n-white: 27 31 38;
+  --n-gray-50: 28 33 40;
+  --n-gray-100: 38 44 52;
+  --n-gray-200: 51 57 65;
+  --n-gray-300: 74 81 91;
+  --n-gray-400: 139 147 158;
+  --n-gray-500: 163 171 182;
+  --n-gray-600: 188 196 206;
+  --n-gray-700: 211 217 225;
+  --n-gray-800: 230 232 236;
+  --n-gray-900: 242 244 247;
+  --n-slate-100: 34 40 48;
+  --n-slate-700: 200 208 218;
+
+  --scrim: rgb(0 0 0 / 0.55);
+  --inverse-hover: #ffffff;
+
 }

@@ -406,3 +406,78 @@ final result: passed
 - `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass, production build passes.
 - Not covered: the date input renders its inner control light in headless Chrome even though its computed background is transparent and `color-scheme` is dark — a browser rendering detail rather than a style this app controls.
 
+## 2026-11-01: dark theme, second pass (D6 correction)
+
+final result: passed
+
+### What was broken
+
+The first pass tokenised the stylesheets and called the theme done. It was not.
+Two hundred and sixty-eight Tailwind colour utilities in JSX — `bg-white`,
+`text-gray-900`, `border-gray-100` — compile to literal values, so no theme can
+reach them. The settings panel drew white cards on a dark page; the profile view
+was a white page with dark cards; and labels used the light theme's ink on the
+dark theme's surface.
+
+The shell made it worse. `bg-white text-[#202124]` was written inline on the
+component that wraps every non-planner view, so the profile page was white no
+matter what the tokens said.
+
+### Why the first pass passed its own checks
+
+- The checks measured what they were built to measure. `contrast-check.mjs`
+  reads the token file, and every token in that file was correct. The defect was
+  in code that never touched a token.
+- `theme-audit` did not exist. The one runtime check was a contrast walk over
+  planner and profile; it reported six failures, and I dismissed two of them as
+  false positives. Those two were the white page.
+- I looked at the profile screenshot and described the donut chart. The page
+  behind it was white. Approving that screenshot is the part I would most want
+  back: the evidence was in front of me and I read only the part that worked.
+
+### The fix
+
+- Tailwind's neutral palette now resolves through tokens — `--n-white`,
+  `--n-gray-50..900`, `--n-slate-100/700` — stored as channel triplets so the
+  opacity modifiers keep working (`bg-white/95` is used in the app). The values
+  are Tailwind's own, so light mode is byte-identical; probing the compiled
+  classes returns rgb(255,255,255), rgb(249,250,251) and rgb(17,24,39).
+- The shell is `bg-[var(--background)] text-[var(--foreground)]`.
+- Modal scrims use `--scrim` (0.2 in light, 0.55 in dark, because a black panel
+  over a black page needs more separation). The two "inverse" solid buttons
+  hover to `--inverse-hover` so they invert with their background. `text-black`
+  became the foreground.
+- `--ink-soft` now clears 4.5:1 on the sunken surface, not merely on white.
+- Settings section headings moved off `gray-400` (2.54:1) onto `gray-500`.
+- The unit affix inside the number field ("小时") was styled as a placeholder;
+  it is content, so it uses the label colour.
+
+### The check that should have existed
+
+`scripts/theme-audit.mjs` walks the rendered app in one theme and reports two
+different failures: a large light surface in a dark theme, and any text below
+4.5:1 against the background it actually sits on. Two details matter:
+
+- It scopes to the open modal. Six of the first run's findings were elements
+  behind the settings scrim, and they buried the two that were not.
+- It resolves the background through the paint stack, not the ancestor chain. A
+  segmented control paints its selection on a sibling plate, so walking up
+  reported white-on-white for a button that is perfectly readable.
+
+Both themes pass seven scenarios. `npm run theme:audit -- --theme=dark` and
+`--theme=light`.
+
+### Verification
+
+- `theme:audit`: 7 scenarios each, no light surface and no failing text in
+  either theme.
+- Light-mode palette probes: byte-identical to Tailwind's defaults.
+- `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass,
+  contrast check passes, production build passes.
+- Evidence: [dark settings](docs/ui-forms/dark-settings.png),
+  [dark profile](docs/ui-forms/dark-profile.png),
+  [light settings](docs/ui-forms/light-settings.png).
+- Not covered: the date input's inner calendar control still renders light in
+  headless Chrome even though its computed background is transparent and
+  `color-scheme` is dark. That is a browser painting detail, not a style this
+  app sets.

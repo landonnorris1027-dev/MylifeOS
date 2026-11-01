@@ -151,7 +151,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
 
           {/* Profile settings */}
           <div className="border-t border-gray-100 pt-6">
-            <h3 id="settings-profile" className="mb-3 block scroll-mt-16 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <h3 id="settings-profile" className="mb-3 block scroll-mt-16 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               {t('profile_settings_title')}
             </h3>
             <div className="space-y-3">
@@ -173,7 +173,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 />
               </Field>
 
-              <div id="settings-focus" className="scroll-mt-16 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-400">{t('focus_preferences')}</div>
+              <div id="settings-focus" className="scroll-mt-16 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('focus_preferences')}</div>
 
               <Field
                 orientation="horizontal"
@@ -215,7 +215,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 <AndroidReminderSettings />
               </>}
               <div className={`border-t border-gray-100 pt-6 ${isAndroid() ? 'hidden' : ''}`}>
-                <h3 id="settings-desktop" className="mb-3 block scroll-mt-16 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <h3 id="settings-desktop" className="mb-3 block scroll-mt-16 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   {t('desktop_section_title')}
                 </h3>
                 <div className="space-y-3">

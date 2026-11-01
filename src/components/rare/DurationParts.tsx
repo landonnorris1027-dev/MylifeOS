@@ -134,7 +134,7 @@ export const DurationField = ({ value, onValueChange, max, isEditing, shouldRedu
                 style={{ x, width: isEditing ? 36 : collapsedWidth }}
                 animate={{ width: isEditing ? 36 : collapsedWidth }}
                 transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', ...WIDTH_SPRING }}
-                className='rare-duration-input bg-transparent h-full text-center font-semibold text-black dark:text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+                className='rare-duration-input bg-transparent h-full text-center font-semibold text-[var(--foreground)] dark:text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
             />
             <span ref={measureRef} aria-hidden className="invisible absolute whitespace-pre font-semibold">{value || '0'}</span>
         </>

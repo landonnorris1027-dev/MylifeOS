@@ -189,7 +189,9 @@
   gap: 4px;
   font-size: 12px;
   line-height: 1;
-  color: var(--ui-placeholder);
+  /* A unit label ("小时", "分钟") is content, not a hint. It was styled as a
+     placeholder and measured 4.43:1 — below AA, and wrong on principle. */
+  color: var(--ui-label);
   pointer-events: none;
 }
 .ui-input-affix[data-side="prefix"] { left: 11px; top: 50%; translate: 0 -50%; }

@@ -50,7 +50,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           <button
             type="button"
             onClick={this.handleReset}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-black transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-[var(--inverse-hover)] transition-colors"
           >
             <RefreshCw size={16} />
             {this.props.resetLabel || 'Try again'}
