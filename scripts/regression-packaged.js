@@ -50,7 +50,12 @@ async function launch() {
     if (message.method === 'Runtime.exceptionThrown') errors.push(JSON.stringify(message.params));
     if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
       const detail = JSON.stringify(message.params.args);
-      if (!(injectingStorageFailure && detail.includes('Storage write failed'))) errors.push(detail);
+      // The injected write failure is reported by design. The compare-and-set
+      // conflict can arrive after injectingStorageFailure is reset, so match the
+      // specific expected pair as well as the injection window.
+      const expectedStorageFailure = detail.includes('Storage write failed')
+        && (injectingStorageFailure || detail.includes('Data changed before this edit was accepted'));
+      if (!expectedStorageFailure) errors.push(detail);
     }
   });
   const send = (method, params = {}) => new Promise((resolve, reject) => {
@@ -174,9 +179,9 @@ async function main() {
   assert.ok(moveTask);
   await clickText('Today');
   await clickText('Find tasks');
-  await fill('input[type=search]', moveName);
-  await clickText('Search');
-  await current.evaluate(`(() => { const b = Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.innerText.includes(${JSON.stringify(moveName)})); if (!b) throw Error('Search result missing'); b.click(); })()`);
+  await fill('[role=dialog] input[type=text]', moveName);
+  await until(() => current.evaluate(`!!Array.from(document.querySelectorAll('[role=dialog] [role=option]')).find(b => b.innerText.includes(${JSON.stringify(moveName)}))`));
+  await current.evaluate(`(() => { const b = Array.from(document.querySelectorAll('[role=dialog] [role=option]')).find(b => b.innerText.includes(${JSON.stringify(moveName)})); if (!b) throw Error('Search result missing'); b.click(); })()`);
   await until(() => current.evaluate(`document.querySelector('input[type=date]')?.value === ${JSON.stringify(day)}`));
   assert.equal(await current.evaluate(`!!Array.from(document.querySelectorAll('main > div')).find(e => e.innerText.includes(${JSON.stringify(moveName)}) && e.innerText.includes('Find tasks'))`), true,
     'Search jump must leave the selected task visible above the planner');
@@ -184,13 +189,14 @@ async function main() {
 
   await current.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
   await clickText('Timeline');
-  assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Timeline' && getComputedStyle(b).display !== 'none')?.getAttribute('aria-pressed')"), 'true');
+  assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Timeline' && getComputedStyle(b).display !== 'none')?.getAttribute('aria-current')"), 'page');
   await clickText('Inbox');
-  assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Inbox' && getComputedStyle(b).display !== 'none')?.getAttribute('aria-pressed')"), 'true');
+  assert.equal(await current.evaluate("Array.from(document.querySelectorAll('button')).find(b => b.innerText.trim() === 'Inbox' && getComputedStyle(b).display !== 'none')?.getAttribute('aria-current')"), 'page');
   await current.send('Emulation.clearDeviceMetricsOverride');
   log('PASS narrow-window inbox and timeline navigation');
 
-  await current.evaluate(`(() => { const c = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(moveName)})); const b = c?.querySelector('button[aria-label="Move task to another day"]'); if (!b) throw Error('Move action missing'); b.click(); })()`);
+  await current.evaluate(`(() => { const c = Array.from(document.querySelectorAll('div[role=button]')).find(c => c.innerText.includes(${JSON.stringify(moveName)})); const b = c?.querySelector('button[aria-label="More actions"]'); if (!b) throw Error('More actions missing'); b.click(); })()`);
+  await clickText('Move task to another day', '[role=menuitem]');
   await fill('[role=dialog][aria-label="Move task to another day"] input[type=date]', movedDate);
   await clickText('Move task');
   await until(async () => (await readLogs())[movedDate]?.tasks.some(t => t.id === moveTask.id));
@@ -490,7 +496,7 @@ async function main() {
   log('PASS direct focus preserves non-grid schedule; existing paused session; all grids; batch move/undo; text shortcut isolation');
   if (Number(require('../package.json').version.split('.')[2]) >= 7) {
     await clickText('Profile');
-    assert.ok(await current.evaluate("document.body.textContent.includes('Measured focus time') && document.body.textContent.includes('Historical task duration (includes estimates)') && document.body.textContent.includes('Local Monday–Sunday') && document.body.textContent.includes('Period review')"));
+    assert.ok(await current.evaluate("document.body.textContent.includes('Measured focus time') && document.body.textContent.includes('Historical task duration (includes estimates)') && document.body.textContent.includes('Weeks start on Monday') && document.body.textContent.includes('Period review')"));
     assert.ok(await current.evaluate("document.querySelector('.focus-history-heading').textContent.includes('Last 20 days')"));
     assert.equal(await current.evaluate("document.querySelectorAll('.focus-history-column').length"), 20);
     for (const [label, subtitle] of [['Week', 'Last 20 weeks'], ['Day', 'Last 20 days']]) {
@@ -499,7 +505,7 @@ async function main() {
       assert.equal(await current.evaluate(`${buttonQuery(label, '.focus-history-heading button')}.getAttribute('aria-pressed')`), 'true');
       assert.equal(await current.evaluate("document.querySelectorAll('.focus-history-column').length"), 20);
     }
-    assert.ok(await current.evaluate("document.body.textContent.includes('cross-midnight sessions belong to the original task date')"));
+    assert.ok(await current.evaluate("document.body.textContent.includes('Legend and period details')"));
     log('PASS measured/historical separation, twenty-day/twenty-week chart switching and period review UI');
   }
 

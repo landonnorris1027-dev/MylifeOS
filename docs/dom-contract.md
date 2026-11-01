@@ -39,11 +39,11 @@ _依赖 DOM 层级或兄弟顺序 · 5 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
-| `:scope > li` | 1 | `components/DesktopFocusStats.test.tsx` |
-| `:scope > li > details` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `.focus-history-negative > i` | 1 | `components/FocusCharts.test.tsx` |
 | `.profile-pagination button:last-child` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `.profile-review-detail > div:last-child` | 1 | `components/DesktopFocusStats.test.tsx` |
+| `:scope > li` | 1 | `components/DesktopFocusStats.test.tsx` |
+| `:scope > li > details` | 1 | `components/DesktopFocusStats.test.tsx` |
 
 ## 类名契约（改样式类就断）
 
@@ -163,7 +163,6 @@ _只依赖标签名 · 13 条_
 
 | 文案 | 使用者 |
 | --- | --- |
-| <1 min | `components/CompletedFocusDistribution.test.tsx` |
 | 09:07 | `components/TaskCard.test.tsx` |
 | 1 / 2 | `components/DesktopFocusStats.test.tsx` |
 | 100.0% | `components/CompletedFocusDistribution.test.tsx` |
@@ -172,36 +171,37 @@ _只依赖标签名 · 13 条_
 | 2026-10-06 | `components/FocusCharts.test.tsx` |
 | 2026-10-09 | `components/CompletedFocusDistribution.test.tsx` |
 | 30 | `components/FocusCharts.test.tsx` |
-| 撤销 | `ui/toast.test.tsx` |
-| 计时器启动失败，请重试。 | `components/PomodoroTimer.test.tsx` |
-| 继续 | `components/PomodoroTimer.test.tsx` |
-| 结束后播放提示 | `ui/field.test.tsx` |
-| 开始休息 | `components/PomodoroTimer.test.tsx` |
-| 临时任务 | `ui/dialog.test.tsx` |
-| 每周目标 | `app-views.a11y.test.tsx` |
-| 名称重复 | `ui/field.test.tsx` |
-| 任务 B | `ui/toast.test.tsx` |
-| 删除未完成 | `components/DeleteButton.test.tsx` |
-| 输入任务名、目标或备注试试 | `components/CommandPalette.test.tsx` |
-| 未能创建当前数据备份，已停止恢复。 | `components/HabitConfig.test.tsx` |
-| 小时 | `ui/field.test.tsx` |
-| 已保存 | `components/dialog-actions.test.tsx` |
-| 已删除 | `components/DeleteButton.test.tsx` |
-| 暂停 | `components/PomodoroTimer.test.tsx` |
-| 暂无已完成任务的实际计时 | `components/CompletedFocusDistribution.test.tsx` |
-| 正在保存 | `components/PomodoroTimer.test.tsx` |
-| 正在启动 | `components/PomodoroTimer.test.tsx` |
-| 正在删除 | `components/DeleteButton.test.tsx` |
-| 重试保存 | `components/PomodoroTimer.test.tsx` |
-| 最多 60 字 | `ui/field.test.tsx` |
+| <1 min | `components/CompletedFocusDistribution.test.tsx` |
 | Measured focus time | `components/StorageBoundary.android.test.tsx` |
 | No task records in this period | `components/DesktopFocusStats.test.tsx` |
-| pending | `components/StorageBoundary.android.test.tsx` |
 | Period review | `components/StorageBoundary.android.test.tsx` |
 | Reason: Native data changed; reload before retrying | `components/StorageBoundary.android.test.tsx` |
 | Retried task | `components/StorageBoundary.test.tsx` |
 | Rolled back task | `components/StorageBoundary.test.tsx` |
+| pending | `components/StorageBoundary.android.test.tsx` |
 | writes are blocked | `components/StorageBoundary.test.tsx` |
+| 临时任务 | `ui/dialog.test.tsx` |
+| 任务 B | `ui/toast.test.tsx` |
+| 删除未完成 | `components/DeleteButton.test.tsx` |
+| 名称重复 | `ui/field.test.tsx` |
+| 小时 | `ui/field.test.tsx` |
+| 已保存 | `components/dialog-actions.test.tsx` |
+| 已删除 | `components/DeleteButton.test.tsx` |
+| 开始休息 | `components/PomodoroTimer.test.tsx` |
+| 撤销 | `ui/toast.test.tsx` |
+| 暂停 | `components/PomodoroTimer.test.tsx` |
+| 暂无已完成任务的实际计时 | `components/CompletedFocusDistribution.test.tsx` |
+| 最多 60 字 | `ui/field.test.tsx` |
+| 未能创建当前数据备份，已停止恢复。 | `components/HabitConfig.test.tsx` |
+| 正在保存 | `components/PomodoroTimer.test.tsx` |
+| 正在删除 | `components/DeleteButton.test.tsx` |
+| 正在启动 | `components/PomodoroTimer.test.tsx` |
+| 每周目标 | `app-views.a11y.test.tsx` |
+| 结束后播放提示 | `ui/field.test.tsx` |
+| 继续 | `components/PomodoroTimer.test.tsx` |
+| 计时器启动失败，请重试。 | `components/PomodoroTimer.test.tsx` |
+| 输入任务名、目标或备注试试 | `components/CommandPalette.test.tsx` |
+| 重试保存 | `components/PomodoroTimer.test.tsx` |
 
 ## 怎么用
 

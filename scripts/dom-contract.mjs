@@ -164,6 +164,14 @@ function referencedSlot(selector) {
 
 const escapeCell = (value) => value.replace(/\|/g, '\\|');
 
+/**
+ * Locale-independent ordering. `localeCompare` puts Chinese selectors in a
+ * different order under zh-CN than under the en-US default used by CI, which
+ * made the generated ledger differ between machines even though the contract
+ * was identical.
+ */
+const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
 function render(map, asserted, sourceAttrs) {
   const tiers = { structural: [], class: [], compound: [], attribute: [], element: [] };
   for (const [selector, info] of map) tiers[info.tier].push([selector, info]);
@@ -209,7 +217,7 @@ function render(map, asserted, sourceAttrs) {
     lines.push('');
     lines.push('| 选择器 | 属性 | 值 |');
     lines.push('| --- | --- | --- |');
-    for (const item of dangling.sort((a, b) => a.selector.localeCompare(b.selector))) {
+    for (const item of dangling.sort((a, b) => byText(a.selector, b.selector))) {
       lines.push(`| \`${escapeCell(item.selector)}\` | ${item.kind} | \`${item.value}\` |`);
     }
     lines.push('');
@@ -217,7 +225,7 @@ function render(map, asserted, sourceAttrs) {
 
   const localised = [...map.entries()]
     .filter(([selector]) => /[\u4e00-\u9fff]/.test(selector))
-    .sort((a, b) => a[0].localeCompare(b[0]));
+    .sort((a, b) => byText(a[0], b[0]));
 
   if (localised.length) {
     lines.push('## 文案型选择器（切语言就会失配）');
@@ -244,7 +252,7 @@ function render(map, asserted, sourceAttrs) {
   };
 
   for (const t of TIER_ORDER) {
-    const rows = tiers[t].sort((a, b) => a[0].localeCompare(b[0]));
+    const rows = tiers[t].sort((a, b) => byText(a[0], b[0]));
     if (!rows.length) continue;
     lines.push(`## ${titles[t]}`);
     lines.push('');
@@ -266,7 +274,7 @@ function render(map, asserted, sourceAttrs) {
     lines.push('');
     lines.push('| 文案 | 使用者 |');
     lines.push('| --- | --- |');
-    for (const [text, users] of [...asserted].sort((a, b) => a[0].localeCompare(b[0]))) {
+    for (const [text, users] of [...asserted].sort((a, b) => byText(a[0], b[0]))) {
       const list = [...users].sort().map((u) => `\`${u.replace('src/', '')}\``).join('<br>');
       lines.push(`| ${escapeCell(text)} | ${list} |`);
     }
