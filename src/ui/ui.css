@@ -211,13 +211,13 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  color: var(--ink-muted);
+  color: var(--muted-foreground);
   background: var(--surface-muted);
   border: 1px solid var(--ui-line);
   border-radius: var(--radius-md);
   transition: background-color 160ms, color 160ms, border-color 160ms, scale 120ms;
 }
-.ui-number-button:hover:not(:disabled) { background: #e9ebee; border-color: var(--ui-line-strong); color: var(--ui-ink); }
+.ui-number-button:hover:not(:disabled) { background: var(--muted-hover); border-color: var(--ui-line-strong); color: var(--ui-ink); }
 .ui-number-button:active:not(:disabled) { scale: .94; }
 .ui-number-button:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -371,7 +371,7 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(0, 0, 0, .2);
+  background: var(--scrim);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
@@ -433,7 +433,7 @@
 }
 .ui-alert-icon.tone-info { background: var(--info-soft); color: var(--info-ink); }
 .ui-alert-icon.tone-danger { background: var(--ui-danger-soft); color: var(--ui-danger); }
-.ui-alert-icon.tone-success { background: #ecfdf5; color: var(--ui-success-ink); }
+.ui-alert-icon.tone-success { background: var(--success-soft); color: var(--ui-success-ink); }
 .ui-alert-title { font-size: 18px; font-weight: 600; line-height: 1.35; color: var(--ui-ink); }
 .ui-alert-message {
   margin: 8px 0 24px;
@@ -442,7 +442,6 @@
   color: var(--ui-label);
   white-space: pre-line;
 }
-.ui-alert-icon.tone-warning { background: var(--surface-card)beb; color: #b45309; }
 
 /* ---------- Toast ---------- */
 
@@ -493,9 +492,9 @@
   cursor: pointer;
   transition: background-color 160ms, color 160ms;
 }
-.ui-toast-action:hover { background: rgba(255, 255, 255, .1); color: var(--surface-card); }
+.ui-toast-action:hover { background: rgba(255, 255, 255, .1); color: var(--on-surface); }
 .ui-toast-close { color: #9ca3af; }
-.ui-toast-close:hover:not(:disabled) { color: var(--surface-card); background: rgba(255, 255, 255, .1); }
+.ui-toast-close:hover:not(:disabled) { color: var(--on-surface); background: rgba(255, 255, 255, .1); }
 
 @keyframes ui-toast-in { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
 @keyframes ui-toast-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 6px; } }

@@ -262,8 +262,8 @@
   content: '';
   width: 7px;
   height: 7px;
-  border-right: 1.5px solid var(--ink-muted);
-  border-bottom: 1.5px solid var(--ink-muted);
+  border-right: 1.5px solid var(--muted-foreground);
+  border-bottom: 1.5px solid var(--muted-foreground);
   transform: rotate(-45deg);
   flex-shrink: 0;
   margin-left: 3px;

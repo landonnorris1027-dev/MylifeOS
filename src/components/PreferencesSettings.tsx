@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { isAndroid } from '../services/platform';
 import { Field, FieldLegend, FieldSet, NumberField, Switch } from '../ui';
 import SegmentedControl from './SegmentedControl';
-import { ThemePreference, applyTheme, readTheme, watchSystemTheme, writeTheme } from '../services/theme';
+import { ThemePreference, applyTheme, readTheme, writeTheme } from '../services/theme';
 import type { FocusSettings } from '../services/focusSettings';
 import type { ProfileSettings } from '../services/profileSettings';
 import type { DesktopSettings } from '../services/desktopSettings';
@@ -39,9 +39,6 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
  const increaseLabel = (label: string) => t('stepper_increase', { label });
 
   const [theme, setTheme] = useState<ThemePreference>(() => readTheme());
-
-  // A preference of "system" has to follow the system while the panel is open.
-  useEffect(() => watchSystemTheme(() => setTheme(readTheme())), []);
 
   const handleThemeChange = (value: string) => {
     const preference = value as ThemePreference;

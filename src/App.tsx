@@ -32,6 +32,7 @@ import { buildTimelineSlotsForMode } from './services/scheduling';
 
 const UNDO_TOAST_ID = 'undo-delete';
 import { isAndroid } from './services/platform';
+import { applyTheme, watchSystemTheme } from './services/theme';
 import { App as NativeApp } from '@capacitor/app';
 
 const PRIORITY_LABEL_KEYS: Record<Priority, TranslationKey> = {
@@ -49,6 +50,9 @@ export default function App() {
   const searchResultRef = React.useRef<HTMLDivElement>(null);
   const { t, language, setLanguage } = useLanguage();
   const { state, actions } = useAppController();
+  // "Follow the system" has to keep working while the app is open, and the
+  // settings panel is usually closed when the OS switches themes.
+  React.useEffect(() => watchSystemTheme(applyTheme), []);
   React.useEffect(() => {
     if (!isAndroid()) return;
     const listener = NativeApp.addListener('backButton', () => {
