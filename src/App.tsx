@@ -27,7 +27,7 @@ import { useAppController } from './hooks/useAppController';
 import { useMotionScope, useTaskLayout } from './hooks/useMotionScope';
 import { scrollToElement } from './hooks/useReducedMotion';
 import ErrorBoundary from './components/ErrorBoundary';
-import { Popover, PopoverContent, PopoverTrigger, Toaster, dismissToast, toast } from './ui';
+import { Empty, Popover, PopoverContent, PopoverTrigger, Toaster, dismissToast, toast } from './ui';
 import { buildTimelineSlotsForMode } from './services/scheduling';
 
 const UNDO_TOAST_ID = 'undo-delete';
@@ -414,17 +414,15 @@ export default function App() {
                 <div className="motion-panel-heading"><h2><InboxIcon size={18}/>{t('inbox')}</h2><span key={inboxTasks.length} className="motion-panel-count">{inboxTasks.length}</span></div>
                 <div className="space-y-3">
                   {inboxTasks.length === 0 ? (
-                    <div className="motion-empty">
-                      {isToday ? (
-                        <>
-                          <p>{t('ui_inbox_empty')}</p>
-                          <p>{t('ui_inbox_hint')}</p>
-                          <button type="button" onClick={openManualTask} className="motion-button motion-primary motion-empty-create"><Plus size={16} aria-hidden="true" />{t('ui_new_task')}</button>
-                        </>
-                      ) : (
-                        <p className="text-xs">{t('no_tasks_past_day')}</p>
-                      )}
-                    </div>
+                    isToday ? (
+                      <Empty
+                        title={t('ui_inbox_empty')}
+                        description={t('ui_inbox_hint')}
+                        action={<button type="button" onClick={openManualTask} className="motion-button motion-primary"><Plus size={16} aria-hidden="true" />{t('ui_new_task')}</button>}
+                      />
+                    ) : (
+                      <p className="text-xs">{t('no_tasks_past_day')}</p>
+                    )
                   ) : (
                     inboxTasks.map((task) => (
                       <TaskCard

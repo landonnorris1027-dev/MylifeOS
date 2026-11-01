@@ -109,6 +109,6 @@ describe('command palette', () => {
     await mount();
     await type('不存在的关键词');
 
-    expect(container.querySelector('.ui-command-empty')?.textContent).toContain('输入任务名、目标或备注试试');
+    expect(container.querySelector('[data-slot="empty"]')?.textContent).toContain('输入任务名、目标或备注试试');
   });
 });

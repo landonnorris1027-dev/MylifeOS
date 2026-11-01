@@ -15,9 +15,9 @@
 | 依赖它们的测试文件 | 22 | 改契约的影响面 |
 | 直接断言的可见文案 | 39 | 文案改动会断的断言 |
 | 结构 | 5 | 依赖 DOM 层级或兄弟顺序 |
-| 类名 | 31 | 依赖样式类名 |
+| 类名 | 30 | 依赖样式类名 |
 | 组合 | 2 | 组合选择器 |
-| 语义 | 40 | 依赖 role / aria-* / data-* / title 等语义属性 |
+| 语义 | 41 | 依赖 role / aria-* / data-* / title 等语义属性 |
 | 标签 | 13 | 只依赖标签名 |
 
 ## 文案型选择器（切语言就会失配）
@@ -47,7 +47,7 @@ _依赖 DOM 层级或兄弟顺序 · 5 条_
 
 ## 类名契约（改样式类就断）
 
-_依赖样式类名 · 31 条_
+_依赖样式类名 · 30 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
@@ -76,7 +76,6 @@ _依赖样式类名 · 31 条_
 | `.rare-duration-input` | 1 | `components/DurationInputs.test.tsx` |
 | `.rare-duration-toggle` | 1 | `components/DurationInputs.test.tsx` |
 | `.ui-btn` | 1 | `components/dialog-actions.test.tsx` |
-| `.ui-command-empty` | 1 | `components/CommandPalette.test.tsx` |
 | `.ui-command-input` | 1 | `components/CommandPalette.test.tsx` |
 | `.ui-command-item` | 1 | `components/CommandPalette.test.tsx` |
 | `.ui-command-item-label` | 1 | `components/CommandPalette.test.tsx` |
@@ -94,7 +93,7 @@ _组合选择器 · 2 条_
 
 ## 语义契约（推荐长期依赖）
 
-_依赖 role / aria-* / data-* / title 等语义属性 · 40 条_
+_依赖 role / aria-* / data-* / title 等语义属性 · 41 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
@@ -107,6 +106,7 @@ _依赖 role / aria-* / data-* / title 等语义属性 · 40 条_
 | `[data-side="prefix"]` | 1 | `ui/field.test.tsx` |
 | `[data-side="suffix"]` | 1 | `ui/field.test.tsx` |
 | `[data-slot="dialog-overlay"]` | 1 | `ui/dialog.test.tsx` |
+| `[data-slot="empty"]` | 1 | `components/CommandPalette.test.tsx` |
 | `[data-slot="icon-button"]` | 2 | `components/dialog-actions.test.tsx`<br>`ui/dialog.test.tsx` |
 | `[data-slot="profile-view"]` | 1 | `app-views.a11y.test.tsx` |
 | `[data-slot="settings-trigger"]` | 1 | `app-views.a11y.test.tsx` |

@@ -84,9 +84,6 @@
 .motion-panel-count { min-width: 28px; padding: 4px 9px; border-radius: var(--radius-pill); font-size: 13px; text-align: center; background: var(--motion-soft); color: var(--motion-muted); }
 .motion-inbox-footer { padding-top: 18px; margin-top: 20px; border-top: 1px solid var(--motion-line); }
 .motion-inbox-footer .motion-button { width: 100%; }
-.motion-empty { padding: 35px 8px; text-align: center; font-size: 14px; color: var(--motion-muted); line-height: 1.7; }
-.motion-empty p + p { font-size: 13px; margin-top: 6px; }
-.motion-empty-create { margin-top: 18px; }
 .motion-task-schedule-hint { margin-top: 10px; font-size: 12px; line-height: 1.5; color: var(--motion-primary); }
 .motion-timeline-heading-actions { display: flex; align-items: center; gap: 10px; }
 .motion-desktop-time-jump { min-height: 32px; padding: 6px 10px; font-size: 13px; }
@@ -238,7 +235,6 @@
 .motion-scene { min-width: 0; }
 .motion-page-title h1 { animation: motion-content-enter 240ms var(--motion-ease) both; }
 .motion-panel-count { animation: motion-count-enter 320ms var(--motion-spring) both; }
-.motion-empty { animation: motion-page-enter 360ms var(--motion-ease) both; }
 .motion-overview { animation: motion-page-enter 400ms var(--motion-ease) both; }
 .motion-ui [data-timeline-time] { scroll-margin-block-start: 100px; }
 .motion-ui [data-motion-reveal="pending"] { opacity: 0; }

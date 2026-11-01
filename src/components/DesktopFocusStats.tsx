@@ -17,6 +17,7 @@ import {
 } from '../services/focusReports';
 import FocusCharts from './FocusCharts';
 import CompletedFocusDistribution from './CompletedFocusDistribution';
+import { Empty } from '../ui';
 
 export default function DesktopFocusStats({
   refreshToken = 0,
@@ -246,17 +247,13 @@ function WeeklyReview({
           ))}
       </ul>
       {!report.tasks.length && (
-        <div className="profile-empty">
-          <CalendarDays size={24} aria-hidden="true" />
-          <p>
-            {zh ? '这个时段还没有任务记录' : 'No task records in this period'}
-          </p>
-          <p className="profile-caption">
-            {zh
-              ? '选择其他日期查看过去的计划与复盘。'
-              : 'Choose another date to review earlier plans.'}
-          </p>
-        </div>
+        <Empty
+          icon={<CalendarDays size={24} />}
+          title={zh ? '这个时段还没有任务记录' : 'No task records in this period'}
+          description={zh
+            ? '选择其他日期查看过去的计划与复盘。'
+            : 'Choose another date to review earlier plans.'}
+        />
       )}
       <nav
         aria-label={zh ? '复盘分页' : 'Review pagination'}

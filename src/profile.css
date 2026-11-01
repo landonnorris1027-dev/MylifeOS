@@ -225,19 +225,6 @@
   font-weight: 550;
   overflow-wrap: anywhere;
 }
-.profile-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-  padding: 26px 12px;
-  font-size: 14px;
-  color: var(--motion-muted);
-}
-.profile-empty svg {
-  color: #7baaf7;
-}
 .profile-count {
   border-radius: var(--radius-pill);
   background: #e8f0fe;

@@ -3,7 +3,7 @@ import { CornerDownLeft, Search, SlidersHorizontal } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getGoals, searchTasks, TaskSearchFilters } from '../services/storage';
 import { Task } from '../types';
-import { Dialog, Field, Input, Select } from '../ui';
+import { Dialog, Empty, Field, Input, Select } from '../ui';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -234,10 +234,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
             </>
           ) : null}
           {items.length === 0 ? (
-            <div className="ui-command-empty">
-              <p>{t('task_search_empty')}</p>
-              <p>{t('command_empty_hint')}</p>
-            </div>
+            <Empty title={t('task_search_empty')} description={t('command_empty_hint')} />
           ) : null}
         </div>
 

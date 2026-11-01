@@ -5,6 +5,8 @@ import '../index.css';
 import '../ui-motion.css';
 import {
   Button,
+  Empty,
+  Skeleton,
   Toaster,
   toast,
   Checkbox,
@@ -359,6 +361,26 @@ const Preview: React.FC = () => {
             <button type="submit" className="motion-button motion-primary" onClick={(event) => event.preventDefault()}>
               <Search size={16} /> 搜索
             </button>
+          </div>
+        </div>
+      </Section>
+
+      <Section id="empty" title="空状态与骨架屏" note="三种空状态共用一套层级：说清缺什么、给出下一步、留一个出口。骨架屏按内容形状占位，不让布局跳动。">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-gray-100 bg-white">
+            <Empty
+              title="收件箱是空的"
+              description="新建一个任务，或从习惯里安排今天要做的事。"
+              action={<Button variant="primary" size="sm">新增任务</Button>}
+            />
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-1/3" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-9 w-24" />
+            </div>
           </div>
         </div>
       </Section>
