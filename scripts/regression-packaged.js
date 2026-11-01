@@ -345,7 +345,15 @@ async function main() {
 
   const appDataPath = path.join(profile, 'app-data.json');
   await current.evaluate("window.electronAPI.sendSync('storage-set-sync', {key:'durability_probe', value:'baseline'})");
-  await delay(500);
+  // The synchronous IPC only acknowledges the queue. Wait for the value to
+  // reach disk instead of assuming a fixed 500 ms is enough on a loaded runner.
+  await until(() => {
+    try {
+      return JSON.parse(fs.readFileSync(appDataPath, 'utf8')).durability_probe === 'baseline';
+    } catch {
+      return false;
+    }
+  });
   let lastDurableValue = JSON.parse(fs.readFileSync(appDataPath, 'utf8')).durability_probe;
   assert.equal(lastDurableValue, 'baseline');
 
