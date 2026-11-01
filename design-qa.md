@@ -481,3 +481,37 @@ Both themes pass seven scenarios. `npm run theme:audit -- --theme=dark` and
   headless Chrome even though its computed background is transparent and
   `color-scheme` is dark. That is a browser painting detail, not a style this
   app sets.
+
+## 2026-11-01: settings tab bar no longer pins (D1 correction)
+
+final result: passed
+
+### What was wrong
+
+The tab row in the settings dialog stayed put while the content scrolled, and
+it sat 24 px below the dialog title. Content scrolled through that gap, so a
+half-cut input field appeared to float above the bar.
+
+The measurement: `position: sticky; top: 0` resolves against the scroll
+container's *content box*. The dialog body carries 24 px of padding, so the bar
+parked at `bodyTop + 24` and left the strip above it uncovered. A negative
+`top` would have covered the strip, but the bar would still be pinned — which
+is the part the user objected to.
+
+### The fix
+
+The bar scrolls with the content now: `sticky`, `top-0`, `z-10` and
+`backdrop-blur` are gone. Anchor jumps and the scroll-linked highlight stay,
+because neither depends on pinning. `scroll-mt-16` went back to `scroll-mt-4` —
+that offset only existed to clear the pinned bar.
+
+### Verification
+
+- At rest the bar's top edge equals the body's top edge: gap 0, no uncovered
+  strip.
+- Scrolled 150 px: the bar's top moves from 76 to -74, i.e. fully out of view.
+- Clicking 数据管理 scrolls the body to 411 px, highlights that entry and
+  leaves the URL without a fragment.
+- `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass,
+  contrast check passes, production build passes.
+- Evidence: [settings scrolled](docs/ui-forms/settings-nav-scroll.png).

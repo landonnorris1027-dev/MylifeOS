@@ -115,7 +115,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
  return <>
 <nav
               aria-label={t('settings_title')}
-              className={`sticky top-0 z-10 -mx-6 -mt-6 grid ${isAndroid() ? 'grid-cols-4' : 'grid-cols-5'} gap-1 border-b border-gray-100 bg-white/95 px-6 pt-4 pb-2 text-center text-[11px] backdrop-blur`}
+              className={`-mx-6 -mt-6 grid ${isAndroid() ? 'grid-cols-4' : 'grid-cols-5'} gap-1 border-b border-gray-100 bg-[var(--card)] px-6 pt-4 pb-2 text-center text-[11px]`}
             >
               {sections.map(([href, key]) => (
                 <a
@@ -134,7 +134,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
               ))}
             </nav>
           <FieldSet className="border-t border-gray-100 pt-6">
-            <FieldLegend id="settings-appearance" className="mb-3 block scroll-mt-16">
+            <FieldLegend id="settings-appearance" className="mb-3 block scroll-mt-4">
               {t('theme_setting')}
             </FieldLegend>
             <SegmentedControl
@@ -151,7 +151,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
 
           {/* Profile settings */}
           <div className="border-t border-gray-100 pt-6">
-            <h3 id="settings-profile" className="mb-3 block scroll-mt-16 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <h3 id="settings-profile" className="mb-3 block scroll-mt-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               {t('profile_settings_title')}
             </h3>
             <div className="space-y-3">
@@ -173,7 +173,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 />
               </Field>
 
-              <div id="settings-focus" className="scroll-mt-16 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('focus_preferences')}</div>
+              <div id="settings-focus" className="scroll-mt-4 border-t border-gray-100 pt-6 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('focus_preferences')}</div>
 
               <Field
                 orientation="horizontal"
@@ -215,7 +215,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 <AndroidReminderSettings />
               </>}
               <div className={`border-t border-gray-100 pt-6 ${isAndroid() ? 'hidden' : ''}`}>
-                <h3 id="settings-desktop" className="mb-3 block scroll-mt-16 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <h3 id="settings-desktop" className="mb-3 block scroll-mt-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   {t('desktop_section_title')}
                 </h3>
                 <div className="space-y-3">
@@ -257,7 +257,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
           </div>
 
           <FieldSet className="border-t border-gray-100 pt-6">
-            <FieldLegend id="settings-planner" className="mb-3 block scroll-mt-16">
+            <FieldLegend id="settings-planner" className="mb-3 block scroll-mt-4">
               {t('planner_settings_title')}
             </FieldLegend>
             <div className="grid grid-cols-2 gap-2">
