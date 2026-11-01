@@ -15,9 +15,9 @@
 | 依赖它们的测试文件 | 22 | 改契约的影响面 |
 | 直接断言的可见文案 | 39 | 文案改动会断的断言 |
 | 结构 | 5 | 依赖 DOM 层级或兄弟顺序 |
-| 类名 | 32 | 依赖样式类名 |
+| 类名 | 31 | 依赖样式类名 |
 | 组合 | 2 | 组合选择器 |
-| 语义 | 39 | 依赖 role / aria-* / data-* / title 等语义属性 |
+| 语义 | 40 | 依赖 role / aria-* / data-* / title 等语义属性 |
 | 标签 | 13 | 只依赖标签名 |
 
 ## 文案型选择器（切语言就会失配）
@@ -32,7 +32,6 @@
 | `[aria-label="确认仅删除今天"]` | `components/TaskCard.test.tsx` |
 | `[title="提前完成"]` | `components/PomodoroTimer.test.tsx` |
 | `button[title="编辑习惯"]` | `components/DurationInputs.test.tsx` |
-| `button[title="移出时间线"]` | `components/CompletedTaskCard.test.tsx` |
 
 ## 结构契约（最易碎：改 DOM 层级就断）
 
@@ -48,7 +47,7 @@ _依赖 DOM 层级或兄弟顺序 · 5 条_
 
 ## 类名契约（改样式类就断）
 
-_依赖样式类名 · 32 条_
+_依赖样式类名 · 31 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
@@ -74,7 +73,6 @@ _依赖样式类名 · 32 条_
 | `.profile-review-list` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `.profile-review-list details` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `.profile-session-list` | 1 | `components/DesktopFocusStats.test.tsx` |
-| `.rare-delete-anchor` | 1 | `components/TaskCard.test.tsx` |
 | `.rare-duration-input` | 1 | `components/DurationInputs.test.tsx` |
 | `.rare-duration-toggle` | 1 | `components/DurationInputs.test.tsx` |
 | `.ui-btn` | 1 | `components/dialog-actions.test.tsx` |
@@ -96,10 +94,11 @@ _组合选择器 · 2 条_
 
 ## 语义契约（推荐长期依赖）
 
-_依赖 role / aria-* / data-* / title 等语义属性 · 39 条_
+_依赖 role / aria-* / data-* / title 等语义属性 · 40 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
+| `[aria-haspopup="menu"]` | 2 | `components/CompletedTaskCard.test.tsx`<br>`components/TaskCard.test.tsx` |
 | `[aria-label="仅删除今天"]` | 1 | `components/TaskCard.test.tsx` |
 | `[aria-label="确认仅删除今天"]` | 1 | `components/TaskCard.test.tsx` |
 | `[aria-live]` | 1 | `components/FocusCharts.test.tsx` |
@@ -126,6 +125,7 @@ _依赖 role / aria-* / data-* / title 等语义属性 · 39 条_
 | `[role="dialog"]` | 3 | `app-views.a11y.test.tsx`<br>`hooks/useModalBehavior.test.tsx`<br>`ui/dialog.test.tsx` |
 | `[role="dialog"] button` | 1 | `packaged-ui.test.ts` |
 | `[role="img"]` | 1 | `components/ManualTaskModal.test.tsx` |
+| `[role="menuitem"]` | 2 | `components/CompletedTaskCard.test.tsx`<br>`components/TaskCard.test.tsx` |
 | `[role="navigation"] button` | 1 | `app-views.a11y.test.tsx` |
 | `[role="radio"]` | 1 | `components/ManualTaskModal.test.tsx` |
 | `[role="radiogroup"]` | 1 | `components/ManualTaskModal.test.tsx` |
@@ -133,7 +133,6 @@ _依赖 role / aria-* / data-* / title 等语义属性 · 39 条_
 | `[role=button]` | 1 | `components/StorageBoundary.test.tsx` |
 | `[title="提前完成"]` | 1 | `components/PomodoroTimer.test.tsx` |
 | `button[title="编辑习惯"]` | 1 | `components/DurationInputs.test.tsx` |
-| `button[title="移出时间线"]` | 1 | `components/CompletedTaskCard.test.tsx` |
 | `input[type="date"]` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `input[type="file"]` | 1 | `components/HabitConfig.test.tsx` |
 | `input[type="text"]` | 1 | `components/DurationInputs.test.tsx` |
@@ -147,7 +146,7 @@ _只依赖标签名 · 13 条_
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
 | `a` | 1 | `ui/button.test.tsx` |
-| `button` | 13 | `app-views.a11y.test.tsx`<br>`components/CompletedTaskCard.test.tsx`<br>`components/DesktopFocusStats.test.tsx`<br>…另 10 个 |
+| `button` | 12 | `app-views.a11y.test.tsx`<br>`components/DesktopFocusStats.test.tsx`<br>`components/FocusCharts.test.tsx`<br>…另 9 个 |
 | `dt` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `fieldset` | 2 | `components/StorageBoundary.android.test.tsx`<br>`components/StorageBoundary.test.tsx` |
 | `form` | 1 | `components/DurationInputs.test.tsx` |

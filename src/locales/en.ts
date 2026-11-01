@@ -254,6 +254,7 @@ const en = {
   delete_today: 'Delete for today only',
   delete_permanent_block: 'Reduce daily quota',
   unschedule: 'Remove from schedule',
+  more_actions: 'More actions',
   confirm_permanent_delete: 'This will reduce the daily quota for this habit. If the quota reaches 0, the habit rule will be removed. Continue?',
   completion_summary_title: 'Session complete',
   completion_summary_message: '"{task}" is complete.\nFocused {minutes} minutes this round.\nDay progress: {completed}/{total} tasks ({rate}%).',

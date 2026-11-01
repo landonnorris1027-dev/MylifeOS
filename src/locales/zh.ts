@@ -254,6 +254,7 @@ const zh = {
   delete_today: '仅删除今天',
   delete_permanent_block: '减少每日数量',
   unschedule: '移出时间线',
+  more_actions: '更多操作',
   confirm_permanent_delete: '这会减少该习惯的每日数量；如果数量降为 0，会移除这条习惯规则。确定继续吗？',
   completion_summary_title: '本轮已完成',
   completion_summary_message: '“{task}”已完成。\n本轮专注 {minutes} 分钟。\n当天进度：{completed}/{total} 个任务（{rate}%）。',
