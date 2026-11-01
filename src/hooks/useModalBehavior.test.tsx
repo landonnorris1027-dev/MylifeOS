@@ -200,6 +200,29 @@ describe('useModalBehavior', () => {
     expect(trigger.closest('[inert]')).toBeNull();
   });
 
+  it('leaves an explicit persistent recovery surface interactive', () => {
+    const persistent = document.createElement('section');
+    persistent.setAttribute('data-modal-persistent', '');
+    persistent.innerHTML = '<button data-testid="retry">retry</button>';
+    document.body.appendChild(persistent);
+
+    try {
+      const onClose = vi.fn();
+      act(() => root.render(<Harness onClose={onClose} />));
+      openModal();
+
+      expect(persistent.hasAttribute('inert')).toBe(false);
+
+      act(() => {
+        container.querySelector<HTMLButtonElement>('[data-testid="last-button"]')!.click();
+      });
+
+      expect(persistent.hasAttribute('inert')).toBe(false);
+    } finally {
+      persistent.remove();
+    }
+  });
+
   it('locks body scrolling while open and restores the previous value', () => {
     const onClose = vi.fn();
     const initialOverflow = document.body.style.overflow;

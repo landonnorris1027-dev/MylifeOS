@@ -84,7 +84,7 @@ export default function StorageBoundary({ children }: { children: React.ReactNod
     if (interactionBlocked) { event.preventDefault(); event.stopPropagation(); }
   };
   return <>
-    {showStatus && <section aria-label={zh ? '数据保存状态' : 'Data save status'} className={`sticky top-0 z-[100] max-h-[50dvh] overflow-y-auto overscroll-contain px-4 py-2 text-sm ${recovery || failed ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-700'}`}>
+    {showStatus && <section aria-label={zh ? '数据保存状态' : 'Data save status'} data-modal-persistent="" className={`sticky top-0 z-[100] max-h-[50dvh] overflow-y-auto overscroll-contain px-4 py-2 text-sm ${recovery || failed ? 'bg-amber-100 text-amber-950' : 'bg-slate-100 text-slate-700'}`}>
       {status.state !== 'saved' && <div role="status" aria-live="polite">
         {status.state === 'saving' ? (zh ? '保存中…' : 'Saving…')
           : recovery ? (zh ? '数据读取失败：已停止写入，原文件保留。请选择经过验证的备份恢复。' : 'Data unreadable: writes are blocked and originals preserved. Restore a verified backup.')

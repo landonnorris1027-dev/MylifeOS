@@ -59,7 +59,9 @@ const NON_RENDERED_TAGS = new Set(['SCRIPT', 'STYLE', 'LINK', 'TEMPLATE', 'NOSCR
  * interaction by walking up from the dialog and marking each ancestor's
  * siblings inert. Siblings that are already inert (an outer dialog in a nested
  * stack, or a widget that made itself inert) are left untouched so their own
- * owner still controls the release.
+ * owner still controls the release. Critical recovery surfaces such as the
+ * storage retry bar opt out with `data-modal-persistent`, because a dialog must
+ * never strand the controls that can repair the data it is displaying.
  */
 const isolateBackground = (container: HTMLElement): (() => void) => {
   const isolated: HTMLElement[] = [];
@@ -69,7 +71,7 @@ const isolateBackground = (container: HTMLElement): (() => void) => {
   while (parent) {
     for (const sibling of Array.from(parent.children)) {
       if (!(sibling instanceof HTMLElement) || sibling === node) continue;
-      if (NON_RENDERED_TAGS.has(sibling.tagName) || sibling.hasAttribute('inert')) continue;
+      if (NON_RENDERED_TAGS.has(sibling.tagName) || sibling.hasAttribute('inert') || sibling.hasAttribute('data-modal-persistent')) continue;
       sibling.setAttribute('inert', '');
       isolated.push(sibling);
     }
