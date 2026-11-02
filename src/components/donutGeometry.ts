@@ -21,11 +21,11 @@ export function donutSegmentPath(start: number, proportion: number): string {
       M 100 36 A 64 64 0 1 0 100 164 A 64 64 0 1 0 100 36 Z`;
   }
   const span = proportion * TAU;
-  // Tiny slices retain most of their angular share instead of growing round caps.
-  const inset = Math.min(0.018, span * 0.1);
+  // Tiny slices retain most of their angular share instead of growing gaps.
+  const inset = Math.min(0.03, span * 0.16);
   const from = start * TAU - Math.PI / 2 + inset;
   const to = from + span - inset * 2;
-  const corner = Math.min(3, ((to - from) * INNER) / 4);
+  const corner = Math.min(5, ((to - from) * INNER) / 4);
   const outerCorner = corner / OUTER;
   const innerCorner = corner / INNER;
   const outerLarge = to - from - outerCorner * 2 > Math.PI ? 1 : 0;

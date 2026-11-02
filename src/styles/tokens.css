@@ -20,28 +20,31 @@
 
 :root {
   /* ---------- surfaces ---------- */
-  --background: #f8fafd;        /* app canvas (was --motion-canvas) */
-  --page: #f7f7f5;              /* html backdrop, visible at the viewport edge */
-  --foreground: #202124;        /* primary text (was --motion-ink) */
+  /* One neutral canvas for the whole app. The old pair mixed a warm page
+   * (#f7f7f5) with a cool canvas (#f8fafd), so the same white card looked
+   * warmer or cooler depending on which edge of the app it sat on. */
+  --background: #f6f7f9;        /* app canvas (was --motion-canvas) */
+  --page: #f6f7f9;              /* html backdrop, visible at the viewport edge */
+  --foreground: #1b1d21;        /* primary text (was --motion-ink) */
   --card: #ffffff;              /* panels, dialogs, inputs (was --motion-panel) */
-  --card-foreground: #202124;
-  --surface-sunken: #f1f1f2;    /* recessed panel inside a card */
+  --card-foreground: #1b1d21;
+  --surface-sunken: #f1f3f6;    /* recessed panel inside a card */
 
   /* ---------- neutrals ---------- */
-  --muted: #f1f3f4;             /* secondary fill: chips, segment track */
-  --muted-hover: #e8eaed;       /* hover for the above, and for ghost buttons */
-  --muted-foreground: #5f6368;  /* secondary text (was --motion-muted) */
-  --border: #dadce0;            /* default hairline (was --motion-line) */
-  --border-subtle: #edf1f7;     /* topbar and panel hairline (was a literal) */
-  --divider: #e8eaed;           /* lighter rule between rows */
-  --placeholder: #9ca3af;
+  --muted: #f1f3f6;             /* secondary fill: chips, segment track */
+  --muted-hover: #e9ecf1;       /* hover for the above, and for ghost buttons */
+  --muted-foreground: #5f6b7d;  /* secondary text (was --motion-muted) */
+  --border: #e4e8ee;            /* default hairline (was --motion-line) */
+  --border-subtle: #eef1f5;     /* topbar and panel hairline (was a literal) */
+  --divider: #eef1f5;           /* lighter rule between rows */
+  --placeholder: #98a2b3;
 
   /* ---------- primary ---------- */
-  --primary: #0b57d0;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --primary-hover: #0842a0;
-  --primary-soft: #e8f0fe;      /* selected row / today pill */
-  --primary-line: #a8c7fa;      /* border of the selected state */
+  --primary-hover: #1d4ed8;
+  --primary-soft: #eff6ff;      /* selected row / today pill */
+  --primary-line: #bfdbfe;      /* border of the selected state */
 
   /* ---------- status ---------- */
   --success: #0b8043;
@@ -77,43 +80,43 @@
    *   ink   = text on soft       tag  = denser chip background
    *   hover = hover for soft
    */
-  /* Text that sits on the solid data colour. The solid marks are lightened for
-     a dark page, so the text on them has to darken to match. */
-  --p1-on-solid: #202124;
-  --p2-on-solid: #202124;
-  --p3-on-solid: #202124;
-  --pnone-on-solid: #202124;
+  /* Text that sits on the solid data colour. P1/P2 are deep enough for white;
+     P3 and none stay light, so their labels use the ink instead. */
+  --p1-on-solid: #ffffff;
+  --p2-on-solid: #ffffff;
+  --p3-on-solid: #1b1d21;
+  --pnone-on-solid: #1b1d21;
 
-  --p1-solid: #9d7bf5;
-  --p1-soft: #f4effe;
-  --p1-line: #e4d9fc;
-  --p1-ink: #3d2b65;
-  --p1-tag: #e8defc;
-  --p1-hover: #eee5fd;
+  --p1-solid: #7048fa;
+  --p1-soft: #f4f0ff;
+  --p1-line: #e3d9ff;
+  --p1-ink: #3b2a78;
+  --p1-tag: #e9e0ff;
+  --p1-hover: #eee8ff;
 
-  --p2-solid: #5b8def;
-  --p2-soft: #edf3fe;
-  --p2-line: #d3e1fc;
-  --p2-ink: #183456;
-  --p2-tag: #dce7fd;
-  --p2-hover: #e1ebfd;
+  --p2-solid: #2563eb;
+  --p2-soft: #eff5ff;
+  --p2-line: #d3e4ff;
+  --p2-ink: #173d6e;
+  --p2-tag: #ddebff;
+  --p2-hover: #e4eeff;
 
-  --p3-solid: #9ab8db;
-  --p3-soft: #eef4fa;
-  --p3-line: #d7e4f1;
-  --p3-ink: #25435e;
-  --p3-tag: #dce8f4;
-  --p3-hover: #e1ecf7;
+  --p3-solid: #14b8a6;
+  --p3-soft: #ecfbf8;
+  --p3-line: #c6f1ea;
+  --p3-ink: #104f48;
+  --p3-tag: #d3f4ee;
+  --p3-hover: #ddf9f4;
 
-  --pnone-solid: #f2c46d;
-  --pnone-soft: #fff7e8;
-  --pnone-line: #f9e5bb;
-  --pnone-ink: #533c16;
-  --pnone-tag: #fbedcf;
-  --pnone-hover: #fff0d4;
+  --pnone-solid: #f59e0b;
+  --pnone-soft: #fff8ea;
+  --pnone-line: #fae3b7;
+  --pnone-ink: #573c0c;
+  --pnone-tag: #fce9c8;
+  --pnone-hover: #fff1d5;
 
   /* A task with no priority assignment at all, distinct from "none". */
-  --p-unassigned: #9ab9df;
+  --p-unassigned: #94a3b8;
 
   /* ---------- legacy aliases ----------
    * Kept so the ~300 existing references keep working. New code should use the
@@ -133,32 +136,67 @@
    * the price of being able to restate them for a dark theme.
    */
   --surface-card: #ffffff;
-  --surface-faint: #f8fafc;
-  --surface-sunken: #f1f1f2;
-  --surface-muted: #f1f3f4;
-  --surface-tint: #e8f0fe;
-  --surface-recess: #e7e7ef;
+  --surface-faint: #f8f9fb;
+  --surface-sunken: #f1f3f6;
+  --surface-muted: #f1f3f6;
+  --surface-tint: #eff6ff;
+  --surface-recess: #eceff4;
 
-  --ink-strong: #191a1c;
-  --ink: #202124;
+  --ink-strong: #14161a;
+  --ink: #1b1d21;
   /* The soft ink was three different greys in three different ramps, and the
      lightest of them sat at 3.6:1 on white — below AA for body text. It now
-     clears 4.5:1 on the *sunken* surface (#f1f1f2), which is the darkest thing
+     clears 4.5:1 on the *sunken* surface (#f1f3f6), which is the darkest thing
      it is ever placed on, not just on white. */
-  --ink-soft: #6d6c7a;
-  --ink-placeholder: #9ca3af;
+  --ink-soft: #5f6b7d;
+  --ink-placeholder: #98a2b3;
 
-  --line: #dadce0;
-  --line-soft: #eeeeef;
-  --line-strong: #d2d3d7;
+  --line: #e4e8ee;
+  --line-soft: #eef1f5;
+  --line-strong: #d5dae2;
 
   /* Text that sits on a surface: white on light, light on dark. */
   --on-surface: #ffffff;
 
   /* The one accent the app uses outside the primary blue. */
-  --accent-blue: #5888f5;
-  --accent-blue-soft: #7baaf7;
-  --primary-ink: #254a83;
+  --accent-blue: #3b82f6;
+  --accent-blue-soft: #60a5fa;
+  --primary-ink: #1e40af;
+
+  /* ---------- charts ----------
+   * Chart chrome is deliberately separate from UI chrome: a grid line is
+   * quieter than a card border, an axis label is quieter than body text, and
+   * the one accent the marks use is the primary blue. Everything below is
+   * restated in the dark theme.
+   *
+   * The reference kit this follows uses a near-white canvas, hairline rules,
+   * one saturated accent and a soft tint of the same hue. Priority colours
+   * stay categorical (violet / blue / teal / amber) because they encode data,
+   * but they now share one lightness and saturation level so a stacked bar
+   * reads as one chart rather than four unrelated widgets.
+   */
+  --chart-accent: var(--primary);
+  --chart-accent-strong: #1d4ed8;
+  --chart-accent-soft: #93c5fd;
+  --chart-accent-wash: #eff6ff;
+  --chart-track: #eef2f7;
+  --chart-grid: #e9edf3;
+  --chart-axis: #98a2b3;
+  --chart-tooltip: #ffffff;
+  --chart-positive: #12b76a;
+  --chart-positive-soft: #e7f8ef;
+  --chart-negative: #ef4444;
+  --chart-negative-soft: #fdeceb;
+  --chart-neutral: #cdd5df;
+
+  /* Sequential heat ramp, one hue. The old map jumped from Tailwind blue-200
+   * to blue-900, which read as a different palette from every other chart. */
+  --heat-0: #f1f4f8;
+  --heat-1: #e0edff;
+  --heat-2: #b9d7fe;
+  --heat-3: #7eb3fb;
+  --heat-4: #3b82f6;
+  --heat-5: #1d4ed8;
 
   --scrollbar-thumb: #d3d1cb;
   --scrollbar-thumb-hover: #b6b4ae;
@@ -185,8 +223,9 @@
   --radius-pill: 999px;
   --radius-circle: 50%;
 
-  /* Signed off pixel by pixel in design-qa.md; not part of the scale above. */
-  --radius-card-profile: 25px;
+  /* The profile card used to be a one-off 25px, signed off against a screenshot.
+   * It now joins the 24px step so every statistics card shares one corner. */
+  --radius-card-profile: var(--radius-2xl);
 
   /* Contribution-graph cells. Two pixels on purpose: neighbouring cells have to
    * read as one continuous heat map, and a 4px corner opens visible white
@@ -282,11 +321,11 @@
    ========================================================================== */
 .dark {
   /* surfaces */
-  --page: #07080a;
+  --page: #08090c;
   --background: #0b0d11;
-  --foreground: #e6e8ec;
+  --foreground: #e7e9ee;
   --card: #111419;
-  --card-foreground: #e6e8ec;
+  --card-foreground: #e7e9ee;
 
   --surface-card: #111419;
   --surface-faint: #0e1014;
@@ -296,24 +335,24 @@
   --surface-recess: #20242b;
 
   /* ink */
-  --ink: #e6e8ec;
-  --ink-strong: #f2f4f7;
-  --ink-soft: #a3abb6;
+  --ink: #e7e9ee;
+  --ink-strong: #f3f5f8;
+  --ink-soft: #a6aeb9;
   --ink-placeholder: #8b939e;
 
   /* neutral */
   --muted: #1b1f26;
   --muted-hover: #242a32;
-  --muted-foreground: #a3abb6;
+  --muted-foreground: #a6aeb9;
   --placeholder: #7d858f;
 
   /* lines */
-  --border: #2f353e;
-  --border-subtle: #2f353e;
+  --border: #2a303a;
+  --border-subtle: #222831;
   --divider: #242a32;
-  --line: #2f353e;
-  --line-soft: #1e232a;
-  --line-strong: #414954;
+  --line: #2a303a;
+  --line-soft: #222831;
+  --line-strong: #3c444f;
 
   /* primary — the blue was tuned for white, so it is lightened, then pulled
      back a little for the darker page so a selected pill does not glow */
@@ -327,6 +366,30 @@
   --accent-blue: #7aa7f7;
   --accent-blue-soft: #9dbdfa;
   --on-surface: #e6e8ec;
+
+  /* charts — the accent is the lightened primary, and the heat ramp keeps the
+     same hue direction as the light theme instead of turning into a second
+     palette. */
+  --chart-accent: var(--primary);
+  --chart-accent-strong: #a9c6fa;
+  --chart-accent-soft: #3b6098;
+  --chart-accent-wash: #142139;
+  --chart-track: #1b2028;
+  --chart-grid: #242a32;
+  --chart-axis: #8b939e;
+  --chart-tooltip: #161a20;
+  --chart-positive: #6fd68c;
+  --chart-positive-soft: #16301f;
+  --chart-negative: #f97066;
+  --chart-negative-soft: #3a1f1e;
+  --chart-neutral: #3c444f;
+
+  --heat-0: #181c22;
+  --heat-1: #1a3a63;
+  --heat-2: #245180;
+  --heat-3: #2f69a3;
+  --heat-4: #3f86c7;
+  --heat-5: #6fb0f2;
 
   /* status */
   --success: #6fd68c;
@@ -358,35 +421,35 @@
   --p3-on-solid: #16283a;
   --pnone-on-solid: #33260a;
 
-  --p1-solid: #b195f7;
+  --p1-solid: #b49bff;
   --p1-soft: #241d3d;
-  --p1-line: #3d3358;
-  --p1-ink: #d8c9f7;
+  --p1-line: #3f3560;
+  --p1-ink: #d9ccfa;
   --p1-tag: #302750;
   --p1-hover: #2a2247;
 
-  --p2-solid: #8fb4ff;
-  --p2-soft: #1c2b45;
-  --p2-line: #2f4468;
-  --p2-ink: #c3d8fb;
-  --p2-tag: #26385a;
-  --p2-hover: #22334f;
+  --p2-solid: #7fb0ff;
+  --p2-soft: #16263e;
+  --p2-line: #2e4a73;
+  --p2-ink: #c6dbfb;
+  --p2-tag: #20395e;
+  --p2-hover: #22344f;
 
-  --p3-solid: #a9c8e8;
-  --p3-soft: #1e2a36;
-  --p3-line: #33424f;
-  --p3-ink: #c2d5e6;
-  --p3-tag: #283642;
-  --p3-hover: #243039;
+  --p3-solid: #5ee0d0;
+  --p3-soft: #112e2b;
+  --p3-line: #24514a;
+  --p3-ink: #b5f1e9;
+  --p3-tag: #1a3d39;
+  --p3-hover: #1d3a36;
 
-  --pnone-solid: #f5cd80;
+  --pnone-solid: #f7c65c;
   --pnone-soft: #33290f;
-  --pnone-line: #4d3e1b;
-  --pnone-ink: #f0d9a6;
+  --pnone-line: #4f401c;
+  --pnone-ink: #f1dca9;
   --pnone-tag: #43361a;
   --pnone-hover: #3a2e14;
 
-  --p-unassigned: #b3cbe8;
+  --p-unassigned: #a9bdd4;
 
   /* Tailwind bridge, inverted. Each step keeps its role: the light end of the
    * scale becomes the dark end, so a rule written against `gray-900` still

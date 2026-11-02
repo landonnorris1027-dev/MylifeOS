@@ -23,11 +23,14 @@ export default function FocusCharts({ report, anchor, period, onPeriodChange, zh
   const measuredLabel = zh ? '实际' : 'Measured';
   const shortfallLabel = zh ? '少于计划' : 'Below plan';
   const total = buckets.reduce((sum, bucket) => sum + bucket.measuredSeconds, 0);
-  // Both sides of zero use the same seconds-per-pixel scale. Never invent a minimum bar.
-  const scale = Math.max(60, ...buckets.flatMap((bucket) => [
-    bucket.measuredSeconds, bucket.shortfallSeconds * (127.5 / 25),
-  ]));
-  const positiveHeight = (seconds: number) => seconds / scale * 127.5;
+  const plannedTotal = buckets.reduce((sum, bucket) => sum + bucket.plannedSeconds, 0);
+  const shortfallTotal = buckets.reduce((sum, bucket) => sum + bucket.shortfallSeconds, 0);
+  // Plan and actual share one scale. The old version multiplied the deficit by
+  // 5.1 so the red bars could fit, which shrank every real bar to a stub.
+  const peak = Math.max(60, ...buckets.map((bucket) => Math.max(bucket.plannedSeconds, bucket.measuredSeconds)));
+  const height = (seconds: number) => seconds > 0 ? `${seconds / peak * 100}%` : '0%';
+  const completion = plannedTotal ? Math.round(total / plannedTotal * 100) : 0;
+  const tone = !plannedTotal ? 'empty' : completion >= 80 ? 'good' : completion >= 50 ? 'mid' : 'low';
   const dateLabel = (date: string) => parseDateLocal(date).toLocaleDateString(zh ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' });
   const rangeLabel = (bucket: (typeof buckets)[number]) => bucket.from === bucket.to
     ? bucket.from : `${bucket.from} – ${bucket.to}`;
@@ -55,79 +58,82 @@ export default function FocusCharts({ report, anchor, period, onPeriodChange, zh
         <div className="focus-history-heading">
           <div>
             <h2>{zh ? '专注投入' : 'Focus time'}</h2>
-            <p>{period === 'day' ? (zh ? '近 20 日' : 'Last 20 days') : (zh ? '近 20 周' : 'Last 20 weeks')}</p>
+            <p>{period === 'day' ? (zh ? '近 20 日 · 实际与计划' : 'Last 20 days · actual vs plan') : (zh ? '近 20 周 · 实际与计划' : 'Last 20 weeks · actual vs plan')}</p>
           </div>
           <SegmentedControl label={zh ? '统计粒度' : 'Chart interval'} value={period}
             options={[{ value: 'day', label: zh ? '日' : 'Day' }, { value: 'week', label: zh ? '周' : 'Week' }]}
             onChange={(value) => { setSelected(null); onPeriodChange(value as FocusHistoryPeriod); }} />
         </div>
-        <div className="focus-history-total">
-          <strong key={`${period}:${total}`}>{Math.trunc(total / 60).toLocaleString(zh ? 'zh-CN' : 'en-US')}</strong>
-          <span>{unit}</span>
+        <div className="focus-history-summary">
+          <div className="focus-history-total">
+            <strong key={`${period}:${total}`}>{Math.trunc(total / 60).toLocaleString(zh ? 'zh-CN' : 'en-US')}</strong>
+            <span>{unit}</span>
+          </div>
+          <span className="focus-history-chip" data-tone={tone}>
+            {plannedTotal ? `${completion}% ${zh ? '达成' : 'of plan'}` : (zh ? '暂无计划' : 'No plan')}
+          </span>
         </div>
         <div className="focus-history-plot"
           onPointerDown={scrub} onPointerMove={scrub} onPointerLeave={() => setSelected(null)}
           onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSelected(null); }}>
+          <div className="focus-history-grid" aria-hidden="true">
+            {[0, 1, 2, 3].map((line) => <i key={line} style={{ top: `${line * 25}%` }} />)}
+          </div>
           <div key={period} className="focus-history-columns" data-active={selected !== null}>
             {buckets.map((bucket, index) => (
               <button type="button" key={bucket.from} className="focus-history-column"
+                data-empty={bucket.measuredSeconds === 0 ? 'true' : undefined}
                 data-motion-feedback="self" aria-label={bucketLabel(bucket)} aria-pressed={selected === index}
                 onClick={() => setSelected(index)} onFocus={() => setSelected(index)}
                 onMouseEnter={() => setSelected(index)} onKeyDown={(event) => onArrow(event, index)}
-                style={{ '--focus-positive': `${positiveHeight(bucket.measuredSeconds)}px`, '--focus-negative': `${positiveHeight(bucket.shortfallSeconds)}px`, '--focus-delay': `${index * 14}ms` } as React.CSSProperties}>
-                <span className="focus-history-positive" aria-hidden="true">
-                  <span className="focus-history-stack" style={{ height: `${positiveHeight(bucket.measuredSeconds)}px` }}>
-                    {FOCUS_STACKS.filter((key) => bucket.stacks[key] > 0).map((key) => (
-                      <i key={key} className={`focus-history-segment stack-${key}`}
-                        style={{ height: `${bucket.stacks[key] / bucket.measuredSeconds * 100}%` }} />
-                    ))}
-                  </span>
-                </span>
-                <span className="focus-history-negative" aria-hidden="true">
-                  <i style={{ height: `${positiveHeight(bucket.shortfallSeconds)}px` }} />
+                style={{ '--focus-delay': `${index * 14}ms` } as React.CSSProperties}>
+                <span className="focus-history-track" aria-hidden="true">
+                  <span className="focus-history-plan" style={{ height: height(bucket.plannedSeconds) }} />
+                  <span className="focus-history-stack" style={{ height: height(bucket.measuredSeconds) }} />
                 </span>
               </button>
             ))}
           </div>
           {active && selected !== null && <div className="focus-history-tooltip" aria-hidden="true"
-            style={{ left: `clamp(0px, ${(selected + 0.5) * 5}%, calc(100% - 165px))` }}>
+            style={{ left: `clamp(0px, ${(selected + 0.5) * 5}%, calc(100% - 192px))` }}>
             <div className="focus-history-tooltip-heading">
               <span>{period === 'day' ? dateLabel(active.from) : `${dateLabel(active.from)} – ${dateLabel(active.to)}`}</span>
-              <strong>{reportMinutes(active.measuredSeconds)}</strong>
+              <strong>{reportMinutes(active.measuredSeconds)} {unit}</strong>
             </div>
-            {FOCUS_STACKS.filter((key) => active.stacks[key] > 0).map((key) => (
-              <span key={key}><i className={`focus-history-key stack-${key}`} />{stackLabel(key)}<b>{reportMinutes(active.stacks[key])}</b></span>
-            ))}
+            <span><i className="focus-history-key actual" />{measuredLabel}<b>{reportMinutes(active.measuredSeconds)} {unit}</b></span>
+            <span><i className="focus-history-key planned" />{plannedLabel}<b>{reportMinutes(active.plannedSeconds)} {unit}</b></span>
             <span><i className="focus-history-key shortfall" />{shortfallLabel}<b>{reportMinutes(active.shortfallSeconds)} {unit}</b></span>
+            {FOCUS_STACKS.filter((key) => active.stacks[key] > 0).map((key) => (
+              <span className="focus-history-tooltip-stack" key={key}><i className={`focus-history-key stack-${key}`} />{stackLabel(key)}<b>{reportMinutes(active.stacks[key])}</b></span>
+            ))}
           </div>}
         </div>
         <div className="focus-history-endpoints" aria-hidden="true">
           <span>{dateLabel(buckets[0].from)}</span><span>{dateLabel(anchor)}</span>
         </div>
-        <p className="sr-only" aria-live="polite" aria-atomic="true">{active ? bucketLabel(active) : ''}</p>
-      </section>
-      <details className="focus-history-details">
-        <summary>{zh ? '图例与时段明细' : 'Legend and period details'}</summary>
         <div className="focus-history-legend">
-          {FOCUS_STACKS.filter((key) => key !== 'unassigned' || buckets.some((bucket) => bucket.stacks[key] > 0)).map((key) => (
-            <span key={key}><i className={`focus-history-key stack-${key}`} />{stackLabel(key)}</span>
-          ))}
-          <span><i className="focus-history-key shortfall" />{shortfallLabel}</span>
+          <span><i className="focus-history-key actual" />{measuredLabel}</span>
+          <span><i className="focus-history-key planned" />{plannedLabel}</span>
+          <span><i className="focus-history-key shortfall" />{shortfallLabel}{shortfallTotal > 0 ? ` · ${reportMinutes(shortfallTotal)} ${unit}` : ''}</span>
         </div>
-        <p className="profile-caption">{zh
-          ? '彩色柱为实际计时；红柱 = max(计划 − 实际, 0)，历史估算不参与。周按本地周一开始，最后一周截至参考日期。'
-          : 'Colour shows measured focus; red = max(planned − measured, 0). Estimates are excluded. Weeks start on Monday; the final week ends on the reference date.'}</p>
-        {!total && <p className="profile-caption">{zh ? '这个时段还没有实际专注记录' : 'No measured focus in this period yet'}</p>}
-        <div className="profile-table-scroll"><table>
-          <caption className="sr-only">{zh ? '时段专注明细，单位分钟' : 'Period focus details in minutes'}</caption>
-          <thead><tr>{[zh ? '日期' : 'Date', plannedLabel, measuredLabel, zh ? '历史' : 'Historical', shortfallLabel].map((label) => <th key={label} scope="col">{label}</th>)}</tr></thead>
-          <tbody>{buckets.map((bucket) => <tr key={bucket.from}>
-            <th scope="row">{rangeLabel(bucket)}</th>
-            <td>{reportMinutes(bucket.plannedSeconds)}</td><td>{reportMinutes(bucket.measuredSeconds)}</td>
-            <td>{reportMinutes(bucket.historicalSeconds)}</td><td>{reportMinutes(bucket.shortfallSeconds)}</td>
-          </tr>)}</tbody>
-        </table></div>
-      </details>
+        <p className="sr-only" aria-live="polite" aria-atomic="true">{active ? bucketLabel(active) : ''}</p>
+        <details className="focus-history-details">
+          <summary>{zh ? '时段明细' : 'Period details'}</summary>
+          <p className="profile-caption">{zh
+            ? '浅色轨道为计划，蓝色柱为实际计时；历史估算不参与。红色数字只表示计划与实际之间的差距。'
+            : 'The light track is the plan and the blue bar is measured time. Estimates are excluded; red numbers only show the gap between plan and actual.'}</p>
+          {!total && <p className="profile-caption">{zh ? '这个时段还没有实际专注记录' : 'No measured focus in this period yet'}</p>}
+          <div className="profile-table-scroll"><table>
+            <caption className="sr-only">{zh ? '时段专注明细，单位分钟' : 'Period focus details in minutes'}</caption>
+            <thead><tr>{[zh ? '日期' : 'Date', plannedLabel, measuredLabel, zh ? '历史' : 'Historical', shortfallLabel].map((label) => <th key={label} scope="col">{label}</th>)}</tr></thead>
+            <tbody>{buckets.map((bucket) => <tr key={bucket.from}>
+              <th scope="row">{rangeLabel(bucket)}</th>
+              <td>{reportMinutes(bucket.plannedSeconds)}</td><td>{reportMinutes(bucket.measuredSeconds)}</td>
+              <td>{reportMinutes(bucket.historicalSeconds)}</td><td>{reportMinutes(bucket.shortfallSeconds)}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </details>
+      </section>
     </div>
   );
 }

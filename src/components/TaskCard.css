@@ -21,9 +21,13 @@
 .task-card.is-completed,
 .task-card.is-completed:hover,
 .task-card.is-completed:focus-within {
-  background-color: var(--task-completion-color);
-  border-color: var(--task-completion-color);
-  color: var(--task-completion-ink);
+  /* A completed block used to be a wall of saturated colour. It keeps the
+   * priority hue, but as a tinted surface with a 3px edge: the timeline stays
+   * calm and the eye can still find what is done. */
+  background-color: color-mix(in srgb, var(--task-completion-color) 14%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--task-completion-color) 34%, var(--surface-card));
+  box-shadow: inset 3px 0 0 var(--task-completion-color);
+  color: var(--ink);
   cursor: default;
   transition: background-color 800ms ease, border-color 800ms ease,
     color 800ms ease, box-shadow 240ms ease;
@@ -32,14 +36,20 @@
 .task-card.is-completed .task-meta,
 .task-card.is-completed .task-label,
 .task-card.is-completed .task-check {
-  color: var(--task-completion-ink);
   opacity: 1;
   transition: color 800ms ease, background-color 800ms ease, border-color 800ms ease;
+}
+.task-card.is-completed .task-title,
+.task-card.is-completed .task-label {
+  color: var(--ink);
+}
+.task-card.is-completed .task-meta {
+  color: var(--ink-soft);
 }
 .task-card.is-completed .task-meta,
 .task-card.is-completed .task-label {
   background-color: transparent;
-  border-color: color-mix(in srgb, var(--ink) 18.8%, transparent);
+  border-color: color-mix(in srgb, var(--task-completion-color) 28%, transparent);
 }
 .task-card.is-completed .motion-unprioritized-dot { background-color: var(--task-completion-ink); }
 .task-card.is-completed button {

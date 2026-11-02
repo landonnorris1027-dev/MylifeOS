@@ -14,8 +14,8 @@
 | 选择器契约 | 91 | 测试直接查询的 DOM 选择器 |
 | 依赖它们的测试文件 | 22 | 改契约的影响面 |
 | 直接断言的可见文案 | 39 | 文案改动会断的断言 |
-| 结构 | 5 | 依赖 DOM 层级或兄弟顺序 |
-| 类名 | 30 | 依赖样式类名 |
+| 结构 | 4 | 依赖 DOM 层级或兄弟顺序 |
+| 类名 | 31 | 依赖样式类名 |
 | 组合 | 2 | 组合选择器 |
 | 语义 | 41 | 依赖 role / aria-* / data-* / title 等语义属性 |
 | 标签 | 13 | 只依赖标签名 |
@@ -35,11 +35,10 @@
 
 ## 结构契约（最易碎：改 DOM 层级就断）
 
-_依赖 DOM 层级或兄弟顺序 · 5 条_
+_依赖 DOM 层级或兄弟顺序 · 4 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
-| `.focus-history-negative > i` | 1 | `components/FocusCharts.test.tsx` |
 | `.profile-pagination button:last-child` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `.profile-review-detail > div:last-child` | 1 | `components/DesktopFocusStats.test.tsx` |
 | `:scope > li` | 1 | `components/DesktopFocusStats.test.tsx` |
@@ -47,11 +46,12 @@ _依赖 DOM 层级或兄弟顺序 · 5 条_
 
 ## 类名契约（改样式类就断）
 
-_依赖样式类名 · 30 条_
+_依赖样式类名 · 31 条_
 
 | 选择器 | 使用处 | 使用者 |
 | --- | --- | --- |
 | `.focus-history-column` | 3 | `components/DesktopFocusStats.test.tsx`<br>`components/FocusCharts.test.tsx`<br>`components/StorageBoundary.android.test.tsx` |
+| `.focus-history-plan` | 1 | `components/FocusCharts.test.tsx` |
 | `.focus-history-stack` | 1 | `components/FocusCharts.test.tsx` |
 | `.focus-history-tooltip` | 1 | `components/FocusCharts.test.tsx` |
 | `.focus-history-total strong` | 1 | `components/FocusCharts.test.tsx` |

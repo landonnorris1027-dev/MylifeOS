@@ -87,17 +87,9 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
     return 5;
   }
 
-  const getColorClass = (level: number, isFuture: boolean, isEmpty: boolean) => {
-    if (isEmpty) return 'opacity-0 pointer-events-none'; // Invisible padding
-    switch (level) {
-      case 0: return 'bg-gray-100 border-gray-200'; // Empty
-      case 1: return 'bg-blue-200 border-blue-300'; // 0-2h
-      case 2: return 'bg-blue-300 border-blue-400'; // 2-5h
-      case 3: return 'bg-blue-500 border-blue-600'; // 5-8h
-      case 4: return 'bg-blue-700 border-blue-800'; // 8-11h
-      case 5: return 'bg-blue-900 border-blue-950'; // >11h
-      default: return 'bg-gray-100 border-gray-200';
-    }
+  const getColorClass = (level: number, isEmpty: boolean) => {
+    if (isEmpty) return 'heat-empty';
+    return `heat-${level}`;
   };
 
   const months = useMemo(() => {
@@ -125,12 +117,13 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
   const activityTitle = t('focus_activity_year', { year: currentYear });
 
   return (
-    <div className="profile-activity profile-activity-compact bg-white rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-100/50">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-4">
+    <div className="profile-panel profile-activity profile-activity-compact">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-2 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{activityTitle}</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {t('total_focus_hours')}: <span className="font-bold text-gray-900">{totalHours} {t('hours_suffix')}</span>
+          <p className="profile-activity-total">
+            <strong>{totalHours}</strong>
+            <span>{t('hours_suffix')}</span>
           </p>
         </div>
         <div className="profile-year">
@@ -177,14 +170,10 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
                     const isRightCol = wIndex > 48;
 
                     let horizontalClass = 'left-1/2 -translate-x-1/2';
-                    let arrowHorizontalClass = 'left-1/2 -translate-x-1/2';
-
                     if (isLeftCol) {
                       horizontalClass = 'left-0';
-                      arrowHorizontalClass = 'left-[5px] -translate-x-1/2';
                     } else if (isRightCol) {
                       horizontalClass = 'right-0';
-                      arrowHorizontalClass = 'right-[5px] translate-x-1/2';
                     }
 
                     return (
@@ -193,29 +182,19 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
                         title={day.date ? `${day.date} · ${Math.floor(day.minutes)} ${t('minute_unit_short')}` : undefined}
                         className={`
                            profile-activity-cell rounded-[var(--radius-cell)] border
-                           ${getColorClass(day.level, day.isFuture, day.date === '')}
+                           ${getColorClass(day.level, day.date === '')}
                            transition-all group relative
-                           hover:scale-125 hover:z-50 cursor-default
+                           hover:scale-[1.12] hover:z-50 cursor-default
                          `}
                       >
                         {day.date && (
                           <div className={`
-                               absolute z-[60] whitespace-nowrap bg-gray-900 text-white text-xs rounded-md py-1.5 px-3 pointer-events-none shadow-xl border border-gray-700 hidden group-hover:block
+                               profile-activity-tooltip absolute z-[60] whitespace-nowrap pointer-events-none hidden group-hover:block
                                ${verticalClass}
                                ${horizontalClass}
                              `}>
-                            <div className="font-semibold mb-0.5 text-gray-100">{day.date}</div>
-                            <div className="text-gray-300">{(day.minutes / 60).toFixed(1)} {t('hours_suffix')}</div>
-
-                            {/* Arrow */}
-                            <div className={`
-                                  absolute border-4 border-transparent
-                                  ${isTopHalf
-                                ? 'bottom-full border-b-gray-900 -mb-px' /* Points Up */
-                                : 'top-full border-t-gray-900 -mt-px'    /* Points Down */
-                              }
-                                  ${arrowHorizontalClass}
-                                `}></div>
+                            <strong>{day.date}</strong>
+                            <div>{(day.minutes / 60).toFixed(1)} {t('hours_suffix')}</div>
                           </div>
                         )}
                       </div>
@@ -232,12 +211,12 @@ const ContributionGraph: React.FC<ContributionGraphProps> = ({ refreshToken = 0 
           {/* Legend */}
           <div className="profile-activity-legend flex items-center justify-end gap-2 mt-6 profile-activity-label text-xs text-gray-500">
             <span>{t('less')}</span>
-            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(0, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(1, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(2, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(3, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(4, false, false)}`}></div>
-            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(5, false, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(0, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(1, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(2, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(3, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(4, false)}`}></div>
+            <div className={`w-[10px] h-[10px] rounded-[var(--radius-cell)] ${getColorClass(5, false)}`}></div>
             <span>{t('more')}</span>
           </div>
 

@@ -515,3 +515,47 @@ that offset only existed to clear the pinned bar.
 - `tsc` clean, eslint clean, contract ledger unchanged, 346 tests pass,
   contrast check passes, production build passes.
 - Evidence: [settings scrolled](docs/ui-forms/settings-nav-scroll.png).
+
+## 2026-11-02: chart and profile surface unification
+
+Reference: [Mebius free charts](https://www.mebius.design/freebies/charts).
+The reference language is a near-white canvas, white cards with a 24 px
+corner and a hairline edge, one saturated accent with a same-hue tint, dashed
+grid lines, pill-shaped marks and white floating tooltips.
+
+### What changed
+
+- One chart token layer: accent / wash / track / grid / axis / tooltip /
+  positive / negative and a single-hue six-step heat ramp. Dark values are
+  restated in the same block as every other semantic token.
+- Priority colours now share one saturation level: P1 violet, P2 blue, P3 teal,
+  none amber. P2 and P3 were both blue before and could not be told apart in a
+  small chart. Badge text is white on P1/P2 and ink on P3/none so every chip
+  clears 4.5:1.
+- Focus chart: replaced the red deficit bars and the 5.1x deficit scale with a
+  shared plan/actual scale, a narrow grey plan stem and a blue gradient bar.
+  Added a completion chip, an always-visible legend and a white tooltip. The
+  card now fills its grid column instead of being frozen at 375 px.
+- Distribution cards: one palette, a persistent track, larger segment gaps,
+  centred totals, and two-line legend rows (label + duration, percentage on the
+  right) so Chinese labels do not wrap in the 1280 px layout.
+- Activity heat map: Tailwind blue-200...900 replaced with the shared heat ramp;
+  the dark tooltip became a white card with a hairline border.
+- Profile surface: removed the tinted avatar block, merged the three metric
+  cards into one divided card, turned the period summary into four quiet cards,
+  removed the grey chart wrapper, and unified card radius, padding and edges.
+- Planner surface: the segmented control is now a grey track with a white
+  selected plate. Completed task cards keep their priority hue as a 14% tint
+  with a 3 px edge instead of a saturated block.
+
+### Verification
+
+- `npm run verify:quality`: typecheck, a11y lint, DOM contract, contrast, 349
+  tests, production build and Electron main build all pass.
+- `node scripts/theme-audit.mjs --theme=light` and `--theme=dark`: 7 scenarios
+  each, 0 surface and 0 text findings.
+- Screenshots: [light 1280](docs/ui-forms/chart-system-profile-1280.png),
+  [dark 1440](docs/ui-forms/chart-system-profile-dark.png),
+  [planner light](docs/ui-forms/chart-system-planner-light.png),
+  [mobile 390](docs/ui-forms/chart-system-profile-mobile.png).
+- Browser console: zero errors at 1440, 1280 and 390 px.

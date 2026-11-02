@@ -64,6 +64,9 @@ function DistributionCard({
         `${category.label}: ${(category.proportion * 100).toFixed(1)}%, ${minuteLabel(category.seconds)}`,
     )
     .join(' · ');
+  const visibleCategories = totalSeconds
+    ? categories.filter((category) => category.seconds > 0)
+    : categories;
   let offset = 0;
   return (
     <section
@@ -88,14 +91,13 @@ function DistributionCard({
             role="img"
             aria-label={`${title} · ${range} · ${zh ? '总计' : 'Total'} ${minuteLabel(totalSeconds)} · ${summary}`}
           >
-            {!totalSeconds && (
-              <circle
-                className="profile-donut-track"
-                cx="100"
-                cy="100"
-                r="76"
-              />
-            )}
+            <circle
+              className="profile-donut-track"
+              cx="100"
+              cy="100"
+              r="76"
+              aria-hidden="true"
+            />
             {categories
               .filter((category) => category.seconds > 0)
               .map((category) => {
@@ -118,7 +120,7 @@ function DistributionCard({
           </div>
         </div>
         <ul className="profile-distribution-legend">
-          {categories.map((category) => (
+          {visibleCategories.map((category) => (
             <li key={category.priority}>
               <div className="profile-distribution-category">
                 <i

@@ -19,19 +19,22 @@ describe('twenty-period focus chart', () => {
     container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container);
   });
   afterEach(() => { act(() => root.unmount()); container.remove(); });
-  it.each([true, false])('keeps deficits below zero on the same scale, without treating history as focus (zh=%s)', async zh => {
+  it.each([true, false])('scales plan and measured bars together without treating history as focus (zh=%s)', async zh => {
     const change = vi.fn();
     await act(async () => root.render(<FocusCharts report={report} anchor="2026-10-07" period="day" onPeriodChange={change} zh={zh} />));
     const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('.focus-history-column'));
     expect(buttons).toHaveLength(20);
     const first = buttons.find(button => button.getAttribute('aria-label')!.startsWith('2026-10-05'))!;
     const second = buttons.find(button => button.getAttribute('aria-label')!.startsWith('2026-10-06'))!;
-    const positive = parseFloat((first.querySelector('.focus-history-stack') as HTMLElement).style.height);
-    const negative = parseFloat((second.querySelector('.focus-history-negative > i') as HTMLElement).style.height);
-    expect(positive / 1800).toBeCloseTo(negative / 3600);
-    expect((first.querySelector('.focus-history-negative > i') as HTMLElement).style.height).toBe('0px');
-    expect((buttons[19].querySelector('.focus-history-stack') as HTMLElement).style.height).toBe('0px');
-    expect((buttons[19].querySelector('.focus-history-negative > i') as HTMLElement).style.height).toBe('0px');
+    const measured = parseFloat((first.querySelector('.focus-history-stack') as HTMLElement).style.height);
+    const firstPlan = parseFloat((first.querySelector('.focus-history-plan') as HTMLElement).style.height);
+    const secondPlan = parseFloat((second.querySelector('.focus-history-plan') as HTMLElement).style.height);
+    expect(measured).toBeCloseTo(1800 / 3600 * 100);
+    expect(firstPlan).toBeCloseTo(1200 / 3600 * 100);
+    expect(secondPlan).toBeCloseTo(100);
+    expect((second.querySelector('.focus-history-stack') as HTMLElement).style.height).toBe('0%');
+    expect((buttons[19].querySelector('.focus-history-stack') as HTMLElement).style.height).toBe('0%');
+    expect((buttons[19].querySelector('.focus-history-plan') as HTMLElement).style.height).toBe('0%');
     expect(first.getAttribute('aria-label')).toContain(zh ? '历史 100 分钟' : 'Historical 100 min');
     expect(container.querySelector('.focus-history-total strong')?.textContent).toBe('30');
     await act(async () => first.focus());

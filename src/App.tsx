@@ -388,11 +388,9 @@ export default function App() {
         {view === 'profile' ? (
           <div className="profile-view" data-slot="profile-view">
             <div className="profile-page-heading">
-              <div className="profile-avatar">
-                <User size={28} aria-hidden="true" />
-              </div>
-              <div>
+              <div className="profile-page-title">
                 <h1>{t('profile_title')}</h1>
+                <p>{t('profile_subtitle')}</p>
               </div>
             </div>
 
