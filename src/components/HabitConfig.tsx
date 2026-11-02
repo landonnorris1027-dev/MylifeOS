@@ -590,7 +590,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                   type="button"
                   onClick={() => setEffectiveType('permanent')}
                   aria-pressed={effectiveType === 'permanent'}
-                  className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${effectiveType === 'permanent' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${effectiveType === 'permanent' ? 'border-[var(--primary-line)] bg-[var(--primary-soft)] text-[var(--primary-ink)]' : 'border-[var(--line-soft)] bg-[var(--surface-card)] text-[var(--ink-soft)] hover:bg-[var(--surface-faint)]'}`}
                 >
                   {t('mode_permanent')}
                 </button>
@@ -598,7 +598,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                   type="button"
                   onClick={() => setEffectiveType('range')}
                   aria-pressed={effectiveType === 'range'}
-                  className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${effectiveType === 'range' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${effectiveType === 'range' ? 'border-[var(--primary-line)] bg-[var(--primary-soft)] text-[var(--primary-ink)]' : 'border-[var(--line-soft)] bg-[var(--surface-card)] text-[var(--ink-soft)] hover:bg-[var(--surface-faint)]'}`}
                 >
                   {t('mode_range')}
                 </button>
@@ -622,7 +622,7 @@ const HabitConfig: React.FC<HabitConfigProps> = ({ isOpen, onClose, onAdded, sec
                 {(['daily', 'workdays', 'custom'] as const).map((mode) => (
                   <button key={mode} type="button" onClick={() => setRepeatMode(mode)}
                     aria-pressed={repeatMode === mode}
-                    className={`rounded-lg border px-2 py-2 text-xs font-medium ${repeatMode === mode ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>
+                    className={`rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${repeatMode === mode ? 'border-[var(--primary-line)] bg-[var(--primary-soft)] text-[var(--primary-ink)]' : 'border-[var(--line-soft)] bg-[var(--surface-card)] text-[var(--ink-soft)] hover:bg-[var(--surface-faint)]'}`}>
                     {t(mode === 'daily' ? 'repeat_daily' : mode === 'workdays' ? 'repeat_workdays' : 'repeat_custom')}
                   </button>
                 ))}

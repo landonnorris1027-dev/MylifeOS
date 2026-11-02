@@ -465,7 +465,7 @@ export default function App() {
                     const tasksInSlot = scheduledTasks.filter((task) => task.startTime === timeLabel);
 
                     return (
-                      <div key={timeLabel} data-timeline-time={timeLabel} className="flex gap-4 group min-h-[64px]">
+                      <div key={timeLabel} data-timeline-time={timeLabel} className="flex gap-4 group min-h-[48px]">
                         <div className="w-14 text-right flex-shrink-0 pt-1">
                           <span className="text-xs font-mono text-gray-400 group-hover:text-gray-900 transition-colors">{timeLabel}</span>
                         </div>
@@ -501,7 +501,7 @@ export default function App() {
                               ))}
                             </div>
                           ) : (
-                            <div className="relative h-full w-full hover:bg-gray-50/50 rounded-lg transition-colors -mt-1" />
+                            <div className="relative h-full w-full hover:bg-[var(--surface-faint)] rounded-lg transition-colors -mt-1" />
                           )}
                         </div>
                       </div>

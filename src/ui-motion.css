@@ -21,10 +21,10 @@
 .motion-shell { background: var(--motion-canvas); }
 .motion-container { width: calc(100% - 48px); max-width: 1440px; margin-inline: auto; }
 .motion-topbar { position: sticky; z-index: var(--z-nav); background: color-mix(in srgb, var(--surface-card) 92%, transparent); border-bottom: 1px solid var(--line-soft); backdrop-filter: blur(12px); }
-.motion-topbar-inner { min-height: 76px; display: flex; align-items: center; gap: 28px; }
-.motion-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 650; letter-spacing: -.6px; white-space: nowrap; }
-.motion-brand-mark { display: block; width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-lg); object-fit: cover; background: var(--background); }
-.motion-header-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.motion-topbar-inner { min-height: 64px; display: flex; align-items: center; gap: 24px; }
+.motion-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 650; letter-spacing: -.5px; white-space: nowrap; }
+.motion-brand-mark { display: block; width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius-lg); object-fit: cover; background: var(--background); }
+.motion-header-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .motion-button, .motion-icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-pill); min-height: 40px; padding: 9px 16px; font-size: 14px; line-height: 1.3; font-weight: 500; transition: background-color 160ms, color 160ms, box-shadow 180ms, translate 220ms var(--motion-ease), scale 120ms var(--motion-ease); }
 .motion-button:active:not(:disabled), .motion-icon-button:active:not(:disabled), .motion-task-focus:active { scale: .96; }
 .motion-button:disabled, .motion-icon-button:disabled, .motion-stop-focus:disabled { opacity: .45; cursor: not-allowed; }
@@ -42,14 +42,14 @@
 .motion-segment-plate { position: absolute; z-index: -1; inset: 4px auto 4px 4px; width: calc((100% - 8px) / var(--segments)); border: 1px solid var(--line-soft); border-radius: var(--radius-pill); background: var(--surface-card); box-shadow: var(--shadow-1); transform: translateX(calc(var(--selected) * 100%)); transition: transform 420ms var(--motion-spring); }
 .motion-segment-button { padding: 8px 17px; border-radius: var(--radius-pill); font-size: 14px; font-weight: 550; line-height: 1.3; color: var(--motion-muted); white-space: nowrap; transition: color 160ms; }
 .motion-segment-button[aria-pressed="true"], .motion-segment-button[aria-current="page"] { color: var(--ink); }
-.motion-main-nav .motion-segment-button { padding-inline: 23px; font-size: 14px; }
-.motion-overview { display: flex; align-items: center; gap: 44px; padding: 24px 0 20px; }
+.motion-main-nav .motion-segment-button { padding-inline: 20px; font-size: 14px; }
+.motion-overview { display: flex; align-items: center; gap: 40px; padding: 22px 0 18px; }
 .motion-page-title { flex: 1; min-width: 0; }
 .motion-page-title p { font-size: 13px; color: var(--motion-muted); margin-bottom: 5px; }
 .motion-page-title h1 { font-size: 28px; line-height: 1.3; font-weight: 600; letter-spacing: -.8px; }
 .motion-load { display: flex; gap: 28px; }
 .motion-load > div { display: flex; flex-direction: column; gap: 4px; }
-.motion-load strong { font-size: 25px; font-weight: 550; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.motion-load strong { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .motion-load small { font-weight: 400; font-size: 13px; color: var(--motion-muted); margin-left: 5px; }
 .motion-load span { color: var(--motion-muted); font-size: 13px; }
 .motion-load.is-overloaded strong:first-child { color: var(--danger); }
@@ -64,8 +64,8 @@
 .motion-overload-note { color: var(--danger); font-size: 13px; margin-bottom: 12px; }
 .motion-planner-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .motion-date-tools, .motion-schedule-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.motion-date-input { display: flex; align-items: center; gap: 8px; padding: 8px 9px; color: var(--motion-muted); }
-.motion-date-input input { min-width: 0; width: 124px; background: transparent; color: var(--motion-ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+.motion-date-input { display: flex; align-items: center; gap: 8px; padding: 7px 10px; color: var(--motion-muted); }
+.motion-date-input input { min-width: 0; width: 120px; background: transparent; color: var(--motion-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
 .motion-today { background: var(--surface-card); border: 1px solid var(--motion-line); min-height: 36px; padding: 7px 15px; }
 .motion-today[aria-pressed="true"] { color: var(--motion-primary); border-color: var(--primary-line); background: var(--primary-soft); }
 .motion-interval-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--motion-muted); padding-left: 12px; }
@@ -89,10 +89,10 @@
 .motion-desktop-time-jump { min-height: 32px; padding: 6px 10px; font-size: 13px; }
 @media (max-width:767px) { .motion-desktop-time-jump { display: none; } }
 .motion-mobile-panes { display: none; }
-.motion-timeline-tasks { position: relative; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 12px; padding-right: 4px; }
+.motion-timeline-tasks { position: relative; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,280px),1fr)); gap: 10px; padding-right: 2px; }
 .motion-shell [data-timeline-time] { min-width: 0; }
 .motion-shell [data-timeline-time] > div:first-child > span { color: var(--motion-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-.motion-task { width: 100%; min-width: 0; border: 1px solid var(--line-soft); border-radius: var(--radius-xl); padding: 14px; background: var(--card); cursor: pointer; transition: background-color 160ms, border-color 160ms; }
+.motion-task { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-xl); padding: 13px 14px; background: var(--card); cursor: pointer; transition: background-color 160ms, border-color 160ms; }
 .motion-task:hover, .motion-task:focus-within { background: var(--surface-faint); border-color: var(--primary-line); }
 .motion-task-heading { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; }
 .motion-task-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 15px; line-height: 1.5; font-weight: 550; overflow-wrap: anywhere; }
@@ -186,10 +186,12 @@
 /* Keep existing modal layouts while sharing the calendar-inspired palette. */
 .motion-ui > button.bg-gray-900, .motion-ui [role="dialog"] button.bg-gray-900 { background-color: var(--motion-primary); }
 .motion-ui > button.bg-gray-900:hover, .motion-ui [role="dialog"] button.bg-gray-900:hover { background-color: var(--primary-hover); }
-.motion-ui .motion-priority-choice[aria-checked="true"] { color: var(--motion-ink); border-color: transparent; --tw-ring-color: var(--primary-line); }
-.motion-ui .motion-priority-choice.priority-P1[aria-checked="true"] { background: var(--motion-p1); }
-.motion-ui .motion-priority-choice.priority-P2[aria-checked="true"] { background: var(--motion-p2); color: var(--motion-ink); }
-.motion-ui .motion-priority-choice.priority-P3[aria-checked="true"] { background: var(--motion-p3); }
+/* Priority choices use PRIORITY_STYLES (soft tint + ink) directly. The old
+   override repainted the selected card with the solid data colour and put dark
+   ink on it, which fell below AA once the solids became saturated. */
+.motion-ui .motion-priority-choice.priority-P1[aria-checked="true"] { --tw-ring-color: var(--p1-line); }
+.motion-ui .motion-priority-choice.priority-P2[aria-checked="true"] { --tw-ring-color: var(--p2-line); }
+.motion-ui .motion-priority-choice.priority-P3[aria-checked="true"] { --tw-ring-color: var(--p3-line); }
 .motion-ui .motion-priority-choice[aria-checked="true"] > div { background: currentColor; }
 
 .motion-focus-panel.is-saved .motion-clock { height: 140px; margin-block: 20px; }

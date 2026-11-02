@@ -34,7 +34,7 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({ value, onChange }) 
             className={`motion-priority-choice priority-${priority} relative p-3 rounded-lg border text-sm font-medium transition-all ${
               isSelected
                 ? `${styles.bg} ${styles.border} ${styles.text} ring-1 ring-offset-1`
-                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                : 'bg-[var(--surface-card)] border-[var(--line-soft)] text-[var(--ink-soft)] hover:bg-[var(--surface-faint)]'
             }`}
           >
             {t(PRIORITY_BUTTON_KEYS[priority])}

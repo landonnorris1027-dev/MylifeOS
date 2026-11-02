@@ -31,7 +31,7 @@ const SETTINGS_SECTIONS = [
   ['#settings-planner', 'planner_settings_title'],
   ['#settings-data', 'data_management'],
 ] as const;
-const ROW_CLASS = 'rounded-xl border border-gray-100 bg-gray-50 px-4 py-3';
+const ROW_CLASS = 'rounded-xl border border-[var(--line-soft)] bg-[var(--surface-faint)] px-4 py-3';
 export default function PreferencesSettings({ focusSettings, profileSettings, desktopSettings, plannerSettings,
  handleFocusSettingsChange, handleProfileSettingsChange, handleDesktopSettingsChange, handlePlannerSettingsChange }: Props) {
  const { t } = useLanguage();
@@ -231,7 +231,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                 </div>
               </div>
 
-              <FieldSet className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+              <FieldSet className="rounded-xl border border-[var(--line-soft)] bg-[var(--surface-faint)] px-4 py-3">
                 <FieldLegend variant="row">
                   <Coffee size={16} />
                   {t('break_duration_setting')}
@@ -243,7 +243,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
                       type="button"
                       onClick={() => handleFocusSettingsChange({ breakDurationMinutes: minutes })}
                       aria-pressed={focusSettings.breakDurationMinutes === minutes}
-                      className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${focusSettings.breakDurationMinutes === minutes ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-100'}`}
+                      className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-colors ${focusSettings.breakDurationMinutes === minutes ? 'border-[var(--primary-line)] bg-[var(--primary-soft)] text-[var(--primary-ink)]' : 'border-[var(--line-soft)] bg-[var(--surface-card)] text-[var(--ink-soft)] hover:bg-[var(--surface-faint)]'}`}
                     >
                       {t('break_duration_option', { minutes })}
                     </button>
@@ -261,7 +261,7 @@ export default function PreferencesSettings({ focusSettings, profileSettings, de
               {(['daytime', 'fullDay'] as const).map((mode) => (
                 <button key={mode} type="button" onClick={() => handlePlannerSettingsChange({ timelineMode: mode })}
                   aria-pressed={plannerSettings.timelineMode === mode}
-                  className={`rounded-lg border p-2 text-sm ${plannerSettings.timelineMode === mode ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+                  className={`rounded-lg border p-2 text-sm transition-colors ${plannerSettings.timelineMode === mode ? 'border-[var(--primary-line)] bg-[var(--primary-soft)] text-[var(--primary-ink)]' : 'border-[var(--line-soft)] bg-[var(--surface-card)] text-[var(--ink-soft)] hover:bg-[var(--surface-faint)]'}`}>
                   {t(mode === 'daytime' ? 'timeline_mode_daytime' : 'timeline_mode_full_day')}
                 </button>
               ))}

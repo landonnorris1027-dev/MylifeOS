@@ -547,6 +547,11 @@ grid lines, pill-shaped marks and white floating tooltips.
 - Planner surface: the segmented control is now a grey track with a white
   selected plate. Completed task cards keep their priority hue as a 14% tint
   with a 3 px edge instead of a saturated block.
+- Whole-app pass: the top bar is 64 px, timeline rows are 48 px, settings and
+  habit choices use soft primary chips instead of black fills, the priority
+  selector no longer repaints its selected card with a solid data colour, the
+  schedule dialog uses semantic success/danger/primary tints, and dialogs share
+  the 24 px card corner.
 
 ### Verification
 

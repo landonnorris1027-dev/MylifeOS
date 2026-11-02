@@ -360,7 +360,7 @@
   --ui-z-alert: var(--z-alert);
   --ui-z-critical: var(--z-critical);
   --ui-shadow-dialog: var(--shadow-dialog);
-  --ui-radius-dialog: var(--radius-xl);
+  --ui-radius-dialog: var(--radius-2xl);
 }
 
 .ui-dialog-overlay {

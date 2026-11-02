@@ -62,34 +62,34 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
       ariaLabel={t('schedule_task')}
       bodyPadding="sm"
     >
-          <p className="text-sm text-gray-500 mb-4">
-            {t('select_time')} <span className="font-semibold text-gray-800">"{task.name}"</span>.
+          <p className="text-sm text-[var(--ink-soft)] mb-4">
+            {t('select_time')} <span className="font-semibold text-[var(--ink)]">"{task.name}"</span>.
           </p>
 
           <div className="mb-4 flex flex-wrap gap-3 text-xs">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-700 px-3 py-1.5 border border-emerald-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--success-line)] bg-[var(--success-soft)] px-3 py-1.5 text-[var(--success-ink)]">
               <CheckCircle2 size={14} />
               {t('schedule_slot_available')}
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 text-red-700 px-3 py-1.5 border border-red-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--danger-line)] bg-[var(--danger-soft)] px-3 py-1.5 text-[var(--danger-ink)]">
               <AlertCircle size={14} />
               {t('schedule_slot_conflict_hint')}
             </div>
             {hasPastSlots && (
-              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 text-gray-700 px-3 py-1.5 border border-gray-100">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--surface-faint)] px-3 py-1.5 text-[var(--ink-soft)]">
                 <Clock3 size={14} />
                 {t('schedule_slot_past_hint')}
               </div>
             )}
-            <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 text-gray-700 px-3 py-1.5 border border-gray-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--surface-faint)] px-3 py-1.5 text-[var(--ink-soft)]">
               <Clock3 size={14} />
               {t('schedule_slot_duration', { minutes: task.durationMinutes })}
             </div>
           </div>
 
           {recommendedSlots.length > 0 && (
-            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-900">
+            <div className="mb-4 rounded-xl border border-[var(--primary-line)] bg-[var(--primary-soft)] px-4 py-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--primary-ink)]">
                 <Sparkles size={15} />
                 {t('schedule_recommended_slots')}
               </div>
@@ -99,12 +99,12 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
                     key={slot.time}
                     type="button"
                     onClick={() => onConfirm(slot.time)}
-                    className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-left text-sm text-blue-900 shadow-sm transition-colors hover:bg-blue-100"
+                    className="rounded-lg border border-[var(--primary-line)] bg-[var(--surface-card)] px-3 py-2 text-left text-sm text-[var(--primary-ink)] transition-colors hover:bg-[var(--surface-tint)]"
                   >
                     <span className="block font-semibold">
                       {index === 0 ? t('schedule_best_slot') : t('schedule_alt_slot', { index: index + 1 })}
                     </span>
-                    <span className="block text-xs text-blue-700">{slot.time}</span>
+                    <span className="block text-xs text-[var(--primary)]">{slot.time}</span>
                   </button>
                 ))}
               </div>
@@ -115,12 +115,12 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
             <button
               type="button"
               onClick={() => onConfirm(firstAvailableSlot.time)}
-              className="mb-4 w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left text-sm text-blue-900 transition-colors hover:bg-blue-100"
+              className="mb-4 w-full rounded-xl border border-[var(--primary-line)] bg-[var(--primary-soft)] px-4 py-3 text-left text-sm text-[var(--primary-ink)] transition-colors hover:bg-[var(--surface-tint)]"
             >
               {t('schedule_slot_earliest')} <span className="font-semibold">{firstAvailableSlot.time}</span>
             </button>
           ) : (
-            <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="mb-4 rounded-xl border border-[var(--pnone-line)] bg-[var(--pnone-soft)] px-4 py-3 text-sm text-[var(--pnone-ink)]">
               {t('schedule_slot_none_available')}
             </div>
           )}
@@ -140,8 +140,8 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
                   className={[
                     'px-4 py-3 text-left rounded-xl border transition-colors',
                     slot.isAvailable
-                      ? 'border-emerald-100 bg-emerald-50/60 hover:bg-emerald-50 text-gray-800'
-                      : 'border-red-100 bg-red-50/60 text-gray-400 cursor-not-allowed',
+                      ? 'border-[var(--success-line)] bg-[var(--success-soft)] hover:bg-[var(--success-line)] text-[var(--ink)]'
+                      : 'border-[var(--danger-line)] bg-[var(--danger-soft)] text-[var(--ink-placeholder)] cursor-not-allowed',
                   ].join(' ')}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -157,7 +157,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
                             : t('schedule_slot_out_of_bounds')}
                       </div>
                     </div>
-                    <div className={`text-xs font-semibold px-2 py-1 rounded-full ${slot.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                    <div className={`text-xs font-semibold px-2 py-1 rounded-full ${slot.isAvailable ? 'bg-[var(--success-line)] text-[var(--success-ink)]' : 'bg-[var(--danger-line)] text-[var(--danger-ink)]'}`}>
                       {slot.isAvailable
                         ? t('schedule_slot_available')
                         : slot.isPast
@@ -166,7 +166,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ task: currentTask, da
                     </div>
                   </div>
                   {!slot.isAvailable && conflictLabel && (
-                    <div className="mt-2 text-xs text-red-700 truncate">
+                    <div className="mt-2 text-xs text-[var(--danger-ink)] truncate">
                       {conflictLabel}
                     </div>
                   )}
